@@ -23,10 +23,10 @@ export default function Home() {
   }
 
   const cards = [
-    { label: "Total de Pacientes", value: stats?.total || 0, icon: Users, color: "text-blue-400", bg: "bg-blue-400/10" },
+    { label: "Total de Contatos", value: stats?.total || 0, icon: Users, color: "text-blue-400", bg: "bg-blue-400/10" },
     { label: "Atendimentos via IA", value: stats?.aiAtivo || 0, icon: Bot, color: "text-emerald-400", bg: "bg-emerald-400/10" },
     { label: "Total de Mensagens", value: stats?.totalMensagens || 0, icon: MessageSquare, color: "text-purple-400", bg: "bg-purple-400/10" },
-    { label: "Pacientes Novos", value: stats?.novo || 0, icon: Activity, color: "text-rose-400", bg: "bg-rose-400/10" },
+    { label: "Novos Contatos", value: stats?.novo || 0, icon: Activity, color: "text-rose-400", bg: "bg-rose-400/10" },
   ];
 
   return (

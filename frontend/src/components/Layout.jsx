@@ -33,10 +33,10 @@ export default function Layout() {
         {/* Header / Logo */}
         <div className="p-6 border-b border-slate-700/50 flex items-center gap-4">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.3)]">
-            <span className="text-xl">🦷</span>
+            <span className="text-xl">⚡</span>
           </div>
           <div>
-            <h1 className="font-bold text-slate-100 tracking-tight leading-tight">{botEmoji} SofiaAI</h1>
+            <h1 className="font-bold text-slate-100 tracking-tight leading-tight">{botEmoji} {botName || "ZapAI"}</h1>
             <p className="text-xs text-cyan-400 font-medium">{clinica || user?.clinica || "Atendimento"}</p>
           </div>
         </div>

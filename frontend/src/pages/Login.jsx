@@ -42,9 +42,9 @@ export default function Login() {
         <div className="bg-slate-800/60 backdrop-blur-xl border border-slate-700 p-8 rounded-2xl shadow-2xl">
           <div className="text-center mb-8">
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-              <span className="text-3xl">🤖</span>
+              <span className="text-3xl">⚡</span>
             </div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">SofiaAI</h1>
+            <h1 className="text-2xl font-bold text-white tracking-tight">ZapAI</h1>
             <p className="text-slate-400 mt-1 text-sm">Acesse o painel de atendimento</p>
           </div>
 
