@@ -33,7 +33,7 @@ export default function Home() {
     <div className="p-8 h-full overflow-y-auto">
       <header className="mb-8 relative z-10">
         <h1 className="text-3xl font-bold text-white mb-2">Visão Geral</h1>
-        <p className="text-slate-400">Bem-vindo(a) ao painel da {stats?.clinica || "Clínica"}. Aqui está o resumo das operações.</p>
+        <p className="text-slate-400">Bem-vindo(a) ao painel {stats?.clinica ? `da ${stats.clinica}` : "do Sistema"}. Aqui está o resumo das operações.</p>
       </header>
 
       {/* Grid de Cards */}
