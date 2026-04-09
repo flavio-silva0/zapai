@@ -7,7 +7,7 @@ import { apiFetch } from "../api";
 
 export default function Layout() {
   const { user, tenant, logout } = useContext(AuthContext);
-  
+
   const isSuperAdmin = user?.role === "super_admin";
   const botName = isSuperAdmin ? "Usuário Administrador" : (tenant?.bot_name || "Assistente");
   const testarName = isSuperAdmin ? "IA" : botName;
@@ -19,15 +19,15 @@ export default function Layout() {
     apiFetch("/api/stats")
       .then((r) => r.json())
       .then((d) => setSofiaNumero(d.sofiaNumero ?? null))
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const NAV_ITEMS = [
-    { to: "/",       icon: LayoutDashboard, label: "Painel Geral" },
-    { to: "/chat",   icon: MessageSquare,   label: "Mensagens" },
-    { to: "/kanban", icon: KanbanSquare,    label: "Kanban" },
-    { to: "/test",   icon: FlaskConical,    label: `Testar ${testarName}` },
-    { to: "/perfil", icon: User,            label: "Meu Perfil" },
+    { to: "/", icon: LayoutDashboard, label: "Painel Geral" },
+    { to: "/chat", icon: MessageSquare, label: "Mensagens" },
+    { to: "/kanban", icon: KanbanSquare, label: "Kanban" },
+    { to: "/test", icon: FlaskConical, label: `Testar ${testarName}` },
+    { to: "/perfil", icon: User, label: "Meu Perfil" },
   ];
 
   return (
@@ -39,14 +39,15 @@ export default function Layout() {
         {/* Header / Logo */}
         <div className="p-6 border-b border-slate-700/50 flex flex-col md:flex-row items-start md:items-center gap-4">
           <div className="flex-shrink-0 flex items-center justify-center">
-            <img src="/logo.png" alt="ZapAI Logo" className="h-8 md:h-10 w-auto max-w-[140px] object-contain" onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
+            {/* O logo personalizado deve ser colocado em frontend/public/logo_full.png */}
+            <img src="/logo_full.png" alt="ZapAI Logo" className="h-8 md:h-10 w-auto max-w-[140px] object-contain" onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
             <div className="hidden w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.3)]">
               <span className="text-xl">⚡</span>
             </div>
           </div>
           <div>
-            <h1 className="font-bold text-slate-100 tracking-tight leading-tight">{botName}</h1>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Conexão e Segurança</p>
+            <h1 className="font-bold text-slate-100 tracking-tight leading-tight">{botName || "Assistente"}</h1>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Powered by ZapAI</p>
           </div>
         </div>
 
@@ -57,10 +58,9 @@ export default function Layout() {
               to={item.to}
               end={item.to === "/"}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all duration-200 ${
-                  isActive
-                    ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
-                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/30 border border-transparent"
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all duration-200 ${isActive
+                  ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/30 border border-transparent"
                 }`
               }
             >
@@ -75,10 +75,9 @@ export default function Layout() {
               <NavLink
                 to="/admin"
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all duration-200 ${
-                    isActive
-                      ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
-                      : "text-purple-400/70 hover:text-purple-400 hover:bg-purple-500/10 border border-transparent"
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all duration-200 ${isActive
+                    ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+                    : "text-purple-400/70 hover:text-purple-400 hover:bg-purple-500/10 border border-transparent"
                   }`
                 }
               >
