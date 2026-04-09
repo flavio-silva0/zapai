@@ -8,10 +8,10 @@ import { apiFetch } from "../api";
 export default function Layout() {
   const { user, tenant, logout } = useContext(AuthContext);
   
-  // Use tenant data instead of the legacy ConfigContext
-  const botName = tenant?.bot_name || "Assistente";
-  const botEmoji = tenant?.bot_emoji || "🤖";
-  const clinica = tenant?.nome || user?.nome || "Painel";
+  const isSuperAdmin = user?.role === "super_admin";
+  const botName = isSuperAdmin ? "Usuário Administrador" : (tenant?.bot_name || "Assistente");
+  const testarName = isSuperAdmin ? "IA" : botName;
+  const clinica = isSuperAdmin ? "Sistema Master" : (tenant?.nome || user?.nome || "Painel");
 
   const [sofiaNumero, setSofiaNumero] = useState(null);
 
@@ -26,7 +26,7 @@ export default function Layout() {
     { to: "/",       icon: LayoutDashboard, label: "Painel Geral" },
     { to: "/chat",   icon: MessageSquare,   label: "Mensagens" },
     { to: "/kanban", icon: KanbanSquare,    label: "Kanban" },
-    { to: "/test",   icon: FlaskConical,    label: `Testar ${botName}` },
+    { to: "/test",   icon: FlaskConical,    label: `Testar ${testarName}` },
     { to: "/perfil", icon: User,            label: "Meu Perfil" },
   ];
 
