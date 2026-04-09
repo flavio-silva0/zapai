@@ -199,4 +199,37 @@ router.get("/me", requireAuth, async (req, res) => {
   res.json({ user, tenant });
 });
 
+// ── PUT /api/auth/profile ─────────────────────────────────────
+router.put("/profile", requireAuth, async (req, res) => {
+  const { nome, email, tenant_nome, clinic_phone, bot_name } = req.body;
+
+  try {
+    // 1. Atualizar user
+    const { error: errUser } = await supabase
+      .from("users")
+      .update({ nome, email })
+      .eq("id", req.user.userId);
+
+    if (errUser) throw errUser;
+
+    // 2. Atualizar tenant (se não for admin global)
+    if (req.user.tenantId) {
+      const { error: errTenant } = await supabase
+        .from("tenants")
+        .update({
+          nome: tenant_nome,
+          clinic_phone: clinic_phone,
+          bot_name: bot_name
+        })
+        .eq("id", req.user.tenantId);
+
+      if (errTenant) throw errTenant;
+    }
+
+    res.json({ message: "Perfil atualizado com sucesso" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

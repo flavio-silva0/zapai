@@ -1,18 +1,92 @@
-import { useContext } from "react";
+import { useContext, useState, useEffect } from "react";
 import { AuthContext } from "../context/AuthContext";
-import { User, Building, Phone, CheckCircle } from "lucide-react";
+import { User, Building, Phone, CheckCircle, Edit2, Save, X } from "lucide-react";
+import { apiFetch } from "../api";
 
 export default function Profile() {
-  const { user, tenant } = useContext(AuthContext);
+  const { user, tenant, login } = useContext(AuthContext);
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [erro, setErro] = useState("");
+
+  const [formData, setFormData] = useState({
+    nome: "",
+    email: "",
+    tenant_nome: "",
+    clinic_phone: "",
+    bot_name: "",
+  });
+
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        nome: user.nome || "",
+        email: user.email || "",
+        tenant_nome: tenant?.nome || "",
+        clinic_phone: tenant?.clinic_phone || "",
+        bot_name: tenant?.bot_name || "",
+      });
+    }
+  }, [user, tenant, isEditing]);
 
   if (!user) return null;
 
+  const handleSave = async () => {
+    setSaving(true);
+    setErro("");
+    try {
+      const res = await apiFetch("/api/auth/profile", {
+        method: "PUT",
+        body: JSON.stringify(formData)
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Erro ao salvar");
+      }
+      
+      // Update local context
+      const updatedUser = { ...user, nome: formData.nome, email: formData.email };
+      const updatedTenant = tenant ? { ...tenant, nome: formData.tenant_nome, clinic_phone: formData.clinic_phone, bot_name: formData.bot_name } : null;
+      
+      const token = localStorage.getItem("sofia_token");
+      login(token, updatedUser, updatedTenant);
+      
+      setIsEditing(false);
+    } catch (err) {
+      setErro(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="p-8 h-full overflow-y-auto">
-      <header className="mb-8 relative z-10">
-        <h1 className="text-3xl font-bold text-white mb-2">Meu Perfil</h1>
-        <p className="text-slate-400">Suas informações de login e gerenciamento do negócio.</p>
+      <header className="mb-8 relative z-10 flex justify-between items-end">
+        <div>
+          <h1 className="text-3xl font-bold text-white mb-2">Meu Perfil</h1>
+          <p className="text-slate-400">Suas informações de login e gerenciamento do negócio.</p>
+        </div>
+        {!isEditing ? (
+          <button onClick={() => setIsEditing(true)} className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-2 rounded-lg border border-slate-700 font-medium transition-colors">
+            <Edit2 size={16} /> Editar Informações
+          </button>
+        ) : (
+          <div className="flex gap-3">
+            <button onClick={() => setIsEditing(false)} className="flex items-center gap-2 bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-lg border border-slate-700 font-medium transition-colors">
+              <X size={16} /> Cancelar
+            </button>
+            <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white px-5 py-2 rounded-lg font-medium shadow-lg shadow-cyan-500/20 transition-all disabled:opacity-50">
+              <Save size={16} /> {saving ? "Salvando..." : "Salvar"}
+            </button>
+          </div>
+        )}
       </header>
+
+      {erro && (
+        <div className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400">
+          Ocorreu um erro: {erro}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 relative z-10">
         {/* Card Usuário */}
@@ -25,17 +99,20 @@ export default function Profile() {
           </div>
           <div className="space-y-5 text-slate-300">
              <div>
-                <p className="text-sm text-slate-500 mb-1">Nome</p>
-                <div className="w-full bg-slate-900/50 border border-slate-700/50 rounded-xl px-4 py-3 text-slate-200">
-                  {user.nome}
-                </div>
+                <label className="block text-sm text-slate-500 mb-1">Nome</label>
+                {isEditing ? (
+                  <input type="text" className="w-full bg-slate-900 border border-cyan-500/50 rounded-xl px-4 py-2.5 text-white focus:outline-none" value={formData.nome} onChange={e => setFormData({...formData, nome: e.target.value})} />
+                ) : (
+                  <div className="w-full bg-slate-900/50 border border-slate-700/50 rounded-xl px-4 py-3 text-slate-200">{user.nome}</div>
+                )}
              </div>
              <div>
-                <p className="text-sm text-slate-500 mb-1">E-mail</p>
-                <div className="w-full bg-slate-900/50 border border-slate-700/50 rounded-xl px-4 py-3 text-slate-200 flex items-center justify-between">
-                  {user.email}
-                  <span className="text-xs text-slate-400 bg-slate-800 px-2 py-1 rounded">Verificado</span>
-                </div>
+                <label className="block text-sm text-slate-500 mb-1">E-mail</label>
+                {isEditing ? (
+                  <input type="email" className="w-full bg-slate-900 border border-cyan-500/50 rounded-xl px-4 py-2.5 text-white focus:outline-none" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
+                ) : (
+                  <div className="w-full bg-slate-900/50 border border-slate-700/50 rounded-xl px-4 py-3 text-slate-200 flex justify-between">{user.email} <span className="text-xs text-slate-400 bg-slate-800 px-2 py-1 rounded">Verificado</span></div>
+                )}
              </div>
              <div>
                 <p className="text-sm text-slate-500 mb-1">Nível de Acesso</p>
@@ -57,19 +134,31 @@ export default function Profile() {
             </div>
             <div className="space-y-5 text-slate-300 flex-1">
                <div>
-                  <p className="text-sm text-slate-500 mb-1">Empresa / Sistema</p>
-                  <p className="font-medium text-slate-100 text-lg">{tenant.nome}</p>
+                  <label className="block text-sm text-slate-500 mb-1">Empresa / Sistema</label>
+                  {isEditing ? (
+                    <input type="text" className="w-full bg-slate-900 border border-cyan-500/50 rounded-xl px-4 py-2.5 text-white focus:outline-none" value={formData.tenant_nome} onChange={e => setFormData({...formData, tenant_nome: e.target.value})} />
+                  ) : (
+                    <p className="font-medium text-slate-100 text-lg">{tenant.nome}</p>
+                  )}
                </div>
                <div className="grid grid-cols-2 gap-4">
                  <div className="bg-slate-900/40 p-4 rounded-xl border border-slate-700/30">
-                    <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Robô Atendente</p>
-                    <p className="font-medium text-slate-200 text-lg">{tenant.bot_emoji} {tenant.bot_name}</p>
+                    <label className="block text-xs text-slate-500 uppercase tracking-wider mb-2">Robô Atendente</label>
+                    {isEditing ? (
+                      <input type="text" className="w-full bg-slate-900 border border-cyan-500/50 rounded-lg px-3 py-2 text-white focus:outline-none text-sm" value={formData.bot_name} onChange={e => setFormData({...formData, bot_name: e.target.value})} />
+                    ) : (
+                      <p className="font-medium text-slate-200 text-lg">{tenant.bot_emoji} {tenant.bot_name}</p>
+                    )}
                  </div>
                  <div className="bg-slate-900/40 p-4 rounded-xl border border-slate-700/30">
-                    <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Telefone (Suporte)</p>
-                    <p className="font-medium text-slate-200 flex items-center gap-2">
-                       <Phone size={14} className="text-cyan-400"/> {tenant.clinic_phone || "Não informado"}
-                    </p>
+                    <label className="block text-xs text-slate-500 uppercase tracking-wider mb-2">Telefone (Suporte)</label>
+                    {isEditing ? (
+                      <input type="text" className="w-full bg-slate-900 border border-cyan-500/50 rounded-lg px-3 py-2 text-white focus:outline-none text-sm" value={formData.clinic_phone} onChange={e => setFormData({...formData, clinic_phone: e.target.value})} />
+                    ) : (
+                      <p className="font-medium text-slate-200 flex items-center gap-2">
+                         <Phone size={14} className="text-cyan-400"/> {tenant.clinic_phone || "N/A"}
+                      </p>
+                    )}
                  </div>
                </div>
                
