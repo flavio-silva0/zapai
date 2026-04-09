@@ -39,14 +39,13 @@ export default function Layout() {
         {/* Header / Logo */}
         <div className="p-6 border-b border-slate-700/50 flex flex-col md:flex-row items-start md:items-center gap-4">
           <div className="flex-shrink-0 flex items-center justify-center">
-            {/* O logo personalizado deve ser colocado em frontend/public/logo.png */}
-            <img src="/logo.png" alt="ZapAI Logo" className="h-8 md:h-10 w-auto max-w-[140px] object-contain" onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
+            <img src="/logo-full.png" alt="ZapAI Logo" className="h-8 md:h-10 w-auto max-w-[140px] object-contain" onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
             <div className="hidden w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.3)]">
               <span className="text-xl">⚡</span>
             </div>
           </div>
           <div>
-            <h1 className="font-bold text-slate-100 tracking-tight leading-tight">{botName || "Assistente"}</h1>
+            <h1 className="font-bold text-slate-100 tracking-tight leading-tight">{botName}</h1>
             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Powered by ZapAI</p>
           </div>
         </div>
