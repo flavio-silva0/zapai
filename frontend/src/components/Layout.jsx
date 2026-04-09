@@ -41,8 +41,8 @@ export default function Layout() {
             </div>
           </div>
           <div>
-            <h1 className="font-bold text-slate-100 tracking-tight leading-tight">ZapAI</h1>
-            <p className="text-xs text-cyan-400 font-medium">{clinica || user?.tenant?.nome || "Painel"}</p>
+            <h1 className="font-bold text-slate-100 tracking-tight leading-tight">{botName || "Assistente"}</h1>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Powered by ZapAI</p>
           </div>
         </div>
 
