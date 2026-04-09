@@ -175,6 +175,16 @@ app.get("/health", (_req, res) => {
 app.use("/api/auth", authRouter);
 app.use("/api/admin", adminRouter);
 
+// Rota legado /api/config para evitar 404 no frontend
+app.get("/api/config", (req, res) => {
+  res.json({
+    clinica: "ZapAI",
+    botName: "Sofia",
+    botEmoji: "🤖",
+    promptFile: "geral"
+  });
+});
+
 app.get("/api/stats", async (_req, res) => {
   const { data: patients = [] } = await supabase.from("users_whatsapp").select("status_kanban, is_ai_active");
   const { count: totalMensagens } = await supabase.from("messages").select("*", { count: "exact", head: true });
