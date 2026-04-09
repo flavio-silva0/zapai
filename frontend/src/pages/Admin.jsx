@@ -23,6 +23,7 @@ function TenantCard({ tenant, onUpdate }) {
     wa_access_token:  "",  // não exibimos o token salvo por segurança
     bot_name:         tenant.bot_name,
     clinic_phone:     tenant.clinic_phone ?? "",
+    prompt_text:      tenant.prompt_text ?? "",
   });
 
   const update = (f) => (e) => setForm((p) => ({ ...p, [f]: e.target.value }));
@@ -108,6 +109,13 @@ function TenantCard({ tenant, onUpdate }) {
                 <label className="text-xs text-slate-400 mb-1 block">Telefone de contato</label>
                 <input value={form.clinic_phone} onChange={update("clinic_phone")}
                   className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block">Prompt Personalizado da Inteligência (Regras, Tom de Voz, Preços)</label>
+                <textarea value={form.prompt_text} onChange={update("prompt_text")}
+                  rows="6"
+                  placeholder="Você é um assistente da clínica..."
+                  className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500 font-mono text-xs resize-y" />
               </div>
               <div className="flex gap-2">
                 <button onClick={salvar} disabled={saving}
