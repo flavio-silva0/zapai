@@ -13,6 +13,7 @@ import Chat from "./pages/Chat";
 import FullKanban from "./pages/FullKanban";
 import TestSofia from "./pages/TestSofia";
 import Admin from "./pages/Admin";
+import Profile from "./pages/Profile";
 
 // Rota exclusiva para super_admin
 function AdminRoute({ children }) {
@@ -47,6 +48,7 @@ export default function App() {
               <Route path="chat"  element={<Chat />} />
               <Route path="kanban" element={<FullKanban />} />
               <Route path="test"  element={<TestSofia />} />
+              <Route path="perfil" element={<Profile />} />
             </Route>
 
             {/* Fallback */}

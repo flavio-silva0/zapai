@@ -2,7 +2,7 @@ import { useContext, useState, useEffect } from "react";
 import { Outlet, NavLink } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { useConfig } from "../context/ConfigContext";
-import { LayoutDashboard, MessageSquare, KanbanSquare, LogOut, Smartphone, FlaskConical } from "lucide-react";
+import { LayoutDashboard, MessageSquare, KanbanSquare, LogOut, Smartphone, FlaskConical, User } from "lucide-react";
 import { apiFetch } from "../api";
 
 export default function Layout() {
@@ -22,6 +22,7 @@ export default function Layout() {
     { to: "/chat",   icon: MessageSquare,   label: "Mensagens" },
     { to: "/kanban", icon: KanbanSquare,    label: "Kanban" },
     { to: "/test",   icon: FlaskConical,    label: `Testar ${botName || "IA"}` },
+    { to: "/perfil", icon: User,            label: "Meu Perfil" },
   ];
 
   return (
