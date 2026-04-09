@@ -1,0 +1,20 @@
+# Dependências
+node_modules/
+
+# Sessão do WhatsApp Web (gerada em tempo de execução)
+.wwebjs_auth/
+.wwebjs_cache/
+
+# Variáveis de ambiente sensíveis
+.env
+frontend/.env.local
+frontend/.env.production
+
+# Logs (gerados pelo PM2)
+*.log
+npm-debug.log*
+logs/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
