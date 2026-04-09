@@ -14,6 +14,7 @@ import FullKanban from "./pages/FullKanban";
 import TestSofia from "./pages/TestSofia";
 import Admin from "./pages/Admin";
 import Profile from "./pages/Profile";
+import Privacy from "./pages/Privacy";
 
 // Rota exclusiva para super_admin
 function AdminRoute({ children }) {
@@ -32,6 +33,7 @@ export default function App() {
             {/* Rotas Pública */}
             <Route path="/login"    element={<Login />} />
             <Route path="/cadastro" element={<Register />} />
+            <Route path="/privacidade" element={<Privacy />} />
 
             {/* Admin — somente super_admin */}
             <Route path="/admin" element={
