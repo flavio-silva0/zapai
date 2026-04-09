@@ -1,130 +1,99 @@
-# 🦷 DentistAI — Sofia, Atendente Virtual da Clínica OdontoSorriso
+# 🤖 ZapAI (SaaS Multi-Tenant)
 
-> **MVP** de atendente virtual humanizada para clínicas odontológicas via **WhatsApp**, utilizando o **Google Gemini** como cérebro de IA.
+> **Plataforma de Atendimento Inteligente 24/7** via WhatsApp Cloud API (Oficial da Meta), gerenciada por um único painel e utilizando o **Google Gemini 2.5 Flash** como motor conversacional para múltiplos nichos.
+
+---
+
+## 🏗️ Arquitetura do Sistema
+
+O ZapAI (antes conhecido como DentistAI) evoluiu de um script único para uma plataforma **SaaS completa**.
+
+- **Frontend (Vercel):** Painel Administrativo em React/Vite para gestão de clientes, visualização do Kanban em tempo real, ativação/desativação da IA e faturamento.
+- **Backend (DigitalOcean):** API REST em Express.js, levíssima. Recebe Webhooks oficiais da Meta e gerencia os chats de forma escalável (sem precisar de Chromium/Puppeteer).
+- **Banco de Dados (Supabase):** PostgreSQL com Row Level Security (RLS). Mantém a gestão de `tenants` (contas dos clientes), separando rigorosamente leads, templates de IA e históricos por cada negócio.
 
 ---
 
 ## 📁 Estrutura do Projeto
 
 ```
-DentistAI/
-├── src/
-│   └── index.js        # Código principal do bot (Sofia)
-├── .env                # Variáveis de ambiente (NÃO commitar!)
-├── .env.example        # Modelo do .env para compartilhar
-├── .gitignore          # Ignora node_modules, .env e sessão do WhatsApp
-├── package.json        # Configuração do projeto e dependências
-└── README.md           # Este arquivo
+ZapAI/
+├── frontend/             # Código do Painel Web (React + Vite)
+│   ├── src/pages/        # Dashboard, Kanban, Login, Registro
+│   └── src/context/      # Contexto de Autenticação Multi-tenant
+├── prompts/              # Biblioteca de Prompts (Templates por Nicho)
+├── scripts/              # SQLs (Supabase)
+├── src/                  # Backend 
+│   ├── routes/           # Rotas /api/auth, /api/admin
+│   └── index.js          # Roteamento Webhook Meta e Integração Gemini
+└── .env                  # Variáveis de ambiente
 ```
 
 ---
 
-## ⚙️ Pré-requisitos
+## ⚙️ Pré-requisitos & Deploy
 
-- **Node.js** v18 ou superior → [nodejs.org](https://nodejs.org)
-- **Google Chrome** (ou Chromium) instalado na máquina (usado internamente pelo `whatsapp-web.js` via Puppeteer)
-- Uma conta no **Google AI Studio** para obter sua chave de API do Gemini
+### Para rodar o Backend (A "Inteligência"):
+1. **Supabase:** Projeto criado, tabelas e políticas RLS executadas pelo arquivo `scripts/migration-multitenant.sql`.
+2. **Meta for Developers:** App WhatsApp API Oficial. É gerado um *Phone Number ID* e um *Access Token*.
+3. **DigitalOcean (App Platform):** Recomendado para rodar a API Node.js.
+
+### Para o Frontend (O Painel):
+1. **Vercel:** Conecte este GitHub à Vercel apontando para a pasta `frontend`. Crie suas variáveis e lance a aplicação!
 
 ---
 
-## 🚀 Como Rodar o Projeto
+## 🚀 Como Configurar em Produção
 
-### 1. Instalar as dependências
-
-```bash
-npm install
-```
-
-### 2. Configurar o arquivo `.env`
-
-Abra o arquivo `.env` e preencha com seus dados reais:
+Após hospedar o Front (Vercel) e o Back (DigitalOcean), preencha o arquivo `.env` (ou Environment Variables na hospedagem):
 
 ```env
-# Chave da API do Gemini (obtenha em https://aistudio.google.com/app/apikey)
-GEMINI_API_KEY=sua_chave_real_aqui
+# Chaves 
+GEMINI_API_KEY=sua_chave_google
+SUPABASE_URL=sua_url_supabase
+SUPABASE_SERVICE_KEY=sua_service_role_key
 
-# Seu número de WhatsApp no formato: 55 + DDD + Número + @c.us
-# Exemplo para (11) 98765-4321 → 5511987654321@c.us
-NUMERO_TESTE=5511987654321@c.us
+# Autenticação e Segurança
+JWT_SECRET=super_secret_gerado
+ADMIN_EMAIL=seu@email.com
+ADMIN_PASSWORD=senha_segura
+ADMIN_NOME=Seu Nome
 
-# Limite de mensagens no histórico (padrão: 10 pares)
-HISTORICO_LIMITE=10
+# Webhook do WhatsApp API
+META_VERIFY_TOKEN=sofia123
 ```
 
-> ⚠️ **Como descobrir seu `NUMERO_TESTE` exato?**  
-> Preencha com seu número no formato acima. Se não funcionar, rode o bot uma vez e envie uma mensagem. O console vai exibir o `msg.from` exato — copie e cole no `.env`.
+### Webhook da Meta
+Na plataforma Meta for Developers, configure o Webhook do WhatsApp usando:
+- **Callback URL:** `https://seu-backend-digitalocean.com/webhook/whatsapp`
+- **Verify Token:** `sofia123` (ou o que definiu no seu .env)
+- Inscreva para o campo: `messages`.
 
-### 3. Iniciar o bot
+Para iniciar o primeiro admin:
+Faça um `POST` para `/api/admin/seed` na sua raiz da API. Depois, vá até o Frontend para testar e cadastrar os Tenants!
 
-```bash
-npm start
+---
+
+## 🧠 Fluxo Múltiplos Inquilinos (Tenants)
+
 ```
-
-Ou em modo de desenvolvimento (reinicia automaticamente ao salvar):
-
-```bash
-npm run dev
+Lead (WhatsApp) → Meta API → Webhook do ZapAI (/webhook/whatsapp)
+                                    │
+                                    ├── 1. Lê `phone_number_id` e descobre o Tenant.
+                                    ├── 2. Lê Prompt Dinâmico do Tenant no Banco.
+                                    ├── 3. Salva Lead no Banco do Tenant Específico.
+                                    ├── 4. Puxa histórico + Gera Resposta no Gemini.
+                                    └── 5. Responde o Lead (Graph API Facebook).
 ```
-
-### 4. Escanear o QR Code
-
-- Um QR Code será exibido no terminal.
-- Abra o WhatsApp no seu celular → **"Aparelhos Conectados"** → **"Conectar aparelho"**.
-- Escaneie o QR Code.
-- O console exibirá: `✅ DentistAI — Sofia está online!`
-
-### 5. Testar
-
-Envie uma mensagem de texto do número configurado em `NUMERO_TESTE` para o mesmo número (você mesmo, via WhatsApp Web ou outro celular) e a Sofia responderá!
 
 ---
 
 ## 🔒 Segurança
 
-- O bot **só responde** ao número definido em `NUMERO_TESTE`. Qualquer outra mensagem é completamente ignorada.
-- A sessão autenticada é salva localmente em `.wwebjs_auth/` — **não commite essa pasta**.
-- Nunca compartilhe seu `.env` ou sua `GEMINI_API_KEY`.
+- **Isolamento de Dados:** Cada requisição web no painel envia no Headers o `tenant_id` garantido por um JSON Web Token criptografado. O painel só enxerga pacientes e mensagens relativas ao seu token.
+- **Controle de Sessão Super Admin:** O painel exibe e gerencia múltiplos clientes num "Modo Admin Master" se a conta possuir a Role de `super_admin`.
+- **API Externa:** Todo o tráfego HTTP ocorre com Criptografia, e o webhook checa pelo Validation Hub da Meta.
 
 ---
 
-## 🧠 Como Funciona
-
-```
-Usuário (WhatsApp)
-       │
-       ▼
-  whatsapp-web.js  ← Recebe a mensagem
-       │
-       ▼
-  Filtro de Número  ← Ignora se não for NUMERO_TESTE
-       │
-       ▼
-  Map de Histórico  ← Busca/cria contexto do usuário
-       │
-       ▼
-  Google Gemini API ← Envia histórico + mensagem atual
-       │
-       ▼
-  Resposta da Sofia ← Salva no histórico + envia ao usuário
-```
-
----
-
-## 📦 Dependências
-
-| Pacote | Finalidade |
-|---|---|
-| `whatsapp-web.js` | Conexão com WhatsApp via WhatsApp Web (Puppeteer) |
-| `qrcode-terminal` | Exibe o QR Code de autenticação no console |
-| `@google/generative-ai` | SDK oficial do Google Gemini |
-| `dotenv` | Carrega variáveis do arquivo `.env` |
-
----
-
-## 🛠️ Próximos Passos (Roadmap MVP+)
-
-- [ ] Persistência do histórico em banco de dados (SQLite ou Redis)
-- [ ] Agendamento de consultas integrado a Google Calendar
-- [ ] Dashboard web para monitorar conversas
-- [ ] Suporte a múltiplos números (remover filtro de teste)
-- [ ] Deploy em servidor (VPS ou Railway)
+> Desenvolvido para escalar fácil, responder instantaneamente e dar controle 100% autônomo nas mãos dos seus vários clientes!
