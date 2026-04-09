@@ -30,10 +30,6 @@ export default function Layout() {
     { to: "/perfil", icon: User, label: "Meu Perfil" },
   ];
 
-  if (isSuperAdmin) {
-    NAV_ITEMS.push({ to: "/admin", icon: ShieldAlert, label: "Painel Admin" });
-  }
-
   return (
     <div className="flex h-screen overflow-hidden bg-slate-900 text-slate-200">
 
@@ -85,8 +81,8 @@ export default function Layout() {
                   }`
                 }
               >
-                <LayoutDashboard size={18} />
-                Painel Master
+                <ShieldAlert size={18} />
+                Painel Admin
               </NavLink>
             </>
           )}
