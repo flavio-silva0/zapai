@@ -2,7 +2,7 @@ import { useContext, useState, useEffect } from "react";
 import { Outlet, NavLink } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { useConfig } from "../context/ConfigContext";
-import { LayoutDashboard, MessageSquare, KanbanSquare, LogOut, Smartphone, FlaskConical, User } from "lucide-react";
+import { LayoutDashboard, MessageSquare, KanbanSquare, LogOut, Smartphone, FlaskConical, User, ShieldAlert } from "lucide-react";
 import { apiFetch } from "../api";
 
 export default function Layout() {
@@ -29,6 +29,10 @@ export default function Layout() {
     { to: "/test", icon: FlaskConical, label: `Testar ${testarName}` },
     { to: "/perfil", icon: User, label: "Meu Perfil" },
   ];
+
+  if (isSuperAdmin) {
+    NAV_ITEMS.push({ to: "/admin", icon: ShieldAlert, label: "Painel Admin" });
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-900 text-slate-200">
