@@ -41,7 +41,6 @@ export default function Layout() {
           </div>
         </div>
 
-        {/* Menu de Navegação */}
         <nav className="flex-1 px-4 py-6 space-y-1">
           {NAV_ITEMS.map((item) => (
             <NavLink
@@ -60,6 +59,25 @@ export default function Layout() {
               {item.label}
             </NavLink>
           ))}
+
+          {user?.role === "super_admin" && (
+            <>
+              <div className="pt-4 pb-1"><div className="border-t border-slate-700/50"></div></div>
+              <NavLink
+                to="/admin"
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all duration-200 ${
+                    isActive
+                      ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
+                      : "text-purple-400/70 hover:text-purple-400 hover:bg-purple-500/10 border border-transparent"
+                  }`
+                }
+              >
+                <LayoutDashboard size={18} />
+                Painel Master
+              </NavLink>
+            </>
+          )}
         </nav>
 
         {/* Footer */}
