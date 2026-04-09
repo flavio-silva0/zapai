@@ -37,10 +37,10 @@ export default function Layout() {
       <aside className="w-64 min-w-[256px] border-r border-slate-700/50 bg-slate-800/40 backdrop-blur-xl flex flex-col relative z-10">
 
         {/* Header / Logo */}
-        <div className="p-6 border-b border-slate-700/50 flex items-center gap-4">
-          <div className="flex-shrink-0">
+        <div className="p-6 border-b border-slate-700/50 flex flex-col md:flex-row items-start md:items-center gap-4">
+          <div className="flex-shrink-0 flex items-center justify-center">
             {/* O logo personalizado deve ser colocado em frontend/public/logo.png */}
-            <img src="/logo.png" alt="ZapAI Logo" className="w-10 h-10 object-contain rounded-lg" onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
+            <img src="/logo.png" alt="ZapAI Logo" className="h-8 md:h-10 w-auto max-w-[140px] object-contain" onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
             <div className="hidden w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.3)]">
               <span className="text-xl">⚡</span>
             </div>

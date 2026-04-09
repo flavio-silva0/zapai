@@ -144,21 +144,13 @@ export default function Profile() {
                <div className="grid grid-cols-2 gap-4">
                  <div className="bg-slate-900/40 p-4 rounded-xl border border-slate-700/30">
                     <label className="block text-xs text-slate-500 uppercase tracking-wider mb-2">Robô Atendente</label>
-                    {isEditing ? (
-                      <input type="text" className="w-full bg-slate-900 border border-cyan-500/50 rounded-lg px-3 py-2 text-white focus:outline-none text-sm" value={formData.bot_name} onChange={e => setFormData({...formData, bot_name: e.target.value})} />
-                    ) : (
-                      <p className="font-medium text-slate-200 text-lg">{tenant.bot_emoji} {tenant.bot_name}</p>
-                    )}
+                    <p className="font-medium text-slate-200 text-lg">{tenant.bot_emoji} {tenant.bot_name}</p>
                  </div>
                  <div className="bg-slate-900/40 p-4 rounded-xl border border-slate-700/30">
                     <label className="block text-xs text-slate-500 uppercase tracking-wider mb-2">Telefone (Suporte)</label>
-                    {isEditing ? (
-                      <input type="text" className="w-full bg-slate-900 border border-cyan-500/50 rounded-lg px-3 py-2 text-white focus:outline-none text-sm" value={formData.clinic_phone} onChange={e => setFormData({...formData, clinic_phone: e.target.value})} />
-                    ) : (
-                      <p className="font-medium text-slate-200 flex items-center gap-2">
-                         <Phone size={14} className="text-cyan-400"/> {tenant.clinic_phone || "N/A"}
-                      </p>
-                    )}
+                    <p className="font-medium text-slate-200 flex items-center gap-2">
+                       <Phone size={14} className="text-cyan-400"/> {tenant.clinic_phone || "N/A"}
+                    </p>
                  </div>
                </div>
                
