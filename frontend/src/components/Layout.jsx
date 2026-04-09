@@ -21,7 +21,7 @@ export default function Layout() {
     { to: "/",       icon: LayoutDashboard, label: "Painel Geral" },
     { to: "/chat",   icon: MessageSquare,   label: "Mensagens" },
     { to: "/kanban", icon: KanbanSquare,    label: "Kanban" },
-    { to: "/test",   icon: FlaskConical,    label: `Testar ${botName}` },
+    { to: "/test",   icon: FlaskConical,    label: `Testar ${botName || "IA"}` },
   ];
 
   return (
@@ -32,12 +32,16 @@ export default function Layout() {
 
         {/* Header / Logo */}
         <div className="p-6 border-b border-slate-700/50 flex items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.3)]">
-            <span className="text-xl">⚡</span>
+          <div className="flex-shrink-0">
+            {/* O logo personalizado deve ser colocado em frontend/public/logo.png */}
+            <img src="/logo.png" alt="ZapAI Logo" className="w-10 h-10 object-contain rounded-lg" onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
+            <div className="hidden w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.3)]">
+              <span className="text-xl">⚡</span>
+            </div>
           </div>
           <div>
-            <h1 className="font-bold text-slate-100 tracking-tight leading-tight">{botEmoji} {botName || "ZapAI"}</h1>
-            <p className="text-xs text-cyan-400 font-medium">{clinica || user?.clinica || "Atendimento"}</p>
+            <h1 className="font-bold text-slate-100 tracking-tight leading-tight">ZapAI</h1>
+            <p className="text-xs text-cyan-400 font-medium">{clinica || user?.tenant?.nome || "Painel"}</p>
           </div>
         </div>
 
