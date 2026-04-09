@@ -23,7 +23,7 @@ export function apiUrl(path) {
  * @param {RequestInit} options - Opções do fetch (method, body, etc.)
  */
 export async function apiFetch(path, options = {}) {
-  const token = localStorage.getItem("dentistai_token");
+  const token = localStorage.getItem("sofia_token");
 
   const headers = {
     "Content-Type": "application/json",
