@@ -39,8 +39,8 @@ export default function Layout() {
         {/* Header / Logo */}
         <div className="p-6 border-b border-slate-700/50 flex flex-col md:flex-row items-start md:items-center gap-4">
           <div className="flex-shrink-0 flex items-center justify-center">
-            {/* O logo icon deve ser colocado em frontend/public/logo_icon.png */}
-            <img src="/logo_icon.png" alt="ZapAI Icon" className="h-8 md:h-10 w-auto max-w-[140px] object-contain rounded-lg" onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
+            {/* O logo icon deve ser colocado em frontend/public/logo_icon_dark.png */}
+            <img src="/logo_icon_dark.png" alt="ZapAI Icon" className="h-10 md:h-12 w-auto max-w-[140px] object-contain mix-blend-screen drop-shadow-md" onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
             <div className="hidden w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.3)]">
               <span className="text-xl">⚡</span>
             </div>
@@ -113,8 +113,8 @@ export default function Layout() {
       {/* ── Área Principal ───────────────────────────────────────── */}
       <main className="flex-1 flex flex-col overflow-hidden bg-slate-900 relative">
         <div className="absolute top-[-20%] right-[-10%] w-[50%] h-[50%] bg-blue-600/10 blur-[120px] rounded-full pointer-events-none" />
-        <div className="absolute top-8 right-8 z-50 pointer-events-none opacity-80 backdrop-blur-sm rounded-lg">
-           <img src="/logo_full.png" alt="ZapAI Watermark" className="h-6 object-contain mix-blend-screen" />
+        <div className="absolute top-6 right-8 z-50 pointer-events-none opacity-90 mix-blend-screen flex justify-end">
+           <img src="/logo_full_dark.png" alt="ZapAI Watermark" className="h-16 md:h-24 lg:h-32 w-auto object-contain drop-shadow-2xl" />
         </div>
         <Outlet />
       </main>
