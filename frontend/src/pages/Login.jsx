@@ -42,7 +42,7 @@ export default function Login() {
         <div className="bg-slate-800/60 backdrop-blur-xl border border-slate-700 p-8 rounded-2xl shadow-2xl">
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
-              <img src="/logo_icon_dark.png" alt="ZapAI Logo" className="h-24 w-auto object-contain mix-blend-screen drop-shadow-2xl" onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
+              <img src="/logo_icon_trans.png" alt="ZapAI Logo" className="h-24 w-auto object-contain drop-shadow-2xl" onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
               <div className="hidden w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-600 items-center justify-center shadow-lg shadow-cyan-500/20">
                 <span className="text-3xl">⚡</span>
               </div>
