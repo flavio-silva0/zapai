@@ -188,6 +188,11 @@ app.get("/api/config", (req, res) => {
 app.get("/api/stats", async (_req, res) => {
   const { data: patients = [] } = await supabase.from("users_whatsapp").select("status_kanban, is_ai_active");
   const { count: totalMensagens } = await supabase.from("messages").select("*", { count: "exact", head: true });
+  
+  // Busca o número ativo conectado na API Meta para mostrar na sidebar
+  const { data: tenantInfo } = await supabase.from("tenants").select("clinic_phone").not("clinic_phone", "is", null).limit(1).maybeSingle();
+  const numeroConectado = tenantInfo?.clinic_phone || "Cloud API";
+
   res.json({
     total: patients.length,
     novo: patients.filter((p) => p.status_kanban === "Novo").length,
@@ -197,7 +202,7 @@ app.get("/api/stats", async (_req, res) => {
     aiPausado: patients.filter((p) => !p.is_ai_active).length,
     totalMensagens: totalMensagens ?? 0,
     whatsappStatus: "api_meta",
-    sofiaNumero: "Cloud API",
+    sofiaNumero: numeroConectado,
   });
 });
 
