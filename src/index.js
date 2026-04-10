@@ -30,7 +30,7 @@ const HISTORICO_LIMITE = parseInt(process.env.HISTORICO_LIMITE ?? "10", 10);
 const TIMEOUT_GEMINI_MS = parseInt(process.env.TIMEOUT_GEMINI_MS ?? "25000", 10);
 const DELAY_MINIMO_MS = parseInt(process.env.DELAY_MINIMO_MS ?? "3000", 10);
 const MS_POR_PALAVRA = parseInt(process.env.MS_POR_PALAVRA ?? "80", 10);
-const DELAY_MAXIMO_MS = parseInt(process.env.DELAY_MAXIMO_MS ?? "8000", 10);
+const DELAY_MAXIMO_MS = parseInt(process.env.DELAY_MAXIMO_MS ?? "7500", 10);
 
 // ── 2. VALIDAÇÕES NA INICIALIZAÇÃO ───────────────────────────
 const erros = [];
@@ -330,7 +330,7 @@ async function baixarMidiaMeta(mediaId, tenant) {
 // ── 9. WEBHOOKS DA META ───────────────────────────────────────
 const debounceTimers = new Map();
 const userPayloadBuffers = new Map();
-const DEBOUNCE_MS = 8000;
+const DEBOUNCE_MS = 7500;
 
 // Validação
 app.get("/webhook/whatsapp", (req, res) => {
