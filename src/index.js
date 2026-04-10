@@ -119,29 +119,35 @@ function ehErroSobrecarga(err) {
   return msg.includes("503") || msg.includes("Service Unavailable") || msg.includes("overloaded");
 }
 
-async function chamarModelo(modelo, historico, textoInput) {
+async function chamarModelo(modelo, historico, arrayMultiModal) {
   const chat = modelo.startChat({
     history: historico,
     generationConfig: { maxOutputTokens: 800, temperature: 0.85 },
   });
-  const resultado = await comTimeout(chat.sendMessage([{ text: textoInput }]), TIMEOUT_GEMINI_MS);
+  const resultado = await comTimeout(chat.sendMessage(arrayMultiModal), TIMEOUT_GEMINI_MS);
   return resultado.response.text();
 }
 
-async function consultarGeminiDinamicamente(historico, mensagemAtual, tenant) {
+async function consultarGeminiDinamicamente(historico, payloadObject, tenant) {
   const prompt = tenant.prompt_text || "Você é a Sofia, uma assistente prestativa.";
   const modeloPrincipal = genAI.getGenerativeModel({ model: "gemini-2.5-flash", systemInstruction: prompt });
   const modeloFallback  = genAI.getGenerativeModel({ model: "gemini-2.0-flash", systemInstruction: prompt });
 
+  const arrayMultiModal = [];
+  if (payloadObject.inlineData) {
+    arrayMultiModal.push({ inlineData: payloadObject.inlineData });
+  }
+  arrayMultiModal.push({ text: payloadObject.textoUsuario });
+
   for (let tentativa = 1; tentativa <= MAX_TENTATIVAS_GEMINI; tentativa++) {
     try {
-      return await chamarModelo(modeloPrincipal, historico, mensagemAtual);
+      return await chamarModelo(modeloPrincipal, historico, arrayMultiModal);
     } catch (err) {
       if (ehErroSobrecarga(err) && tentativa < MAX_TENTATIVAS_GEMINI) {
         await sleep(BACKOFF_BASE_MS * Math.pow(2, tentativa - 1));
       } else if (ehErroSobrecarga(err)) {
         console.warn(`[GEMINI] Fallback gemini-2.0-flash acionado para ${tenant.nome}.`);
-        return await chamarModelo(modeloFallback, historico, mensagemAtual);
+        return await chamarModelo(modeloFallback, historico, arrayMultiModal);
       } else {
         throw err;
       }
@@ -287,6 +293,30 @@ app.post("/api/patients/:id/send", async (req, res) => {
   }
 });
 
+// ── 8.5 DOWNLOAD DE MÍDIA DA META ─────────────────────────────
+async function baixarMidiaMeta(mediaId, tenant) {
+  try {
+    const { data: info } = await axios.get(`https://graph.facebook.com/v20.0/${mediaId}`, {
+      headers: { Authorization: `Bearer ${tenant.wa_access_token}` }
+    });
+    
+    if (!info.url) return null;
+    
+    const { data: buffer } = await axios.get(info.url, {
+      headers: { Authorization: `Bearer ${tenant.wa_access_token}` },
+      responseType: 'arraybuffer'
+    });
+    
+    return {
+      mimeType: info.mime_type,
+      data: Buffer.from(buffer).toString('base64')
+    };
+  } catch (error) {
+    console.error(`❌ [META API] Erro ao baixar mídia ${mediaId}:`, error.message);
+    return null;
+  }
+}
+
 // ── 9. WEBHOOKS DA META ───────────────────────────────────────
 
 // Validação
@@ -334,7 +364,29 @@ app.post("/webhook/whatsapp", async (req, res) => {
     const paramMsg = change.messages[0];
     const telefoneUsuario = paramMsg.from;
     const nomeContato = change.contacts?.[0]?.profile?.name || "Contato";
-    const textoUsuario = paramMsg.type === "text" ? paramMsg.text.body : `[${paramMsg.type}]`;
+    
+    let textoLogSupabase = "[Formato não suportado]";
+    let textoParaGemini = "";
+    let inlineData = null;
+
+    if (paramMsg.type === "text") {
+      textoLogSupabase = paramMsg.text.body;
+      textoParaGemini = textoLogSupabase;
+    } else if (paramMsg.type === "audio") {
+      textoLogSupabase = "[Áudio]";
+      textoParaGemini = "O usuário te enviou este áudio. Transcreva ou ouça-o com atenção e responda de forma natural, sem dizer explicitamente que está lendo um áudio, apenas aja como uma pessoa normal conversando.";
+      const media = await baixarMidiaMeta(paramMsg.audio.id, tenant);
+      if (media) inlineData = media;
+    } else if (paramMsg.type === "image") {
+      const caption = paramMsg.image.caption ? ` Legenda do usuário: "${paramMsg.image.caption}"` : "";
+      textoLogSupabase = `[Imagem]${caption}`;
+      textoParaGemini = `O usuário te enviou esta imagem.${caption} Responda ou atenda ao pedido dele baseando-se com riqueza de detalhes no que você vê na imagem.`;
+      const media = await baixarMidiaMeta(paramMsg.image.id, tenant);
+      if (media) inlineData = media;
+    } else {
+      textoLogSupabase = `[${paramMsg.type}]`;
+      textoParaGemini = `O usuário enviou um formato (${paramMsg.type}) que você não suporta ler no momento. Diga educadamente que só consegue entender textos, imagens e áudios.`;
+    }
 
     const patient = await getOrCreatePatient(telefoneUsuario, nomeContato, tenant.id);
     
@@ -344,17 +396,22 @@ app.post("/webhook/whatsapp", async (req, res) => {
       patient.nome = nomeContato;
     }
 
-    const msgUser = await saveMessage(patient.id, textoUsuario, "user", tenant.id);
+    const msgUser = await saveMessage(patient.id, textoLogSupabase, "user", tenant.id);
     emitirEvento("new_message", msgUser);
 
     if (!patient.is_ai_active) return;
+    
+    // Se era um áudio/imagem mas o download falhou, avisar a IA
+    if ((paramMsg.type === "audio" || paramMsg.type === "image") && !inlineData) {
+       textoParaGemini = "O usuário enviou um arquivo de mídia, mas ocorreu um erro técnico ao baixar. Peça educadamente para ele digitar por texto.";
+    }
 
     const inicioMs = Date.now();
     const historico = await getHistoricoGemini(patient.id);
     let respostaSofia;
 
     try {
-      respostaSofia = await consultarGeminiDinamicamente(historico, textoUsuario, tenant);
+      respostaSofia = await consultarGeminiDinamicamente(historico, { textoUsuario: textoParaGemini, inlineData }, tenant);
     } catch (e) {
       console.error(`❌ [GEMINI ERROR] Falha ao processar IA. Abortando silenciosamente para não quebrar o personagem: ${e.message}`);
       return; // Encerra o processamento sem enviar a mensagem robótica
