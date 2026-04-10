@@ -15,7 +15,7 @@ const cors = require("cors");
 const path = require("path");
 
 // Rotas multi-tenant (Fase 1)
-const authRouter  = require("./routes/auth");
+const authRouter = require("./routes/auth");
 const adminRouter = require("./routes/admin");
 
 // ── 1. VARIÁVEIS DE AMBIENTE ─────────────────────────────────
@@ -71,7 +71,7 @@ async function getOrCreatePatient(telefone, nome = "Contato", tenantId = null) {
   // No momento, pacientes são ligados a um telefone.
   const query = supabase.from("users_whatsapp").select("*").eq("telefone", telefone);
   if (tenantId) query.eq("tenant_id", tenantId);
-  
+
   const { data } = await query.maybeSingle();
   if (data) return data;
 
@@ -135,15 +135,9 @@ async function chamarModelo(modelo, historico, arrayMultiModal) {
 }
 
 async function consultarGeminiDinamicamente(historico, payloadObject, tenant) {
-  let prompt = tenant.prompt_text || "Você é a Sofia, uma assistente prestativa.";
-  
-  // Reforço de nicho para evitar confusão com histórico antigo
-  if (tenant.nicho) {
-    prompt += `\n\n[IMPORTANTE: O seu contexto de negócio ATUAL é "${tenant.nicho}". Qualquer mensagem no histórico que fale sobre outros assuntos ou outros tipos de empresa deve ser ignorada. Se o usuário tentar voltar a um assunto de outro nicho, mude de assunto educadamente para focar em ${tenant.nicho}.]`;
-  }
-
+  const prompt = tenant.prompt_text || "Você é a Sofia, uma assistente prestativa.";
   const modeloPrincipal = genAI.getGenerativeModel({ model: "gemini-2.5-flash", systemInstruction: prompt });
-  const modeloFallback  = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite", systemInstruction: prompt });
+  const modeloFallback = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite", systemInstruction: prompt });
 
   const arrayMultiModal = [];
   if (payloadObject.inlineDatas && Array.isArray(payloadObject.inlineDatas)) {
@@ -210,7 +204,7 @@ app.get("/api/config", (req, res) => {
 app.get("/api/stats", async (_req, res) => {
   const { data: patients = [] } = await supabase.from("users_whatsapp").select("status_kanban, is_ai_active");
   const { count: totalMensagens } = await supabase.from("messages").select("*", { count: "exact", head: true });
-  
+
   // Busca o número ativo conectado na API Meta para mostrar na sidebar
   const { data: tenantInfo } = await supabase.from("tenants").select("clinic_phone").not("clinic_phone", "is", null).limit(1).maybeSingle();
   const numeroConectado = tenantInfo?.clinic_phone || "Cloud API";
@@ -291,7 +285,7 @@ async function enviarMensagemMeta(telefoneDestino, texto, tenant) {
 app.post("/api/patients/:id/send", async (req, res) => {
   const { texto } = req.body;
   if (!texto?.trim()) return res.status(400).json({ error: "texto obrigatório" });
-  
+
   const { data: patient, error: pErr } = await supabase
     .from("users_whatsapp")
     .select("*, tenants(id, phone_number_id, wa_access_token)")
@@ -312,23 +306,41 @@ app.post("/api/patients/:id/send", async (req, res) => {
 // ── 8.5 DOWNLOAD DE MÍDIA DA META ─────────────────────────────
 async function baixarMidiaMeta(mediaId, tenant) {
   try {
+    // 1. Obtém o link temporário e tamanho do arquivo
     const { data: info } = await axios.get(`https://graph.facebook.com/v20.0/${mediaId}`, {
-      headers: { Authorization: `Bearer ${tenant.wa_access_token}` }
+      headers: { Authorization: `Bearer ${tenant.wa_access_token}` },
+      timeout: 25000
     });
-    
-    if (!info.url) return null;
-    
+
+    if (!info.url) {
+      console.warn(`⚠️ [META API] Link de mídia não encontrado para ID: ${mediaId}`);
+      return null;
+    }
+
+    // Calcula timeout dinâmico: mínimo 45s, ou proporcional ao tamanho (1s por 100KB) + folga
+    const fileSizeKB = (info.file_size || 0) / 1024;
+    const dynamicTimeout = Math.max(30000, Math.min(120000, (fileSizeKB * 10) + 30000));
+
+    console.log(`📥 [META API] Iniciando download de ${fileSizeKB.toFixed(1)}KB. Timeout planejado: ${Math.round(dynamicTimeout / 1000)}s`);
+
+    // 2. Faz o download do binário
     const { data: buffer } = await axios.get(info.url, {
       headers: { Authorization: `Bearer ${tenant.wa_access_token}` },
-      responseType: 'arraybuffer'
+      responseType: 'arraybuffer',
+      timeout: dynamicTimeout
     });
-    
+
+    const cleanMimeType = info.mime_type?.split(';')[0] || 'audio/ogg';
+    console.log(`✅ [META API] Mídia ${mediaId} baixada com sucesso (${cleanMimeType})`);
+
     return {
-      mimeType: info.mime_type,
+      mimeType: cleanMimeType,
       data: Buffer.from(buffer).toString('base64')
     };
   } catch (error) {
-    console.error(`❌ [META API] Erro ao baixar mídia ${mediaId}:`, error.message);
+    const status = error.response?.status;
+    const errorMsg = error.response?.data?.error?.message || error.message;
+    console.error(`❌ [META API] Erro ao baixar mídia ${mediaId} [Status ${status}]:`, errorMsg);
     return null;
   }
 }
@@ -373,7 +385,7 @@ app.post("/webhook/whatsapp", async (req, res) => {
     const phoneNumberId = change.metadata.phone_number_id;
     console.log(`🔍 [WEBHOOK] Buscando tenant para o Phone ID: ${phoneNumberId}`);
     const { data: tenant } = await supabase.from("tenants").select("*").eq("phone_number_id", phoneNumberId).single();
-    
+
     if (!tenant) {
       console.error(`❌ [WEBHOOK] Nenhum tenant encontrado para o ID: ${phoneNumberId}. Verifique o Painel Admin.`);
       return;
@@ -384,7 +396,7 @@ app.post("/webhook/whatsapp", async (req, res) => {
     const paramMsg = change.messages[0];
     const telefoneUsuario = paramMsg.from;
     const nomeContato = change.contacts?.[0]?.profile?.name || "Contato";
-    
+
     let textoLogSupabase = "[Formato não suportado]";
     let textoParaGemini = "";
     let inlineData = null;
@@ -409,7 +421,7 @@ app.post("/webhook/whatsapp", async (req, res) => {
     }
 
     const patient = await getOrCreatePatient(telefoneUsuario, nomeContato, tenant.id);
-    
+
     // Atualiza nome/tenant do paciente caso estivesse incompleto
     if (patient.nome !== nomeContato || !patient.tenant_id) {
       await supabase.from("users_whatsapp").update({ nome: nomeContato, tenant_id: tenant.id }).eq("id", patient.id);
@@ -420,10 +432,10 @@ app.post("/webhook/whatsapp", async (req, res) => {
     emitirEvento("new_message", msgUser);
 
     if (!patient.is_ai_active) return;
-    
+
     // Se era um áudio/imagem mas o download falhou, avisar a IA
     if ((paramMsg.type === "audio" || paramMsg.type === "image") && !inlineData) {
-       textoParaGemini = "O usuário enviou um arquivo de mídia, mas ocorreu um erro técnico ao baixar. Peça educadamente para ele digitar por texto.";
+      textoParaGemini = "O usuário enviou um arquivo de mídia, mas ocorreu um erro técnico ao baixar. Peça educadamente para ele digitar por texto.";
     }
 
     // ── DEBOUNCE / QUEUE ────────────────────────────────
@@ -451,7 +463,7 @@ app.post("/webhook/whatsapp", async (req, res) => {
         while (userPayloadBuffers.has(patient.id) && userPayloadBuffers.get(patient.id).length > 0) {
           const items = [...userPayloadBuffers.get(patient.id)];
           userPayloadBuffers.set(patient.id, []); // Esvazia o buffer para a rodada atual
-          
+
           let combinedTexto = "";
           const combinedInlineDatas = [];
           for (const item of items) {
@@ -470,9 +482,9 @@ app.post("/webhook/whatsapp", async (req, res) => {
 
           let respostaSofia;
           try {
-            respostaSofia = await consultarGeminiDinamicamente(historico, { 
-              textoUsuario: combinedTexto.trim(), 
-              inlineDatas: combinedInlineDatas 
+            respostaSofia = await consultarGeminiDinamicamente(historico, {
+              textoUsuario: combinedTexto.trim(),
+              inlineDatas: combinedInlineDatas
             }, tenant);
           } catch (e) {
             console.error(`❌ [GEMINI ERROR] Falha ao processar IA: ${e.message}`);
@@ -492,7 +504,7 @@ app.post("/webhook/whatsapp", async (req, res) => {
             const { data: atualizado } = await supabase.from("users_whatsapp").update({ status_kanban: "Em Atendimento" }).eq("id", patient.id).select().single();
             if (atualizado) emitirEvento("patient_updated", atualizado);
           }
-          
+
           // Pequeno respiro entre mensagens em fila para não parecer robótico demais
           if (userPayloadBuffers.get(patient.id).length > 0) await sleep(1500);
         }
