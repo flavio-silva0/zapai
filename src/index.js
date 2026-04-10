@@ -425,6 +425,9 @@ app.post("/webhook/whatsapp", async (req, res) => {
     }
     userPayloadBuffers.get(patient.id).push({ textoParaGemini, inlineData });
 
+    // Dinamicamente aumenta o tempo de espera se for áudio (para dar tempo do cliente gravar outro)
+    const delayDebounceAtivo = paramMsg.type === "audio" ? 16000 : DEBOUNCE_MS;
+
     clearTimeout(debounceTimers.get(patient.id));
     const timer = setTimeout(async () => {
       const items = userPayloadBuffers.get(patient.id) || [];
@@ -472,7 +475,7 @@ app.post("/webhook/whatsapp", async (req, res) => {
         const { data: atualizado } = await supabase.from("users_whatsapp").update({ status_kanban: "Em Atendimento" }).eq("id", patient.id).select().single();
         if (atualizado) emitirEvento("patient_updated", atualizado);
       }
-    }, DEBOUNCE_MS);
+    }, delayDebounceAtivo);
     debounceTimers.set(patient.id, timer);
 
   } catch (err) {
