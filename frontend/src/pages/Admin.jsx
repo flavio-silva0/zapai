@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../api";
-import { Building2, Users, CheckCircle, XCircle, Clock, Wifi, WifiOff, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
+import { Building2, Users, CheckCircle, XCircle, Clock, Wifi, WifiOff, RefreshCw, ChevronDown, ChevronUp, ArrowLeft } from "lucide-react";
 
 const STATUS_COLORS = {
   trial:     "bg-amber-500/20 text-amber-300 border-amber-500/30",
@@ -141,6 +142,7 @@ function TenantCard({ tenant, onUpdate }) {
 }
 
 export default function Admin() {
+  const navigate = useNavigate();
   const [tenants, setTenants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch]   = useState("");
@@ -177,11 +179,20 @@ export default function Admin() {
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
       {/* Cabeçalho */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <Building2 size={24} className="text-cyan-400" /> Painel Admin
-          </h1>
-          <p className="text-slate-400 text-sm mt-1">Gerencie todos os clientes da plataforma</p>
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => navigate("/")}
+            className="p-2.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl transition-colors border border-slate-700/50 hover:border-slate-600"
+            title="Voltar ao Painel Geral"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+              <Building2 size={24} className="text-cyan-400" /> Painel Admin
+            </h1>
+            <p className="text-slate-400 text-sm mt-1">Gerencie todos os clientes da plataforma</p>
+          </div>
         </div>
         <button onClick={carregar}
           className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-xl text-sm transition">
