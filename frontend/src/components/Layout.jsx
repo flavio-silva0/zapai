@@ -91,14 +91,16 @@ export default function Layout() {
         {/* Footer */}
         <div className="p-4 border-t border-slate-700/50 bg-slate-900/40">
           {/* Card: número real da Sofia no WhatsApp */}
-          <div className="mb-4 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50 flex flex-col gap-1">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-              <Smartphone size={10} /> {botName} conectada como
-            </span>
-            <div className="text-sm font-medium text-slate-300 truncate font-mono">
-              {sofiaNumero ? `+${sofiaNumero}` : "Conectando..."}
+          {!isSuperAdmin && (
+            <div className="mb-4 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50 flex flex-col gap-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                <Smartphone size={10} /> {botName} conectada como
+              </span>
+              <div className="text-sm font-medium text-slate-300 truncate font-mono">
+                {tenant?.clinic_phone ? `+${tenant.clinic_phone}` : (sofiaNumero ? `+${sofiaNumero}` : "Conectando...")}
+              </div>
             </div>
-          </div>
+          )}
 
           <button
             onClick={logout}
