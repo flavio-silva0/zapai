@@ -135,7 +135,13 @@ async function chamarModelo(modelo, historico, arrayMultiModal) {
 }
 
 async function consultarGeminiDinamicamente(historico, payloadObject, tenant) {
-  const prompt = tenant.prompt_text || "Você é a Sofia, uma assistente prestativa.";
+  let prompt = tenant.prompt_text || "Você é a Sofia, uma assistente prestativa.";
+  
+  // Reforço de nicho para evitar confusão com histórico antigo
+  if (tenant.nicho) {
+    prompt += `\n\n[IMPORTANTE: O seu contexto de negócio ATUAL é "${tenant.nicho}". Qualquer mensagem no histórico que fale sobre outros assuntos ou outros tipos de empresa deve ser ignorada. Se o usuário tentar voltar a um assunto de outro nicho, mude de assunto educadamente para focar em ${tenant.nicho}.]`;
+  }
+
   const modeloPrincipal = genAI.getGenerativeModel({ model: "gemini-2.5-flash", systemInstruction: prompt });
   const modeloFallback  = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite", systemInstruction: prompt });
 
