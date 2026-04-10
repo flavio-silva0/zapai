@@ -356,7 +356,8 @@ app.post("/webhook/whatsapp", async (req, res) => {
     try {
       respostaSofia = await consultarGeminiDinamicamente(historico, textoUsuario, tenant);
     } catch (e) {
-      respostaSofia = "Desculpe, a IA está momentaneamente indisponível. Aguarde alguns minutos e tente de novo.";
+      console.error(`❌ [GEMINI ERROR] Falha ao processar IA. Abortando silenciosamente para não quebrar o personagem: ${e.message}`);
+      return; // Encerra o processamento sem enviar a mensagem robótica
     }
 
     const delay = calcularDelayRestante(respostaSofia, inicioMs);
