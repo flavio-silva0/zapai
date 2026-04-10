@@ -301,6 +301,8 @@ app.get("/webhook/whatsapp", (req, res) => {
 // Recebimento
 app.post("/webhook/whatsapp", async (req, res) => {
   const body = req.body;
+  console.log("📩 [WEBHOOK] Chamada recebida da Meta!");
+  console.log("📦 [WEBHOOK] Payload:", JSON.stringify(body, null, 2));
 
   if (!body.object) return res.sendStatus(404);
   res.sendStatus(200); // 200 OK imediato exigido pela Meta
@@ -308,11 +310,21 @@ app.post("/webhook/whatsapp", async (req, res) => {
   try {
     const entry = body.entry?.[0];
     const change = entry?.changes?.[0]?.value;
-    if (!change || !change.messages || change.messages.length === 0) return;
+    if (!change || !change.messages || change.messages.length === 0) {
+      console.log("ℹ️ [WEBHOOK] Notificação recebida (status/read), mas sem novas mensagens.");
+      return;
+    }
 
     const phoneNumberId = change.metadata.phone_number_id;
+    console.log(`🔍 [WEBHOOK] Buscando tenant para o Phone ID: ${phoneNumberId}`);
     const { data: tenant } = await supabase.from("tenants").select("*").eq("phone_number_id", phoneNumberId).single();
-    if (!tenant) return;
+    
+    if (!tenant) {
+      console.error(`❌ [WEBHOOK] Nenhum tenant encontrado para o ID: ${phoneNumberId}. Verifique o Painel Admin.`);
+      return;
+    }
+
+    console.log(`✅ [WEBHOOK] Tenant identificado: ${tenant.nome}`);
 
     const paramMsg = change.messages[0];
     const telefoneUsuario = paramMsg.from;
