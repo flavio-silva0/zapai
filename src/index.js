@@ -330,7 +330,7 @@ async function baixarMidiaMeta(mediaId, tenant) {
 // ── 9. WEBHOOKS DA META ───────────────────────────────────────
 const debounceTimers = new Map();
 const userPayloadBuffers = new Map();
-const DEBOUNCE_MS = 8000;
+const DEBOUNCE_MS = 12000;
 
 // Validação
 app.get("/webhook/whatsapp", (req, res) => {
