@@ -14,6 +14,24 @@ const STATUS_ICONS = {
   pausado: <XCircle size={12} />, cancelado: <XCircle size={12} />,
 };
 
+const NICHOS = [
+  { value: "dental",        label: "🦷 Clínica Odontológica" },
+  { value: "imobiliaria",   label: "🏠 Imobiliária" },
+  { value: "academia",      label: "💪 Academia / Fitness" },
+  { value: "petshop",       label: "🐾 Petshop / Veterinária" },
+  { value: "restaurante",   label: "🍽️ Restaurante / Bar" },
+  { value: "salao",         label: "💇 Salão de Beleza / Barbearia" },
+  { value: "psicologia",    label: "🧠 Psicologia / Saúde Mental" },
+  { value: "veterinaria",   label: "🐶 Clínica Veterinária" },
+  { value: "estetica",      label: "✨ Clínica Estética" },
+  { value: "contabilidade", label: "📊 Escritório de Contabilidade" },
+  { value: "educacao",      label: "🎓 Escola / Cursos" },
+  { value: "ti",            label: "💻 Empresa de TI / Suporte" },
+  { value: "eventos",       label: "🎊 Eventos / Cerimonial" },
+  { value: "construcao",    label: "🏗️ Construtora / Reformas" },
+  { value: "geral",         label: "🤖 Outro negócio" },
+];
+
 function TenantCard({ tenant, onUpdate }) {
   const [expanded, setExpanded] = useState(false);
   const [editing, setEditing]   = useState(false);
@@ -92,8 +110,12 @@ function TenantCard({ tenant, onUpdate }) {
                 </div>
                 <div>
                   <label className="text-xs text-slate-400 mb-1 block">Nicho</label>
-                  <input value={form.nicho} onChange={update("nicho")}
-                    className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500" />
+                  <select value={form.nicho} onChange={update("nicho")}
+                    className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500">
+                    {NICHOS.map((n) => (
+                      <option key={n.value} value={n.value}>{n.label}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">

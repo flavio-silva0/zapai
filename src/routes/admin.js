@@ -67,7 +67,7 @@ router.get("/tenants", async (_req, res) => {
     .select(`
       id, nome, nicho, status, plan,
       bot_name, bot_emoji, clinic_name, clinic_phone,
-      phone_number_id,
+      phone_number_id, wa_access_token, prompt_text,
       trial_ends_at, created_at
     `)
     .order("created_at", { ascending: false });
