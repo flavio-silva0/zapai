@@ -137,7 +137,7 @@ async function chamarModelo(modelo, historico, arrayMultiModal) {
 async function consultarGeminiDinamicamente(historico, payloadObject, tenant) {
   const prompt = tenant.prompt_text || "Você é a Sofia, uma assistente prestativa.";
   const modeloPrincipal = genAI.getGenerativeModel({ model: "gemini-2.5-flash", systemInstruction: prompt });
-  const modeloFallback  = genAI.getGenerativeModel({ model: "gemini-2.0-flash", systemInstruction: prompt });
+  const modeloFallback  = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite", systemInstruction: prompt });
 
   const arrayMultiModal = [];
   if (payloadObject.inlineDatas && Array.isArray(payloadObject.inlineDatas)) {
