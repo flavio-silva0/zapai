@@ -104,10 +104,16 @@ async function getHistoricoGemini(patient_id) {
     .order("created_at", { ascending: true })
     .limit(HISTORICO_LIMITE * 2);
 
-  return data.map((m) => ({
-    role: m.origin === "user" ? "user" : "model",
-    parts: [{ text: m.texto }],
-  }));
+  const history = [];
+  for (const m of data) {
+    const role = m.origin === "user" ? "user" : "model";
+    if (history.length > 0 && history[history.length - 1].role === role) {
+      history[history.length - 1].parts[0].text += `\n${m.texto}`;
+    } else {
+      history.push({ role, parts: [{ text: m.texto }] });
+    }
+  }
+  return history;
 }
 
 // ── 6. GEMINI ────────────────────────────────────────────────
@@ -134,7 +140,11 @@ async function consultarGeminiDinamicamente(historico, payloadObject, tenant) {
   const modeloFallback  = genAI.getGenerativeModel({ model: "gemini-2.0-flash", systemInstruction: prompt });
 
   const arrayMultiModal = [];
-  if (payloadObject.inlineData) {
+  if (payloadObject.inlineDatas && Array.isArray(payloadObject.inlineDatas)) {
+    for (const data of payloadObject.inlineDatas) {
+      arrayMultiModal.push({ inlineData: data });
+    }
+  } else if (payloadObject.inlineData) {
     arrayMultiModal.push({ inlineData: payloadObject.inlineData });
   }
   arrayMultiModal.push({ text: payloadObject.textoUsuario });
@@ -318,6 +328,9 @@ async function baixarMidiaMeta(mediaId, tenant) {
 }
 
 // ── 9. WEBHOOKS DA META ───────────────────────────────────────
+const debounceTimers = new Map();
+const userPayloadBuffers = new Map();
+const DEBOUNCE_MS = 8000;
 
 // Validação
 app.get("/webhook/whatsapp", (req, res) => {
@@ -406,29 +419,62 @@ app.post("/webhook/whatsapp", async (req, res) => {
        textoParaGemini = "O usuário enviou um arquivo de mídia, mas ocorreu um erro técnico ao baixar. Peça educadamente para ele digitar por texto.";
     }
 
-    const inicioMs = Date.now();
-    const historico = await getHistoricoGemini(patient.id);
-    let respostaSofia;
-
-    try {
-      respostaSofia = await consultarGeminiDinamicamente(historico, { textoUsuario: textoParaGemini, inlineData }, tenant);
-    } catch (e) {
-      console.error(`❌ [GEMINI ERROR] Falha ao processar IA. Abortando silenciosamente para não quebrar o personagem: ${e.message}`);
-      return; // Encerra o processamento sem enviar a mensagem robótica
+    // ── DEBOUNCE / QUEUE ────────────────────────────────
+    if (!userPayloadBuffers.has(patient.id)) {
+      userPayloadBuffers.set(patient.id, []);
     }
+    userPayloadBuffers.get(patient.id).push({ textoParaGemini, inlineData });
 
-    const delay = calcularDelayRestante(respostaSofia, inicioMs);
-    if (delay > 0) await sleep(delay);
+    clearTimeout(debounceTimers.get(patient.id));
+    const timer = setTimeout(async () => {
+      const items = userPayloadBuffers.get(patient.id) || [];
+      userPayloadBuffers.delete(patient.id);
+      debounceTimers.delete(patient.id);
+      
+      if (items.length === 0) return;
 
-    await enviarMensagemMeta(telefoneUsuario, respostaSofia, tenant);
+      let combinedTexto = "";
+      const combinedInlineDatas = [];
+      for (const item of items) {
+        if (item.textoParaGemini) combinedTexto += `${item.textoParaGemini}\n`;
+        if (item.inlineData) combinedInlineDatas.push(item.inlineData);
+      }
 
-    const msgBot = await saveMessage(patient.id, respostaSofia, "bot", tenant.id);
-    emitirEvento("new_message", msgBot);
+      const inicioMs = Date.now();
+      const historico = await getHistoricoGemini(patient.id);
+      // Remove o texto que acabamos de salvar no banco da memória do histórico, 
+      // pois ele já vai explicitamente via prompt do 'sendMessage' agrupado.
+      if (historico.length > 0 && historico[historico.length - 1].role === "user") {
+         historico.pop();
+      }
 
-    if (patient.status_kanban === "Novo") {
-      const { data: atualizado } = await supabase.from("users_whatsapp").update({ status_kanban: "Em Atendimento" }).eq("id", patient.id).select().single();
-      if (atualizado) emitirEvento("patient_updated", atualizado);
-    }
+      let respostaSofia;
+
+      try {
+        respostaSofia = await consultarGeminiDinamicamente(historico, { 
+          textoUsuario: combinedTexto.trim(), 
+          inlineDatas: combinedInlineDatas 
+        }, tenant);
+      } catch (e) {
+        console.error(`❌ [GEMINI ERROR] Falha ao processar IA. Abortando silenciosamente para não quebrar o personagem: ${e.message}`);
+        return; // Encerra o processamento sem enviar a mensagem robótica
+      }
+
+      const delay = calcularDelayRestante(respostaSofia, inicioMs);
+      if (delay > 0) await sleep(delay);
+
+      await enviarMensagemMeta(telefoneUsuario, respostaSofia, tenant);
+
+      const msgBot = await saveMessage(patient.id, respostaSofia, "bot", tenant.id);
+      emitirEvento("new_message", msgBot);
+
+      if (patient.status_kanban === "Novo") {
+        const { data: atualizado } = await supabase.from("users_whatsapp").update({ status_kanban: "Em Atendimento" }).eq("id", patient.id).select().single();
+        if (atualizado) emitirEvento("patient_updated", atualizado);
+      }
+    }, DEBOUNCE_MS);
+    debounceTimers.set(patient.id, timer);
+
   } catch (err) {
     console.error("❌ Erro ao processar webhook:", err.message);
   }
