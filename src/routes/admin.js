@@ -1,4 +1,4 @@
-﻿"use strict";
+"use strict";
 
 const express  = require("express");
 const bcrypt   = require("bcryptjs");
@@ -114,6 +114,7 @@ router.put("/tenants/:id", async (req, res) => {
     "status", "phone_number_id", "wa_access_token",
     "prompt_text", "bot_name", "bot_emoji",
     "clinic_name", "clinic_phone", "plan", "nicho",
+    "nome", "trial_ends_at",
   ];
 
   const update = {};

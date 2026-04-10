@@ -19,6 +19,10 @@ function TenantCard({ tenant, onUpdate }) {
   const [editing, setEditing]   = useState(false);
   const [saving, setSaving]     = useState(false);
   const [form, setForm] = useState({
+    nome:             tenant.nome ?? "",
+    nicho:            tenant.nicho ?? "",
+    plan:             tenant.plan ?? "basic",
+    trial_ends_at:    tenant.trial_ends_at ? new Date(tenant.trial_ends_at).toISOString().split('T')[0] : "",
     status:           tenant.status,
     phone_number_id:  tenant.phone_number_id ?? "",
     wa_access_token:  "",  // não exibimos o token salvo por segurança
@@ -80,6 +84,32 @@ function TenantCard({ tenant, onUpdate }) {
 
           {editing ? (
             <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-400 mb-1 block">Nome do Negócio</label>
+                  <input value={form.nome} onChange={update("nome")}
+                    className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500" />
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 mb-1 block">Nicho</label>
+                  <input value={form.nicho} onChange={update("nicho")}
+                    className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-400 mb-1 block">Plano</label>
+                  <select value={form.plan} onChange={update("plan")}
+                    className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500">
+                    {["basic","pro","premium"].map((p) => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-slate-400 mb-1 block">Data Fim Trial</label>
+                  <input type="date" value={form.trial_ends_at} onChange={update("trial_ends_at")}
+                    className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-cyan-500 [color-scheme:dark]" />
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-slate-400 mb-1 block">Status</label>
