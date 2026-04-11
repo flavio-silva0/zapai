@@ -50,6 +50,27 @@ const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 // ── 4. UTILITÁRIOS ───────────────────────────────────────────
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Normaliza número de telefone brasileiro para o formato E.164 sem o "+".
+ * Corrige automaticamente celulares BR com 12 dígitos (sem o 9º dígito)
+ * para 13 dígitos, ex: 557388066822 → 5573988066822.
+ */
+function normalizarTelefoneBR(telefone) {
+  // Remove qualquer caractere não numérico
+  const numero = String(telefone).replace(/\D/g, "");
+
+  // Número BR com DDI 55 + DDD 2 dígitos + número 8 dígitos = 12 dígitos (faltando o 9)
+  if (numero.startsWith("55") && numero.length === 12) {
+    const ddd = numero.slice(2, 4);
+    const resto = numero.slice(4); // 8 dígitos
+    const normalizado = `55${ddd}9${resto}`;
+    console.log(`🔧 [TELEFONE] Número normalizado: ${numero} → ${normalizado}`);
+    return normalizado;
+  }
+
+  return numero;
+}
+
 function calcularDelayRestante(resposta, inicioMs) {
   const palavras = resposta.trim().split(/\s+/).length;
   const tempoDigitacao = palavras * MS_POR_PALAVRA;
@@ -394,7 +415,7 @@ app.post("/webhook/whatsapp", async (req, res) => {
     console.log(`✅ [WEBHOOK] Tenant identificado: ${tenant.nome}`);
 
     const paramMsg = change.messages[0];
-    const telefoneUsuario = paramMsg.from;
+    const telefoneUsuario = normalizarTelefoneBR(paramMsg.from);
     const nomeContato = change.contacts?.[0]?.profile?.name || "Contato";
 
     let textoLogSupabase = "[Formato não suportado]";
