@@ -1,17 +1,20 @@
 import { useContext, useState, useEffect } from "react";
-import { Outlet, NavLink } from "react-router-dom";
+import { Outlet, NavLink, Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { useConfig } from "../context/ConfigContext";
-import { LayoutDashboard, MessageSquare, KanbanSquare, LogOut, Smartphone, FlaskConical, User, ShieldAlert } from "lucide-react";
+import {
+  LayoutDashboard, MessageSquare, KanbanSquare, LogOut,
+  Smartphone, FlaskConical, User, ShieldAlert, Zap, ChevronRight
+} from "lucide-react";
 import { apiFetch } from "../api";
 
 export default function Layout() {
   const { user, tenant, logout } = useContext(AuthContext);
 
   const isSuperAdmin = user?.role === "super_admin";
-  const botName = isSuperAdmin ? "Usuário Administrador" : (tenant?.bot_name || "Assistente");
-  const testarName = isSuperAdmin ? "IA" : botName;
-  const clinica = isSuperAdmin ? "Sistema Master" : (tenant?.nome || user?.nome || "Painel");
+  const botName  = isSuperAdmin ? "Admin" : (tenant?.bot_name || "Assistente");
+  const botEmoji = tenant?.bot_emoji || "🤖";
+  const clinica  = isSuperAdmin ? "Sistema Master" : (tenant?.nome || user?.nome || "Painel");
 
   const [sofiaNumero, setSofiaNumero] = useState(null);
 
@@ -19,106 +22,165 @@ export default function Layout() {
     apiFetch("/api/stats")
       .then((r) => r.json())
       .then((d) => setSofiaNumero(d.sofiaNumero ?? null))
-      .catch(() => { });
+      .catch(() => {});
   }, []);
 
   const NAV_ITEMS = [
-    { to: "/painel",        icon: LayoutDashboard, label: "Painel Geral" },
+    { to: "/painel",        icon: LayoutDashboard, label: "Visão Geral" },
     { to: "/painel/chat",   icon: MessageSquare,   label: "Mensagens" },
     { to: "/painel/kanban", icon: KanbanSquare,    label: "Kanban" },
-    { to: "/painel/test",   icon: FlaskConical,    label: `Testar ${testarName}` },
+    { to: "/painel/test",   icon: FlaskConical,    label: `Testar ${botName}` },
     { to: "/painel/perfil", icon: User,            label: "Meu Perfil" },
   ];
 
+  const phoneDisplay = tenant?.clinic_phone
+    ? `+${tenant.clinic_phone}`
+    : sofiaNumero
+    ? `+${sofiaNumero}`
+    : "Conectando...";
+
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-900 text-slate-200">
+    <div className="flex h-screen overflow-hidden" style={{ background: "var(--bg-base)" }}>
 
-      {/* ── Sidebar ─────────────────────────────────────────────── */}
-      <aside className="w-64 min-w-[256px] border-r border-slate-700/50 bg-slate-800/40 backdrop-blur-xl flex flex-col relative z-10">
+      {/* ── Sidebar ──────────────────────────────────────────── */}
+      <aside className="w-64 min-w-[256px] flex flex-col relative z-20"
+        style={{
+          background: "rgba(6,14,26,0.98)",
+          borderRight: "1px solid rgba(255,255,255,0.06)",
+        }}
+      >
+        {/* Glow top accent */}
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent" />
 
-        {/* Header / Logo */}
-        <div className="p-6 border-b border-slate-700/50 flex flex-col md:flex-row items-start md:items-center gap-4">
-          <div className="flex-shrink-0 flex items-center justify-center">
-            {/* O logo icon deve ser colocado em frontend/public/logo_icon_trans.png */}
-            <img src="/logo_icon_trans.png" alt="ZapAI Icon" className="h-10 md:h-12 w-auto max-w-[140px] object-contain drop-shadow-md" onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
-            <div className="hidden w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.3)]">
-              <span className="text-xl">⚡</span>
+        {/* ── Logo / Header ── */}
+        <div className="px-5 py-5 border-b" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+          <Link to="/" className="flex items-center gap-2.5 mb-4 group w-fit">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-105 transition-transform">
+              <Zap size={15} className="text-white" strokeWidth={2.5} />
             </div>
-          </div>
-          <div>
-            <h1 className="font-bold text-slate-100 tracking-tight leading-tight">{botName || "Assistente"}</h1>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Powered by ZapAI</p>
+            <span className="font-display font-black text-[17px] text-white tracking-tight">
+              Zap<span className="gradient-text">AI</span>
+            </span>
+          </Link>
+
+          {/* Bot/Tenant pill */}
+          <div className="glass rounded-xl px-3 py-2.5 flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500/20 to-violet-600/20 border border-indigo-500/20 flex items-center justify-center text-base flex-shrink-0">
+              {isSuperAdmin ? "⚙️" : botEmoji}
+            </div>
+            <div className="min-w-0">
+              <p className="text-white text-sm font-semibold truncate leading-tight">{botName}</p>
+              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider truncate">
+                {isSuperAdmin ? "Super Admin" : "Powered by ZapAI"}
+              </p>
+            </div>
+            <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 animate-pulse ml-auto" />
           </div>
         </div>
 
-        <nav className="flex-1 px-4 py-6 space-y-1">
-          {NAV_ITEMS.map((item) => (
+        {/* ── Nav ── */}
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600 px-3 mb-3">
+            Navegação
+          </p>
+          {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
             <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === "/painel"}
+              key={to}
+              to={to}
+              end={to === "/painel"}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all duration-200 ${isActive
-                  ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-700/30 border border-transparent"
+                `flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 group ${
+                  isActive
+                    ? "bg-gradient-to-r from-indigo-500/15 to-violet-500/10 text-white border border-indigo-500/20 shadow-sm"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-white/4 border border-transparent"
                 }`
               }
             >
-              <item.icon size={18} />
-              {item.label}
+              {({ isActive }) => (
+                <>
+                  <Icon
+                    size={17}
+                    className={isActive ? "text-indigo-400" : "text-slate-500 group-hover:text-slate-300"}
+                  />
+                  <span className="flex-1">{label}</span>
+                  {isActive && <ChevronRight size={13} className="text-indigo-400 opacity-60" />}
+                </>
+              )}
             </NavLink>
           ))}
 
-          {user?.role === "super_admin" && (
+          {/* Admin link */}
+          {isSuperAdmin && (
             <>
-              <div className="pt-4 pb-1"><div className="border-t border-slate-700/50"></div></div>
+              <div className="pt-4 pb-1 px-3">
+                <div className="h-px" style={{ background: "rgba(255,255,255,0.05)" }} />
+              </div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-600 px-3 mb-3 pt-2">
+                Admin
+              </p>
               <NavLink
                 to="/admin"
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all duration-200 ${isActive
-                    ? "bg-purple-500/10 text-purple-400 border border-purple-500/20"
-                    : "text-purple-400/70 hover:text-purple-400 hover:bg-purple-500/10 border border-transparent"
+                  `flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 group ${
+                    isActive
+                      ? "bg-violet-500/15 text-violet-300 border border-violet-500/20"
+                      : "text-slate-500 hover:text-violet-300 hover:bg-violet-500/10 border border-transparent"
                   }`
                 }
               >
-                <ShieldAlert size={18} />
+                <ShieldAlert size={17} className="text-violet-500" />
                 Painel Admin
               </NavLink>
             </>
           )}
         </nav>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-slate-700/50 bg-slate-900/40">
-          {/* Card: número real da Sofia no WhatsApp */}
+        {/* ── Footer ── */}
+        <div className="px-3 pb-4 space-y-2" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+          {/* Número conectado */}
           {!isSuperAdmin && (
-            <div className="mb-4 p-3 rounded-lg bg-slate-800/50 border border-slate-700/50 flex flex-col gap-1">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
-                <Smartphone size={10} /> {botName} conectada como
-              </span>
-              <div className="text-sm font-medium text-slate-300 truncate font-mono">
-                {tenant?.clinic_phone ? `+${tenant.clinic_phone}` : (sofiaNumero ? `+${sofiaNumero}` : "Conectando...")}
+            <div className="mx-0 mt-3 glass rounded-xl px-3 py-2.5 flex items-center gap-2.5">
+              <Smartphone size={13} className="text-emerald-400 shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[9px] font-bold uppercase tracking-wider text-slate-600">Conectado como</p>
+                <p className="text-slate-300 text-xs font-mono truncate">{phoneDisplay}</p>
               </div>
             </div>
           )}
 
+          {/* Logout */}
           <button
             onClick={logout}
-            className="w-full flex items-center justify-between px-3 py-2 text-sm text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors"
+            className="w-full flex items-center justify-between px-3 py-2.5 text-sm text-slate-500 hover:text-rose-400 rounded-xl transition-all hover:bg-rose-500/8 border border-transparent hover:border-rose-500/15 group mt-1"
           >
-            Sair do Painel
-            <LogOut size={16} />
+            <span className="flex items-center gap-2.5">
+              <LogOut size={15} className="group-hover:text-rose-400" />
+              Sair do Painel
+            </span>
           </button>
         </div>
       </aside>
 
-      {/* ── Área Principal ───────────────────────────────────────── */}
-      <main className="flex-1 flex flex-col overflow-hidden bg-slate-900 relative">
-        <div className="absolute top-[-20%] right-[-10%] w-[50%] h-[50%] bg-blue-600/10 blur-[120px] rounded-full pointer-events-none" />
-        <div className="absolute top-6 right-8 z-50 pointer-events-none opacity-90 mix-blend-screen flex justify-end">
-           <img src="/logo_full_dark.png" alt="ZapAI Watermark" className="h-16 md:h-24 lg:h-32 w-auto object-contain drop-shadow-2xl" />
+      {/* ── Main Content ─────────────────────────────────────── */}
+      <main className="flex-1 flex flex-col overflow-hidden relative" style={{ background: "#060e1a" }}>
+        {/* Subtle background grid */}
+        <div className="absolute inset-0 bg-grid opacity-50 pointer-events-none" />
+        {/* Top gradient glow */}
+        <div className="absolute top-0 right-0 w-1/2 h-64 pointer-events-none"
+          style={{ background: "radial-gradient(ellipse at top right, rgba(99,102,241,0.06) 0%, transparent 70%)" }}
+        />
+        {/* Watermark */}
+        <div className="absolute top-5 right-6 z-10 pointer-events-none opacity-60 mix-blend-screen">
+          <img
+            src="/logo_full_dark.png"
+            alt="ZapAI"
+            className="h-10 w-auto object-contain drop-shadow-2xl"
+          />
         </div>
-        <Outlet />
+
+        <div className="flex-1 overflow-auto relative z-10">
+          <Outlet />
+        </div>
       </main>
     </div>
   );

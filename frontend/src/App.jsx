@@ -20,7 +20,7 @@ import Privacy  from "./pages/Privacy";
 import Home      from "./pages/Home";
 import Chat      from "./pages/Chat";
 import FullKanban from "./pages/FullKanban";
-import TestSofia  from "./pages/TestSofia";
+import TestSofia  from "./pages/TestZapAi";
 import Admin      from "./pages/Admin";
 import Profile    from "./pages/Profile";
 
