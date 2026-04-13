@@ -23,11 +23,11 @@ export default function Layout() {
   }, []);
 
   const NAV_ITEMS = [
-    { to: "/", icon: LayoutDashboard, label: "Painel Geral" },
-    { to: "/chat", icon: MessageSquare, label: "Mensagens" },
-    { to: "/kanban", icon: KanbanSquare, label: "Kanban" },
-    { to: "/test", icon: FlaskConical, label: `Testar ${testarName}` },
-    { to: "/perfil", icon: User, label: "Meu Perfil" },
+    { to: "/painel",        icon: LayoutDashboard, label: "Painel Geral" },
+    { to: "/painel/chat",   icon: MessageSquare,   label: "Mensagens" },
+    { to: "/painel/kanban", icon: KanbanSquare,    label: "Kanban" },
+    { to: "/painel/test",   icon: FlaskConical,    label: `Testar ${testarName}` },
+    { to: "/painel/perfil", icon: User,            label: "Meu Perfil" },
   ];
 
   return (
@@ -56,7 +56,7 @@ export default function Layout() {
             <NavLink
               key={item.to}
               to={item.to}
-              end={item.to === "/"}
+              end={item.to === "/painel"}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium transition-all duration-200 ${isActive
                   ? "bg-cyan-500/10 text-cyan-400 border border-cyan-500/20"
