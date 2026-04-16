@@ -8,7 +8,14 @@ const DEBOUNCE_TEST_MS = 3000;
 
 export default function TestSofia() {
   const { botName, botEmoji } = useConfig();
-  const [mensagens,  setMensagens]  = useState([]);
+  const [mensagens,  setMensagens]  = useState(() => {
+    try {
+      const salvas = localStorage.getItem("sandbox_history");
+      return salvas ? JSON.parse(salvas) : [];
+    } catch {
+      return [];
+    }
+  });
   const [input,      setInput]      = useState("");
   const [loading,    setLoading]    = useState(false);
   const [resetting,  setResetting]  = useState(false);
@@ -32,6 +39,10 @@ export default function TestSofia() {
       clearInterval(countdownIntervalRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem("sandbox_history", JSON.stringify(mensagens));
+  }, [mensagens]);
 
   const iniciarContagem = () => {
     clearInterval(countdownIntervalRef.current);
@@ -110,6 +121,7 @@ export default function TestSofia() {
     bufferRef.current = [];
     setCountdown(null);
     setMensagens([]);
+    localStorage.removeItem("sandbox_history");
   };
 
   const handleInput = () => {
