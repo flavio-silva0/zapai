@@ -156,7 +156,7 @@ router.post("/login", async (req, res) => {
   if (user.role !== "super_admin" && user.tenant_id) {
     const { data } = await supabase
       .from("tenants")
-      .select("id, nome, status, bot_name, bot_emoji, clinic_name, clinic_phone, trial_ends_at")
+      .select("id, nome, status, bot_name, bot_emoji, clinic_name, clinic_phone, trial_ends_at, prompt_text")
       .eq("id", user.tenant_id)
       .single();
     tenant = data;
@@ -190,7 +190,7 @@ router.get("/me", requireAuth, async (req, res) => {
   if (user.tenant_id) {
     const { data } = await supabase
       .from("tenants")
-      .select("id, nome, status, bot_name, bot_emoji, clinic_name, clinic_phone, trial_ends_at")
+      .select("id, nome, status, bot_name, bot_emoji, clinic_name, clinic_phone, trial_ends_at, prompt_text")
       .eq("id", user.tenant_id)
       .single();
     tenant = data;

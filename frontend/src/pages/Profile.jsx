@@ -1,6 +1,6 @@
 import { useContext, useState, useEffect } from "react";
 import { AuthContext } from "../context/AuthContext";
-import { User, Building, Phone, CheckCircle, Edit2, Save, X, Shield, Sparkles } from "lucide-react";
+import { User, Building, Phone, CheckCircle, Edit2, Save, X, Shield, Sparkles, BrainCircuit } from "lucide-react";
 import { apiFetch } from "../api";
 
 function Field({ label, children }) {
@@ -69,7 +69,9 @@ export default function Profile() {
     tomVoz: "Profissional e Empático",
     objetivo: "Atendimento Geral e Triagem",
     endereco: "",
-    horarios: "",
+    dias: "Segunda a Sexta",
+    horaAbre: "08:00",
+    horaFecha: "18:00",
     resumo: ""
   });
   const [generating, setGenerating] = useState(false);
@@ -77,6 +79,9 @@ export default function Profile() {
   const [magicSuccess, setMagicSuccess] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
   const [generatedPrompt, setGeneratedPrompt] = useState("");
+  
+  const [isEditingPrompt, setIsEditingPrompt] = useState(false);
+  const [editingPromptText, setEditingPromptText] = useState("");
 
   const handleMagicSetup = async () => {
     if (!magicForm.resumo.trim()) {
@@ -86,10 +91,16 @@ export default function Profile() {
     setGenerating(true);
     setErro("");
     setMagicSuccess(false);
+
+    const fullForm = {
+      ...magicForm,
+      horarios: `${magicForm.dias}, das ${magicForm.horaAbre} às ${magicForm.horaFecha}`
+    };
+
     try {
       const res = await apiFetch("/api/admin/magic-setup", {
         method: "POST",
-        body: JSON.stringify({ formSetup: magicForm }),
+        body: JSON.stringify({ formSetup: fullForm }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -103,20 +114,29 @@ export default function Profile() {
     }
   };
 
-  const handleSavePrompt = async () => {
+  const handleSavePrompt = async (textToSave, mode = "magic") => {
     setSavingPrompt(true);
     setErro("");
     try {
       const res = await apiFetch("/api/admin/magic-setup/save", {
         method: "PUT",
-        body: JSON.stringify({ prompt_text: generatedPrompt }),
+        body: JSON.stringify({ prompt_text: textToSave }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       
-      setMagicSuccess(true);
-      setIsReviewing(false);
-      setTimeout(() => setMagicSuccess(false), 5000);
+      // Update Context so it reflects globally
+      const updatedTenant = { ...tenant, prompt_text: textToSave };
+      const token = localStorage.getItem("sofia_token");
+      login(token, user, updatedTenant);
+
+      if (mode === "magic") {
+        setIsReviewing(false);
+        setMagicSuccess(true);
+        setTimeout(() => setMagicSuccess(false), 5000);
+      } else {
+        setIsEditingPrompt(false);
+      }
     } catch(err) {
       setErro(err.message);
     } finally {
@@ -403,11 +423,34 @@ export default function Profile() {
                     />
                   </Field>
                   <Field label="Dias e Horários de Func.">
-                    <EditInput 
-                      value={magicForm.horarios} 
-                      onChange={(e) => setMagicForm({ ...magicForm, horarios: e.target.value })} 
-                      placeholder="Seg a Sex, das 08h às 18h" 
-                    />
+                    <div className="flex gap-2">
+                       <select
+                         value={magicForm.dias}
+                         onChange={(e) => setMagicForm({ ...magicForm, dias: e.target.value })}
+                         className="flex-1 rounded-xl px-4 py-3 text-sm text-white focus:outline-none transition-all border appearance-none"
+                         style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.07)" }}
+                       >
+                         <option value="Segunda a Sexta" className="bg-slate-800 text-white">Seg a Sex</option>
+                         <option value="Segunda a Sábado" className="bg-slate-800 text-white">Seg a Sáb</option>
+                         <option value="Todos os dias" className="bg-slate-800 text-white">Todos os dias</option>
+                       </select>
+                       
+                       <input 
+                         type="time" 
+                         value={magicForm.horaAbre} 
+                         onChange={(e) => setMagicForm({ ...magicForm, horaAbre: e.target.value })} 
+                         className="w-24 rounded-xl px-2 text-center text-sm text-white focus:outline-none transition-all border"
+                         style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.07)" }}
+                       />
+                       <span className="text-slate-500 self-center">às</span>
+                       <input 
+                         type="time" 
+                         value={magicForm.horaFecha} 
+                         onChange={(e) => setMagicForm({ ...magicForm, horaFecha: e.target.value })} 
+                         className="w-24 rounded-xl px-2 text-center text-sm text-white focus:outline-none transition-all border"
+                         style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.07)" }}
+                       />
+                    </div>
                   </Field>
                 </div>
 
@@ -472,7 +515,7 @@ export default function Profile() {
                       Voltar ao Formulário
                     </button>
                     <button
-                      onClick={handleSavePrompt}
+                      onClick={() => handleSavePrompt(generatedPrompt, "magic")}
                       disabled={savingPrompt}
                       className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl transition-all disabled:opacity-50 hover:scale-[1.02]"
                       style={{ background: "linear-gradient(135deg, #8b5cf6, #6366f1)" }}
@@ -482,6 +525,69 @@ export default function Profile() {
                     </button>
                   </div>
               </div>
+            )}
+          </div>
+        )}
+
+        {/* Current Prompt Card */}
+        {tenant && (
+          <div className="glass rounded-2xl p-6 lg:col-span-2 space-y-5 relative overflow-hidden" style={{ border: "1px solid rgba(99, 102, 241, 0.2)"}}>
+            <div className="absolute -top-12 -left-12 w-32 h-32 rounded-full bg-indigo-600/10 blur-3xl pointer-events-none" />
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <BrainCircuit size={22} className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-white font-bold text-lg">Cérebro Atual do Agente</h2>
+                <p className="text-slate-500 text-xs">Abaixo está a regra mestra exata que o seu robô obedece agora mesmo no WhatsApp.</p>
+              </div>
+            </div>
+
+            {!isEditingPrompt ? (
+               <div className="space-y-4">
+                 <div className="w-full rounded-xl px-5 py-4 text-sm text-slate-300 border font-mono whitespace-pre-wrap max-h-96 overflow-y-auto leading-relaxed shadow-inner" style={{ background: "rgba(15,23,42,0.4)", borderColor: "rgba(99,102,241,0.2)" }}>
+                    {tenant.prompt_text || "Seu agente ainda não tem diretrizes claras. Utilize o Setup Mágico ou adicione manualmente."}
+                 </div>
+                 <button 
+                  onClick={() => { setIsEditingPrompt(true); setEditingPromptText(tenant.prompt_text || ""); }} 
+                  className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-indigo-300 rounded-xl transition-all border hover:bg-indigo-500/10"
+                  style={{ background: "rgba(99,102,241,0.05)", borderColor: "rgba(99,102,241,0.2)" }}
+                 >
+                   <Edit2 size={16} /> Editar Cérebro Manualmente
+                 </button>
+               </div>
+            ) : (
+               <div className="space-y-4 animate-in fade-in zoom-in duration-300">
+                 <textarea 
+                    value={editingPromptText} 
+                    onChange={(e) => setEditingPromptText(e.target.value)} 
+                    rows={15}
+                    className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none resize-none transition-all border font-mono leading-relaxed"
+                    style={{
+                      background: "rgba(15,23,42,0.6)",
+                      borderColor: "rgba(99,102,241,0.4)",
+                    }}
+                    onFocus={(e) => { e.target.style.borderColor = "rgba(99, 102, 241, 0.7)"; }}
+                    onBlur={(e)  => { e.target.style.borderColor = "rgba(99,102,241,0.4)"; }}
+                 />
+                 <div className="flex justify-end gap-3 pt-2">
+                   <button 
+                      onClick={() => setIsEditingPrompt(false)} 
+                      className="px-4 py-2 text-sm font-medium text-slate-400 hover:text-white"
+                   >
+                     Cancelar Edição
+                   </button>
+                   <button 
+                      onClick={() => handleSavePrompt(editingPromptText, "manual")} 
+                      disabled={savingPrompt}
+                      className="flex items-center gap-2 px-6 py-2.5 text-sm font-bold text-white rounded-xl transition-all disabled:opacity-50 hover:scale-[1.02]"
+                      style={{ background: "linear-gradient(135deg, #10b981, #0d9488)" }}
+                   >
+                     <Save size={16} /> 
+                     {savingPrompt ? "Salvando..." : "Salvar Edição do Cérebro"}
+                   </button>
+                 </div>
+               </div>
             )}
           </div>
         )}
