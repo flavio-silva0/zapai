@@ -180,9 +180,9 @@ router.post("/sandbox/chat", requireAuth, async (req, res) => {
     // --- RAG: Busca de Conhecimento Semântico ---
     let ragContext = "";
     try {
-      const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+      const embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
       const queryResult = await embeddingModel.embedContent(mensagemUsuario);
-      const queryVector = queryResult.embedding.values;
+      const queryVector = queryResult.embedding.values.slice(0, 768);
       const vectorString = `[${queryVector.join(",")}]`;
 
       const { data: matches, error: rpcError } = await supabase.rpc("match_knowledge", {
@@ -315,13 +315,13 @@ router.post("/knowledge", requireAuth, async (req, res) => {
 
     // -- 3. Geração Vetorial --
     const chunks = chunkText(textToProcess);
-    const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+    const embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
 
     let successCount = 0;
     for (const chunk of chunks) {
       // 1. Gera Embedding do chunk usando o Google (Com proteção de sobrecarga)
       const result = await comRetry(() => embeddingModel.embedContent(chunk), 4, 1500);
-      const vector = result.embedding.values;
+      const vector = result.embedding.values.slice(0, 768);
       const vectorString = `[${vector.join(",")}]`;
 
       // 2. Salva no banco de dados vetorial do Supabase

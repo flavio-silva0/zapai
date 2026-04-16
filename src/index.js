@@ -207,9 +207,9 @@ async function consultarGeminiDinamicamente(historico, payloadObject, tenant, pa
 
   // --- INJEÇÃO RAG (BASE DE CONHECIMENTO VETORIAL) ---
   try {
-    const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+    const embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
     const queryResult = await embeddingModel.embedContent(payloadObject.textoUsuario);
-    const queryVector = queryResult.embedding.values;
+    const queryVector = queryResult.embedding.values.slice(0, 768);
     const vectorString = `[${queryVector.join(",")}]`;
 
     const { data: matches, error: rpcError } = await supabase.rpc("match_knowledge", {
