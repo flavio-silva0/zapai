@@ -13,6 +13,13 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
+// Utilitários de Resiliência IA
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+function ehErroSobrecarga(err) {
+  const msg = err?.message ?? "";
+  return msg.includes("503") || msg.includes("Service Unavailable") || msg.includes("overloaded");
+}
+
 // â”€â”€ POST /api/admin/seed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Cria o super_admin inicial. NÃƒO exige autenticaÃ§Ã£o (bootstrap).
 // Auto-protegida: sÃ³ funciona se AINDA nÃ£o existir nenhum super_admin.
@@ -137,17 +144,41 @@ router.post("/sandbox/chat", requireAuth, async (req, res) => {
     }
 
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", systemInstruction: prompt_text });
+    const fallbackModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite", systemInstruction: prompt_text });
     
-    const chat = model.startChat({
-      history: historicoAnterior,
-      generationConfig: { maxOutputTokens: 1500, temperature: 0.85 },
-    });
+    let respostaBot = "";
+    let success = false;
+    let lastError = null;
 
-    // Timeout de 25s manual para evitar que o worker congele
-    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout de 25000ms da IA")), 25000));
-    const result = await Promise.race([chat.sendMessage([{ text: mensagemUsuario }]), timeoutPromise]);
+    for (let tentativa = 1; tentativa <= 3; tentativa++) {
+      try {
+        const chat = (tentativa === 3 ? fallbackModel : model).startChat({
+          history: historicoAnterior,
+          generationConfig: { maxOutputTokens: 1500, temperature: 0.85 },
+        });
 
-    const respostaBot = result.response.text();
+        // Timeout de 25s manual para evitar que o worker congele
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout de 25000ms da IA")), 25000));
+        const result = await Promise.race([chat.sendMessage([{ text: mensagemUsuario }]), timeoutPromise]);
+
+        respostaBot = result.response.text();
+        success = true;
+        break; // Sucesso, sai do loop
+      } catch (err) {
+        lastError = err;
+        if (ehErroSobrecarga(err) && tentativa < 3) {
+          console.warn(`[SANDBOX] IA sobrecarregada (tentativa ${tentativa}). Retentando...`);
+          await sleep(2000 * tentativa);
+        } else if (!ehErroSobrecarga(err)) {
+          // Erro fatal (ex: chave bloqueada), não tenta dnv
+          throw err;
+        }
+      }
+    }
+
+    if (!success) {
+      throw lastError || new Error("Falha ao comunicar com a IA após 3 tentativas.");
+    }
 
     res.json({ resposta: respostaBot });
   } catch (error) {
