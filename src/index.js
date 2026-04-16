@@ -1,5 +1,5 @@
 // ============================================================
-//  SofiaAI — Backend Server  |  v3.0.0  (SaaS Multi-Tenant)
+//  ZapAI — Backend Server  |  v3.0.0  (SaaS Multi-Tenant)
 //  Agente IA + Express REST + Supabase + Webhooks Meta Cloud
 // ============================================================
 
@@ -137,6 +137,49 @@ async function getHistoricoGemini(patient_id) {
   return history;
 }
 
+// ── 6.5 MEMÓRIA DE LONGO PRAZO ──────────────────────────────
+async function atualizarMemoriaLongoPrazo(patient, historico, ultimaRespostaBot) {
+  try {
+    let textoConversa = historico.map(h => `${h.role === 'user' ? 'Usuário' : 'IA'}: ${h.parts[0].text}`).join("\n");
+    textoConversa += `\nIA: ${ultimaRespostaBot}`;
+
+    const promptMemoria = `Você é um analista de dados extraindo contexto vital de retenção.
+Extraia os fatos mais importantes sobre o 'Usuário' com base na conversa abaixo.
+Gere um JSON (apenas o formato JSON, sem crases de markdown) com informações úteis para manter o contexto em futuras conversas. 
+Exemplos do que buscar: nome, preferências pessoais, intenção de compra, objeções, orçamento, dúvidas recorrentes.
+
+Memória Existente (Base atual):
+${patient.ai_memory ? JSON.stringify(patient.ai_memory) : "{}"}
+
+Conversa Recente:
+${textoConversa}
+
+Regras:
+1. Responda APENAS com um objeto JSON válido. Nada de texto antes ou depois.
+2. Mescle os dados novos com os dados da "Memória Existente". Mantenha o que for importante.
+3. Se a conversa recente não tiver nenhuma informação nova ou relevante, retorne exatamente o JSON da Memória Existente.
+`;
+    
+    const abstractor = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const result = await abstractor.generateContent(promptMemoria);
+    let textResult = result.response.text().trim();
+    // Limpeza de blocos de código se vierem acidentalmente
+    textResult = textResult.replace(/^```[a-z]*\n?/, "").replace(/\n?```$/, "").trim();
+    
+    try {
+      const novaMemoria = JSON.parse(textResult);
+      if (Object.keys(novaMemoria).length > 0) {
+        await supabase.from("users_whatsapp").update({ ai_memory: novaMemoria }).eq("id", patient.id);
+        console.log(`🧠 [MEMÓRIA] Perfil do contato ${patient.telefone} enriquecido!`);
+      }
+    } catch (parseErr) {
+       console.log(`🧠 [MEMÓRIA] Falha ao efetuar parse do JSON de memória: ${textResult}`);
+    }
+  } catch (err) {
+    console.error(`🧠 [MEMÓRIA] Erro ao processar memória de longo prazo: ${err.message}`);
+  }
+}
+
 // ── 6. GEMINI ────────────────────────────────────────────────
 const MAX_TENTATIVAS_GEMINI = 3;
 const BACKOFF_BASE_MS = 2000;
@@ -155,8 +198,13 @@ async function chamarModelo(modelo, historico, arrayMultiModal) {
   return resultado.response.text();
 }
 
-async function consultarGeminiDinamicamente(historico, payloadObject, tenant) {
-  const prompt = tenant.prompt_text || "Você é a Sofia, uma assistente prestativa.";
+async function consultarGeminiDinamicamente(historico, payloadObject, tenant, patientMemory = null) {
+  let prompt = tenant.prompt_text || "Você é a Sofia, uma assistente prestativa.";
+
+  if (patientMemory && typeof patientMemory === 'object' && Object.keys(patientMemory).length > 0) {
+    prompt += `\n\n=== MEMÓRIA DE LONGO PRAZO ===\nVocê já conversou com este usuário no passado ou nesta mesma sessão. Aqui estão informações essenciais sobre ele e suas interações anteriores para você manter o contexto vivo:\n${JSON.stringify(patientMemory, null, 2)}\nUse estes detalhes com naturalidade para prover um atendimento altamente personalizado.`;
+  }
+
   const modeloPrincipal = genAI.getGenerativeModel({ model: "gemini-2.5-flash", systemInstruction: prompt });
   const modeloFallback = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite", systemInstruction: prompt });
 
@@ -506,7 +554,7 @@ app.post("/webhook/whatsapp", async (req, res) => {
             respostaSofia = await consultarGeminiDinamicamente(historico, {
               textoUsuario: combinedTexto.trim(),
               inlineDatas: combinedInlineDatas
-            }, tenant);
+            }, tenant, patient.ai_memory);
           } catch (e) {
             console.error(`❌ [GEMINI ERROR] Falha ao processar IA: ${e.message}`);
             break; // Sai do loop em caso de erro crítico
@@ -520,6 +568,9 @@ app.post("/webhook/whatsapp", async (req, res) => {
           await enviarMensagemMeta(telefoneUsuario, respostaSofia, tenant);
           const msgBot = await saveMessage(patient.id, respostaSofia, "bot", tenant.id);
           emitirEvento("new_message", msgBot);
+
+          // Atualiza memória em background
+          atualizarMemoriaLongoPrazo({ ...patient, ai_memory: patient.ai_memory }, historico, respostaSofia).catch(()=>null);
 
           if (patient.status_kanban === "Novo") {
             const { data: atualizado } = await supabase.from("users_whatsapp").update({ status_kanban: "Em Atendimento" }).eq("id", patient.id).select().single();

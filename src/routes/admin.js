@@ -3,9 +3,11 @@
 const express  = require("express");
 const bcrypt   = require("bcryptjs");
 const { createClient } = require("@supabase/supabase-js");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { requireAuth, requireSuperAdmin } = require("../middleware/authMiddleware");
 
 const router  = express.Router();
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
@@ -133,13 +135,91 @@ router.put("/tenants/:id", async (req, res) => {
 
   if (error) return res.status(500).json({ error: error.message });
 
-  console.log(`ðŸ”§  Admin atualizou tenant ${req.params.id}: ${JSON.stringify(update)}`);
+  console.log(`🔧  Admin atualizou tenant ${req.params.id}: ${JSON.stringify(update)}`);
   res.json(data);
 });
 
-// â”€â”€ POST /api/admin/seed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Cria o super_admin inicial. SÃ³ funciona se ainda nÃ£o existir.
-// Chame UMA VEZ apÃ³s o primeiro deploy, depois proteja ou remova.
+// ── GET /api/admin/magic-setup ─────────────────────────────────
+// Rota para criação automática de System Prompt baseado em parágrafo
+router.post("/magic-setup", async (req, res) => {
+  try {
+    const { descricaoNegocio, tenantId } = req.body;
+    
+    if (!descricaoNegocio) {
+      return res.status(400).json({ error: "Descrição do negócio é obrigatória." });
+    }
+
+    const sysPrompt = `Você é um engenheiro de prompt especialista em IA conversacional para WhatsApp.
+O cliente descreveu o negócio dele da seguinte forma:
+"${descricaoNegocio}"
+
+Sua tarefa: Transformar essa descrição crua em um 'System Prompt' (texto de instrução de sistema) perfeito, completo e estruturado em Markdown, para que um robô baseado no modelo Gemini o obedeça.
+Preencha/expanda as lacunas para criar um atendimento de excelência. Use o template abaixo:
+
+# IDENTIDADE
+Você é a inteligência artificial responsável pelo atendimento de WhatsApp da [Nome do Negócio].
+Seu tom de voz é [Definir tom baseado no tipo de negócio: se for clínico = empático e sério. se for pizzaria = descontraído e ágil. etc].
+
+# CONTEXTO E SERVIÇOS TÉCNICOS
+[Liste de forma estruturada os serviços/produtos que ele informou, preços e horários caso citados]
+
+# REGRAS DE OURO 
+- Seja sempre amigável, direto ao ponto e não envie blocos de texto muito longos (é WhatsApp).
+- Nunca invente preços ou prometa serviços que não estão listados acima.
+- Se o cliente perguntar algo fora do escopo ou fizer uma reclamação grave, diga que um humano irá assumir o atendimento em breve.
+
+# OBJETIVO PRINCIPAL
+[Defina o objetivo: agendar uma reunião, fazer o pedido, sanar dúvidas pré-venda, etc]
+
+Atenção: A sua saída DEVE ser ÚNICA e EXCLUSIVAMENTE o conteúdo do prompt. Não escreva 'Aqui está seu prompt' ou explique nada antes ou depois. Retorne apenas o template preenchido.`;
+
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const response = await model.generateContent(sysPrompt);
+    const generatedPrompt = response.response.text().trim();
+
+    // Se o cliente já tiver um tenantId focado, atualizamos pra ele automaticamente
+    if (tenantId) {
+       const { error } = await supabase.from("tenants").update({ prompt_text: generatedPrompt }).eq("id", tenantId);
+       if (error) throw error;
+    }
+
+    res.json({ promptGerado: generatedPrompt });
+  } catch (error) {
+    console.error("Erro no magic-setup:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ── POST /api/admin/sandbox/chat ──────────────────────────────
+// Rota para simular chat usando o prompt atual antes de ir pra Meta
+router.post("/sandbox/chat", async (req, res) => {
+  try {
+    const { prompt_text, mensagemUsuario, historicoAnterior = [] } = req.body;
+    
+    if (!prompt_text || !mensagemUsuario) {
+      return res.status(400).json({ error: "prompt_text e mensagemUsuario são obrigatórios." });
+    }
+
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", systemInstruction: prompt_text });
+    
+    const chat = model.startChat({
+      history: historicoAnterior, // Padrão Gemini: [{role: "user"|"model", parts: [{text: "..."}]}]
+      generationConfig: { maxOutputTokens: 800, temperature: 0.85 },
+    });
+
+    const result = await chat.sendMessage([{ text: mensagemUsuario }]);
+    const respostaBot = result.response.text();
+
+    res.json({ resposta: respostaBot });
+  } catch (error) {
+    console.error("Erro no sandbox/chat:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ── POST /api/admin/seed ───────────────────────────────────────
+// Cria o super_admin inicial. Só funciona se ainda não existir.
+// Chame UMA VEZ após o primeiro deploy, depois proteja ou remova.
 router.post("/seed", async (req, res) => {
   const adminEmail    = process.env.ADMIN_EMAIL;
   const adminPassword = process.env.ADMIN_PASSWORD;
