@@ -15,8 +15,7 @@ export default function TestSofia() {
   const [countdown,  setCountdown]  = useState(null);
   
   // Pegamos o tenant atual para injetar o prompt do sandbox
-  const { tenant } = useConfig();
-  const { token } = useContext(AuthContext);
+  const { token, tenant } = useContext(AuthContext);
   
   const bottomRef           = useRef(null);
   const bufferRef           = useRef([]);
