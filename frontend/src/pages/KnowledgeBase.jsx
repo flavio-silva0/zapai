@@ -91,7 +91,14 @@ export default function KnowledgeBase() {
       setFileValue(null);
       fetchKnowledge();
     } catch (err) {
-      setMessage({ type: "error", text: err.message });
+      let friendlyError = err.message;
+      if (friendlyError.includes("503") || friendlyError.includes("overloaded")) {
+         friendlyError = "Servidores do Google / IA estão sob altíssima demanda no momento (503 Service Unavailable). Espere alguns segundos e aperte 'Injetar' novamente!";
+      } else if (friendlyError.includes("500") || friendlyError.includes("API key not valid")) {
+         friendlyError = "Erro na formatação da chave API ou sobrecarga na rede principal. Verifique os logs do servidor.";
+      }
+      
+      setMessage({ type: "error", text: friendlyError });
     } finally {
       setSubmitting(false);
     }

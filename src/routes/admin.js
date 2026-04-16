@@ -21,6 +21,21 @@ function ehErroSobrecarga(err) {
   return msg.includes("503") || msg.includes("Service Unavailable") || msg.includes("overloaded");
 }
 
+async function comRetry(operacao, maxTentativas = 3, backoffBaseMs = 2000) {
+  for (let tentativa = 1; tentativa <= maxTentativas; tentativa++) {
+    try {
+      return await operacao();
+    } catch (err) {
+      if (ehErroSobrecarga(err) && tentativa < maxTentativas) {
+        console.warn(`[GEMINI / RAG] 503 API do Google Sobrecarregada. Retentando (${tentativa}/${maxTentativas})...`);
+        await sleep(backoffBaseMs * tentativa); // Atraso progressivo: 2s, 4s, etc.
+      } else {
+        throw err;
+      }
+    }
+  }
+}
+
 function chunkText(text, maxChars = 1500) {
   const paragraphs = text.split(/\n\s*\n/);
   const chunks = [];
@@ -284,10 +299,10 @@ router.post("/knowledge", requireAuth, async (req, res) => {
          let promptInst = "Transcreva todo o texto visível desta imagem integralmente.";
          if (fileType.includes("pdf")) promptInst = "Extraia rigorosamente o conteúdo deste arquivo e transcreva tudo em tópicos estruturados, sem omitir regras sistêmicas.";
          
-         const analysis = await vModel.generateContent([
+         const analysis = await comRetry(() => vModel.generateContent([
            promptInst,
            { inlineData: { data: base64Data, mimeType: fileType } }
-         ]);
+         ]));
          textToProcess = analysis.response.text();
       } else {
          throw new Error("Formato de arquivo não suportado.");
@@ -304,8 +319,8 @@ router.post("/knowledge", requireAuth, async (req, res) => {
 
     let successCount = 0;
     for (const chunk of chunks) {
-      // 1. Gera Embedding do chunk usando o Google
-      const result = await embeddingModel.embedContent(chunk);
+      // 1. Gera Embedding do chunk usando o Google (Com proteção de sobrecarga)
+      const result = await comRetry(() => embeddingModel.embedContent(chunk), 4, 1500);
       const vector = result.embedding.values;
       const vectorString = `[${vector.join(",")}]`;
 
