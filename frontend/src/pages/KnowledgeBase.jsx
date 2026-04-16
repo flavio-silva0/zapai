@@ -8,8 +8,9 @@ export default function KnowledgeBase() {
   const [knowledgeList, setKnowledgeList] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const [activeTab, setActiveTab] = useState("texto"); // texto ou url
+  const [activeTab, setActiveTab] = useState("texto"); // texto, url, arquivo
   const [inputValue, setInputValue] = useState("");
+  const [fileValue, setFileValue] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
 
@@ -35,13 +36,46 @@ export default function KnowledgeBase() {
 
   const handleAdd = async (e) => {
     e.preventDefault();
-    if (!inputValue.trim()) return;
+    if (activeTab !== "arquivo" && !inputValue.trim()) return;
+    if (activeTab === "arquivo" && !fileValue) return;
+
     setSubmitting(true);
     setMessage(null);
 
     const payload = { tipo: activeTab };
-    if (activeTab === "url") payload.url = inputValue.trim();
-    else payload.texto = inputValue.trim();
+
+    if (activeTab === "url") {
+      payload.url = inputValue.trim();
+    } else if (activeTab === "texto") {
+      payload.texto = inputValue.trim();
+    } else if (activeTab === "arquivo") {
+      // Se for TXT puro, o front-end lê direto pra economizar tráfego
+      if (fileValue.name.endsWith(".txt")) {
+        const text = await fileValue.text();
+        payload.tipo = "texto";
+        payload.texto = text;
+      } else {
+        // Validação estrita de limite imposta pelo Express
+        if (fileValue.size > 10 * 1024 * 1024) {
+          setMessage({ type: "error", text: "O arquivo excede o limite de 10MB." });
+          setSubmitting(false);
+          return;
+        }
+
+        const base64Data = await new Promise((resolve) => {
+           const reader = new FileReader();
+           reader.onload = (ev) => resolve(ev.target.result.split(',')[1]);
+           reader.readAsDataURL(fileValue);
+        });
+
+        payload.tipo = "file";
+        let fallbackType = "application/pdf";
+        if (fileValue.name.endsWith(".docx")) fallbackType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+        
+        payload.fileType = fileValue.type || fallbackType;
+        payload.base64Data = base64Data;
+      }
+    }
 
     try {
       const res = await apiFetch("/api/admin/knowledge", {
@@ -54,6 +88,7 @@ export default function KnowledgeBase() {
 
       setMessage({ type: "success", text: `Injeção de ${data.chunksIngested} memórias feita com sucesso!` });
       setInputValue("");
+      setFileValue(null);
       fetchKnowledge();
     } catch (err) {
       setMessage({ type: "error", text: err.message });
@@ -120,10 +155,18 @@ export default function KnowledgeBase() {
                 Texto
               </button>
               <button 
+                type="button"
                 onClick={() => setActiveTab("url")}
                 className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${activeTab === 'url' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
               >
                 Site (URL)
+              </button>
+              <button 
+                type="button"
+                onClick={() => setActiveTab("arquivo")}
+                className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${activeTab === 'arquivo' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+              >
+                Arquivo
               </button>
             </div>
 
@@ -163,6 +206,19 @@ export default function KnowledgeBase() {
                   </div>
                   <p className="text-[11px] text-slate-500 mt-2">A IA irá extrair e ler todo o conteúdo visível deste link em segundos.</p>
                 </div>
+              ) : (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Upload de Documento (Até 10MB)</label>
+                  <input 
+                    type="file"
+                    accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+                    onChange={(e) => setFileValue(e.target.files[0])}
+                    className="w-full rounded-xl px-4 py-3 text-sm text-slate-300 border file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-500/20 file:text-indigo-400 hover:file:bg-indigo-500/30 transition-all"
+                    style={{ background: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.07)" }}
+                    required
+                  />
+                  <p className="text-[11px] text-slate-500 mt-2">Suportado: PDF, DOCX, TXT e Imagens. A inteligência visual lerá o arquivo nativamente.</p>
+                </div>
               )}
 
               {message && (
@@ -173,7 +229,7 @@ export default function KnowledgeBase() {
 
               <button 
                 type="submit"
-                disabled={submitting || !inputValue.trim()}
+                disabled={submitting || (activeTab === "arquivo" ? !fileValue : !inputValue.trim())}
                 className="mt-2 w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-white text-sm font-bold transition-all disabled:opacity-50"
                 style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
               >

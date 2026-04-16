@@ -2,6 +2,7 @@
 
 const express  = require("express");
 const bcrypt   = require("bcryptjs");
+const mammoth  = require("mammoth");
 const { createClient } = require("@supabase/supabase-js");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { requireAuth, requireSuperAdmin } = require("../middleware/authMiddleware");
@@ -254,28 +255,50 @@ router.get("/knowledge", requireAuth, async (req, res) => {
 // ── POST /api/admin/knowledge (Acessível a Tenants) ────────
 router.post("/knowledge", requireAuth, async (req, res) => {
   try {
-    const { tipo, url, texto } = req.body;
+    const { tipo, url, texto, fileType, base64Data } = req.body;
     const targetTenant = req.user.role === "super_admin" ? (req.body.tenantId || req.user.tenantId) : req.user.tenantId;
     
     if (!targetTenant) return res.status(403).json({ error: "Sessão inválida." });
 
     let textToProcess = texto || "";
 
-    // Web Scraping via API gratuita do Jina Reader
+    // -- 1. Processamento de Web Scraping --
     if (tipo === 'url' && url) {
-      const response = await fetch("https://r.jina.ai/" + url, {
-         headers: {
-            "Accept": "text/plain", // Exige markdown puro 
-         }
-      });
+      const response = await fetch("https://r.jina.ai/" + url, { headers: { "Accept": "text/plain" } });
       if (!response.ok) throw new Error("Falha ao ler o site alvo.");
       textToProcess = await response.text();
     }
 
-    if (!textToProcess || textToProcess.trim().length === 0) {
-      return res.status(400).json({ error: "Conteúdo vazio ou ilegível." });
+    // -- 2. Processamento de Arquivos Binários (DOCX, PDF, JPG, PNG) --
+    if (tipo === 'file' && base64Data && fileType) {
+      const buffer = Buffer.from(base64Data, "base64");
+      
+      // a) DOCX -> Mammoth (Local)
+      if (fileType.includes("wordprocessingml")) {
+         const result = await mammoth.extractRawText({ buffer });
+         textToProcess = result.value;
+      } 
+      // b) PDF / Imagens -> Gemini Vision OCR (Nuvem)
+      else if (fileType.includes("pdf") || fileType.includes("image")) {
+         const vModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+         let promptInst = "Transcreva todo o texto visível desta imagem integralmente.";
+         if (fileType.includes("pdf")) promptInst = "Extraia rigorosamente o conteúdo deste arquivo e transcreva tudo em tópicos estruturados, sem omitir regras sistêmicas.";
+         
+         const analysis = await vModel.generateContent([
+           promptInst,
+           { inlineData: { data: base64Data, mimeType: fileType } }
+         ]);
+         textToProcess = analysis.response.text();
+      } else {
+         throw new Error("Formato de arquivo não suportado.");
+      }
     }
 
+    if (!textToProcess || textToProcess.trim().length === 0) {
+      return res.status(400).json({ error: "Conteúdo vazio ou ilegível (O arquivo pode ser apenas scan sem texto identificável)." });
+    }
+
+    // -- 3. Geração Vetorial --
     const chunks = chunkText(textToProcess);
     const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
 
