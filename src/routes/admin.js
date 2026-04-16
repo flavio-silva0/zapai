@@ -104,14 +104,25 @@ Atenção: A sua resposta DEVE ser ÚNICA e EXCLUSIVAMENTE o conteúdo do prompt
     const response = await model.generateContent(sysPrompt);
     const generatedPrompt = response.response.text().trim();
 
-    if (targetTenant) {
-       const { error } = await supabase.from("tenants").update({ prompt_text: generatedPrompt }).eq("id", targetTenant);
-       if (error) throw error;
-    }
-
     res.json({ promptGerado: generatedPrompt });
   } catch (error) {
     console.error("Erro no magic-setup:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ── PUT /api/admin/magic-setup/save (Acessível a Tenants) ────────
+router.put("/magic-setup/save", requireAuth, async (req, res) => {
+  try {
+    const { prompt_text } = req.body;
+    if (!prompt_text) return res.status(400).json({ error: "prompt_text é obrigatório." });
+    if (!req.user.tenantId) return res.status(403).json({ error: "Apenas tenants podem salvar." });
+    
+    const { error } = await supabase.from("tenants").update({ prompt_text }).eq("id", req.user.tenantId);
+    if (error) throw error;
+    
+    res.json({ success: true });
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
