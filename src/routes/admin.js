@@ -111,6 +111,7 @@ router.post("/magic-setup", requireAuth, async (req, res) => {
     const sysPrompt = `Você é um engenheiro de prompt especialista em IA conversacional para WhatsApp.
 O cliente forneceu as seguintes configurações estruturadas para o seu assistente virtual:
 
+- Nome do Agente: ${formSetup.nomeAgente || "Assistente Sem Nome"}
 - Tom de Voz Solicitado: ${formSetup.tomVoz}
 - Objetivo Principal do Bot: ${formSetup.objetivo}
 - Endereço Físico: ${formSetup.endereco || "Não especificado ou puramente online"}
@@ -121,6 +122,7 @@ Sua tarefa: Transformar essas informações em um 'System Prompt' (texto de inst
 
 # IDENTIDADE
 Você é a inteligência artificial responsável pelo atendimento de WhatsApp. 
+O seu nome é ${formSetup.nomeAgente || "Assistente"}. Apresente-se ativamente com este nome quando cumprimentar ou pedirem sua identificação.
 Seu tom de voz exato e absoluto é: ${formSetup.tomVoz}. Assuma essa persona imediatamente.
 
 # CONTEXTO E LOGÍSTICA
@@ -153,11 +155,14 @@ Atenção: A sua resposta DEVE ser ÚNICA e EXCLUSIVAMENTE o conteúdo do prompt
 // ── PUT /api/admin/magic-setup/save (Acessível a Tenants) ────────
 router.put("/magic-setup/save", requireAuth, async (req, res) => {
   try {
-    const { prompt_text } = req.body;
+    const { prompt_text, bot_name } = req.body;
     if (!prompt_text) return res.status(400).json({ error: "prompt_text é obrigatório." });
     if (!req.user.tenantId) return res.status(403).json({ error: "Apenas tenants podem salvar." });
     
-    const { error } = await supabase.from("tenants").update({ prompt_text }).eq("id", req.user.tenantId);
+    const updateData = { prompt_text };
+    if (bot_name) updateData.bot_name = bot_name;
+
+    const { error } = await supabase.from("tenants").update(updateData).eq("id", req.user.tenantId);
     if (error) throw error;
     
     res.json({ success: true });

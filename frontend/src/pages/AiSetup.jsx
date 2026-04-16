@@ -18,6 +18,7 @@ export default function AiSetup() {
   const { user, tenant, login } = useContext(AuthContext);
 
   const [magicForm, setMagicForm] = useState({
+    nomeAgente: tenant?.bot_name || "Assistente",
     tomVoz: "Profissional e Empático",
     objetivo: "Atendimento Geral e Triagem",
     cep: "",
@@ -106,14 +107,23 @@ export default function AiSetup() {
     setSavingPrompt(true);
     setErro("");
     try {
+      const payload = { prompt_text: textToSave };
+      if (mode === "magic" && magicForm.nomeAgente) {
+        payload.bot_name = magicForm.nomeAgente.trim();
+      }
+
       const res = await apiFetch("/api/admin/magic-setup/save", {
         method: "PUT",
-        body: JSON.stringify({ prompt_text: textToSave }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       
-      const updatedTenant = { ...tenant, prompt_text: textToSave };
+      const updatedTenant = { 
+        ...tenant, 
+        prompt_text: textToSave,
+        ...(mode === "magic" && magicForm.nomeAgente ? { bot_name: magicForm.nomeAgente.trim() } : {})
+      };
       const token = localStorage.getItem("sofia_token");
       login(token, user, updatedTenant);
 
@@ -171,7 +181,18 @@ export default function AiSetup() {
                   Preencha os campos estruturados abaixo. A IA usará esses dados para gerar a personalidade e as regras ideais para o seu atendimento no WhatsApp.
                 </p>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Field label="Nome do Agente">
+                    <input
+                      type="text"
+                      placeholder="Ex: Beatriz"
+                      value={magicForm.nomeAgente}
+                      onChange={(e) => setMagicForm({ ...magicForm, nomeAgente: e.target.value })}
+                      className="w-full rounded-xl px-4 py-3 text-sm text-white focus:outline-none transition-all border"
+                      style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.07)" }}
+                    />
+                  </Field>
+
                   <Field label="Tom de Voz do Agente">
                     <select
                       value={magicForm.tomVoz}

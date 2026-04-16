@@ -6,8 +6,7 @@ import { AuthContext } from "../context/AuthContext";
 
 const DEBOUNCE_TEST_MS = 3000;
 
-export default function TestSofia() {
-  const { botName, botEmoji } = useConfig();
+export default function TestZapAi() {
   const [mensagens,  setMensagens]  = useState(() => {
     try {
       const salvas = localStorage.getItem("sandbox_history");
@@ -24,6 +23,9 @@ export default function TestSofia() {
   // Pegamos o tenant atual para injetar o prompt do sandbox
   const { token, tenant } = useContext(AuthContext);
   
+  const displayBotName = tenant?.bot_name || "Assistente";
+  const displayBotEmoji = tenant?.bot_emoji || "🤖";
+
   const bottomRef           = useRef(null);
   const bufferRef           = useRef([]);
   const timerRef            = useRef(null);
@@ -76,7 +78,7 @@ export default function TestSofia() {
       let lastRole = null;
 
       mensagensAnteriores.filter(m => m.role !== "erro").forEach(m => {
-        const currentRole = m.role === "sofia" ? "model" : "user";
+        const currentRole = m.role === "ai" ? "model" : "user";
         if (currentRole === lastRole) {
           historicoAnterior[historicoAnterior.length - 1].parts[0].text += "\n" + m.texto;
         } else {
@@ -96,7 +98,7 @@ export default function TestSofia() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setMensagens((prev) => [...prev, { role: "sofia", texto: data.resposta }]);
+      setMensagens((prev) => [...prev, { role: "ai", texto: data.resposta }]);
     } catch (err) {
       setMensagens((prev) => [...prev, { role: "erro", texto: `Erro: ${err.message}` }]);
     } finally {
@@ -148,11 +150,11 @@ export default function TestSofia() {
               <Bot size={16} className="text-white" />
             </div>
             <h1 className="font-display text-2xl font-black text-white">
-              Testar {botName}
+              Testar {displayBotName}
             </h1>
           </div>
           <p className="text-slate-500 text-sm ml-10">
-            Simulação real · {botName} aguarda {DEBOUNCE_TEST_MS / 1000}s após sua última mensagem
+            Simulação real · {displayBotName} aguarda {DEBOUNCE_TEST_MS / 1000}s após sua última mensagem
           </p>
         </div>
         <button
@@ -189,7 +191,7 @@ export default function TestSofia() {
                 </div>
               </div>
               <div className="text-center">
-                <p className="text-white font-semibold mb-1">{botName} está pronto!</p>
+                <p className="text-white font-semibold mb-1">{displayBotName} está prota!</p>
                 <p className="text-slate-500 text-sm max-w-xs">
                   Envie uma mensagem para simular o atendimento. Você pode mandar várias seguidas.
                 </p>
@@ -225,7 +227,7 @@ export default function TestSofia() {
                 >
                   {!isUser && !isErro && (
                     <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block mb-1">
-                      {botName} {botEmoji}
+                      {displayBotName} {displayBotEmoji}
                     </span>
                   )}
                   {msg.texto}
@@ -243,7 +245,7 @@ export default function TestSofia() {
               <div className="px-4 py-3 rounded-2xl rounded-tl-sm text-amber-300 text-sm border"
                 style={{ background: "rgba(245,158,11,0.08)", borderColor: "rgba(245,158,11,0.2)" }}
               >
-                {botName} aguardando mais mensagens... responde em <strong>{countdown}s</strong>
+                {displayBotName} aguardando mais mensagens... responde em <strong>{countdown}s</strong>
               </div>
             </div>
           )}
@@ -258,7 +260,7 @@ export default function TestSofia() {
                 style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.07)" }}
               >
                 <Loader2 size={14} className="animate-spin text-cyan-400" />
-                {botName} está digitando...
+                {displayBotName} está digitando...
               </div>
             </div>
           )}
@@ -275,7 +277,7 @@ export default function TestSofia() {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKey}
             onInput={handleInput}
-            placeholder={loading ? `Aguardando ${botName}...` : "Digite sua mensagem e pressione Enter..."}
+            placeholder={loading ? `Aguardando ${displayBotName}...` : "Digite sua mensagem e pressione Enter..."}
             rows={1}
             className="flex-1 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none resize-none transition-all border"
             style={{
