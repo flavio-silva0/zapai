@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useContext } from "react";
 import { Send, Trash2, Bot, User, Loader2, Clock, Zap } from "lucide-react";
 import { apiFetch } from "../api";
 import { useConfig } from "../context/ConfigContext";
+import { AuthContext } from "../context/AuthContext";
 
 const DEBOUNCE_TEST_MS = 3000;
 
@@ -15,6 +16,7 @@ export default function TestSofia() {
   
   // Pegamos o tenant atual para injetar o prompt do sandbox
   const { tenant } = useConfig();
+  const { token } = useContext(AuthContext);
   
   const bottomRef           = useRef(null);
   const bufferRef           = useRef([]);
@@ -53,13 +55,16 @@ export default function TestSofia() {
     setLoading(true);
     try {
       // Prepara o historico do frontend para o formato Gemini
-      const historicoAnterior = mensagens.map(m => ({
-         role: m.role === "sofia" ? "model" : "user",
-         parts: [{ text: m.texto }]
-      }));
+      const historicoAnterior = mensagens
+        .filter(m => m.role !== "erro")
+        .map(m => ({
+           role: m.role === "sofia" ? "model" : "user",
+           parts: [{ text: m.texto }]
+        }));
 
       const res  = await apiFetch("/api/admin/sandbox/chat", { 
-         method: "POST", 
+         method: "POST",
+         headers: { Authorization: `Bearer ${token}` },
          body: JSON.stringify({ 
            prompt_text: tenant?.prompt_text || "Você é a assistente virtual.",
            mensagemUsuario: textoCompleto,

@@ -140,10 +140,13 @@ router.post("/sandbox/chat", requireAuth, async (req, res) => {
     
     const chat = model.startChat({
       history: historicoAnterior,
-      generationConfig: { maxOutputTokens: 800, temperature: 0.85 },
+      generationConfig: { maxOutputTokens: 1500, temperature: 0.85 },
     });
 
-    const result = await chat.sendMessage([{ text: mensagemUsuario }]);
+    // Timeout de 25s manual para evitar que o worker congele
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout de 25000ms da IA")), 25000));
+    const result = await Promise.race([chat.sendMessage([{ text: mensagemUsuario }]), timeoutPromise]);
+
     const respostaBot = result.response.text();
 
     res.json({ resposta: respostaBot });
