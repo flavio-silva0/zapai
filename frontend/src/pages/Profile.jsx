@@ -65,19 +65,28 @@ export default function Profile() {
     }
   }, [user, tenant, isEditing]);
 
-  const [magicText, setMagicText] = useState("");
+  const [magicForm, setMagicForm] = useState({
+    tomVoz: "Profissional e Empático",
+    objetivo: "Atendimento Geral e Triagem",
+    endereco: "",
+    horarios: "",
+    resumo: ""
+  });
   const [generating, setGenerating] = useState(false);
   const [magicSuccess, setMagicSuccess] = useState(false);
 
   const handleMagicSetup = async () => {
-    if (!magicText.trim()) return;
+    if (!magicForm.resumo.trim()) {
+      setErro("O campo de Resumo é obrigatório para guiar a IA.");
+      return;
+    }
     setGenerating(true);
     setErro("");
     setMagicSuccess(false);
     try {
       const res = await apiFetch("/api/admin/magic-setup", {
         method: "POST",
-        body: JSON.stringify({ descricaoNegocio: magicText }),
+        body: JSON.stringify({ formSetup: magicForm }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -314,27 +323,75 @@ export default function Profile() {
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-5">
               <p className="text-sm text-slate-300">
-                Escreva abaixo como seu negócio funciona (seus horários, produtos, preços principais e seu objetivo). 
-                A IA vai transformar isso no comportamento perfeito para o seu robô no WhatsApp.
+                Preencha os campos estruturados abaixo. A IA usará esses dados para gerar a personalidade e as regras ideais para o seu atendimento no WhatsApp.
               </p>
               
-              <textarea
-                value={magicText}
-                onChange={(e) => setMagicText(e.target.value)}
-                placeholder="Ex: Sou a lanchonete do Zé. Vendemos X-Tudo a R$ 20 e Coca a R$ 5. Abrimos das 18h às 23h. Quero que o robô anote o pedido e o endereço."
-                rows={4}
-                className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none resize-none transition-all border"
-                style={{
-                  background: "rgba(255,255,255,0.04)",
-                  borderColor: "rgba(255,255,255,0.07)",
-                }}
-                onFocus={(e) => { e.target.style.borderColor = "rgba(16, 185, 129, 0.4)"; }}
-                onBlur={(e)  => { e.target.style.borderColor = "rgba(255,255,255,0.07)"; }}
-              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field label="Tom de Voz da IA">
+                  <select
+                    value={magicForm.tomVoz}
+                    onChange={(e) => setMagicForm({ ...magicForm, tomVoz: e.target.value })}
+                    className="w-full rounded-xl px-4 py-3 text-sm text-white focus:outline-none transition-all border appearance-none"
+                    style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.07)" }}
+                  >
+                    <option value="Profissional e Empático" className="bg-slate-800 text-white">Profissional e Empático (Clínicas, Serviços de Saúde)</option>
+                    <option value="Profissional e Corporativo" className="bg-slate-800 text-white">Profissional e Corporativo (B2B, Advocacia, Imobiliárias)</option>
+                    <option value="Descontraído e Ágil" className="bg-slate-800 text-white">Descontraído e Ágil (Varejo, Delivery, Restaurantes)</option>
+                    <option value="Acolhedor e Amigável" className="bg-slate-800 text-white">Acolhedor e Amigável (Estética, Petshops)</option>
+                  </select>
+                </Field>
 
-              <div className="flex items-center justify-between">
+                <Field label="Objetivo Principal do Bot">
+                  <select
+                    value={magicForm.objetivo}
+                    onChange={(e) => setMagicForm({ ...magicForm, objetivo: e.target.value })}
+                    className="w-full rounded-xl px-4 py-3 text-sm text-white focus:outline-none transition-all border appearance-none"
+                    style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.07)" }}
+                  >
+                    <option value="Atendimento Geral e Triagem" className="bg-slate-800 text-white">Atendimento Geral e Triagem (Passar informações base)</option>
+                    <option value="Agendar Horários" className="bg-slate-800 text-white">Agendar Horários (Focar em levar à marcação)</option>
+                    <option value="Qualificar Leads" className="bg-slate-800 text-white">Qualificar Leads (Pegar nome, e-mail e interesse)</option>
+                    <option value="Anotar Pedidos (Vendas)" className="bg-slate-800 text-white">Anotar Pedidos e Vendas (Apresentar catálogo e valores)</option>
+                  </select>
+                </Field>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Field label="Endereço Dinâmico (Se Houver)">
+                  <EditInput 
+                    value={magicForm.endereco} 
+                    onChange={(e) => setMagicForm({ ...magicForm, endereco: e.target.value })} 
+                    placeholder="Av. Paulista, 1000 - SP" 
+                  />
+                </Field>
+                <Field label="Dias e Horários de Func.">
+                  <EditInput 
+                    value={magicForm.horarios} 
+                    onChange={(e) => setMagicForm({ ...magicForm, horarios: e.target.value })} 
+                    placeholder="Seg a Sex, das 08h às 18h" 
+                  />
+                </Field>
+              </div>
+
+              <Field label="Resumo do Negócio e Serviços (O que vendemos, preços principais)">
+                <textarea
+                  value={magicForm.resumo}
+                  onChange={(e) => setMagicForm({ ...magicForm, resumo: e.target.value })}
+                  placeholder="Ex: Fazemos clareamento dental (R$500), Limpeza (R$150). Exija sempre o agendamento prévio. Não aceitamos convênio médico."
+                  rows={4}
+                  className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none resize-none transition-all border"
+                  style={{
+                    background: "rgba(255,255,255,0.04)",
+                    borderColor: "rgba(255,255,255,0.07)",
+                  }}
+                  onFocus={(e) => { e.target.style.borderColor = "rgba(16, 185, 129, 0.4)"; }}
+                  onBlur={(e)  => { e.target.style.borderColor = "rgba(255,255,255,0.07)"; }}
+                />
+              </Field>
+
+              <div className="flex items-center justify-between pt-2">
                 <div>
                   {magicSuccess && (
                      <span className="text-emerald-400 text-sm font-semibold flex items-center gap-1">
@@ -344,11 +401,12 @@ export default function Profile() {
                 </div>
                 <button
                   onClick={handleMagicSetup}
-                  disabled={generating || !magicText.trim()}
-                  className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl transition-all disabled:opacity-50"
+                  disabled={generating || !magicForm.resumo.trim()}
+                  className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl transition-all disabled:opacity-50 hover:scale-[1.02]"
                   style={{ background: "linear-gradient(135deg, #10b981, #0d9488)" }}
                 >
-                  {generating ? "Processando Mágica..." : "Gerar Cérebro da IA"}
+                  <Sparkles size={16} />
+                  {generating ? "Processando Mágica..." : "Gerar e Salvar Cérebro da IA"}
                 </button>
               </div>
             </div>

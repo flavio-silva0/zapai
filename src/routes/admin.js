@@ -61,38 +61,44 @@ router.post("/seed", async (_req, res) => {
 // ── POST /api/admin/magic-setup (Acessível a Tenants) ────────
 router.post("/magic-setup", requireAuth, async (req, res) => {
   try {
-    const { descricaoNegocio, tenantId } = req.body;
+    const { formSetup, tenantId } = req.body;
     
-    if (!descricaoNegocio) {
-      return res.status(400).json({ error: "Descrição do negócio é obrigatória." });
+    if (!formSetup || !formSetup.resumo) {
+      return res.status(400).json({ error: "Dados do formulário insuficientes." });
     }
 
     // Segurança Multi-tenant: Se não for admin, força a usar o próprio tenantId do token
     let targetTenant = req.user.role === "super_admin" ? (tenantId || req.user.tenantId) : req.user.tenantId;
 
     const sysPrompt = `Você é um engenheiro de prompt especialista em IA conversacional para WhatsApp.
-O cliente descreveu o negócio dele da seguinte forma:
-"${descricaoNegocio}"
+O cliente forneceu as seguintes configurações estruturadas para o seu assistente virtual:
 
-Sua tarefa: Transformar essa descrição crua em um 'System Prompt' (texto de instrução de sistema) perfeito, completo e estruturado em Markdown, para que um robô baseado no modelo Gemini o obedeça.
-Preencha/expanda as lacunas para criar um atendimento de excelência. Use o template abaixo:
+- Tom de Voz Solicitado: ${formSetup.tomVoz}
+- Objetivo Principal do Bot: ${formSetup.objetivo}
+- Endereço Físico: ${formSetup.endereco || "Não especificado ou puramente online"}
+- Dias e Horários de Func.: ${formSetup.horarios || "Não especificado"}
+- Resumo do Negócio e Serviços/Preços: "${formSetup.resumo}"
+
+Sua tarefa: Transformar essas informações em um 'System Prompt' (texto de instrução de sistema global) ultra profissional, completo e estruturado em Markdown, para que o modelo responda aos clientes finais obedecendo perfeitamente a esses critérios. Use o template abaixo preenchendo as entrelinhas e formatando a saída de forma persuasiva.
 
 # IDENTIDADE
-Você é a inteligência artificial responsável pelo atendimento de WhatsApp da [Nome do Negócio].
-Seu tom de voz é [Definir tom baseado no tipo de negócio: se for clínico = empático e sério. se for pizzaria = descontraído e ágil. etc].
+Você é a inteligência artificial responsável pelo atendimento de WhatsApp. 
+Seu tom de voz exato e absoluto é: ${formSetup.tomVoz}. Assuma essa persona imediatamente.
 
-# CONTEXTO E SERVIÇOS TÉCNICOS
-[Liste de forma estruturada os serviços/produtos que ele informou, preços e horários caso citados]
+# CONTEXTO E LOGÍSTICA
+- Nosso endereço: ${formSetup.endereco || "(Não informe endereço, loja online)"}.
+- Nosso horário de funcionamento: ${formSetup.horarios || "(Sem horário restrito informado)"}.
+
+# PACOTES E PREÇOS (OFERTAS)
+[Adapte e expanda os dados recebidos na linha de "Resumo" do negócio de forma clara, amigável e como uma lista de serviços que a IA pode vender/informar] 
 
 # REGRAS DE OURO 
-- Seja sempre amigável, direto ao ponto e não envie blocos de texto muito longos (é WhatsApp).
-- Nunca invente preços ou prometa serviços que não estão listados acima.
-- Se o cliente perguntar algo fora do escopo ou fizer uma reclamação grave, diga que um humano irá assumir o atendimento em breve.
+- Seja sempre amigável, conciso e não envie textos blockbusters longos (é WhatsApp).
+- Nunca invente preços ou prometa serviços fora da lista de Ofertas acima.
+- O seu ÚNICO OU PRINCIPAL OBJETIVO NESTE CHAT É: ${formSetup.objetivo}. Encerre ou conduza as respostas sempre visando concluir este objetivo.
+- Se o cliente perguntar algo fora do escopo ou fizer uma reclamação sentida, diga gentilmente que um humano irá assumir.
 
-# OBJETIVO PRINCIPAL
-[Defina o objetivo: agendar uma reunião, fazer o pedido, sanar dúvidas pré-venda, etc]
-
-Atenção: A sua saída DEVE ser ÚNICA e EXCLUSIVAMENTE o conteúdo do prompt. Não escreva 'Aqui está seu prompt' ou explique nada antes ou depois. Retorne apenas o template preenchido.`;
+Atenção: A sua resposta DEVE ser ÚNICA e EXCLUSIVAMENTE o conteúdo do prompt. Não escreva 'Aqui está seu prompt' ou explique seus passos em hipótese alguma.`;
 
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const response = await model.generateContent(sysPrompt);
