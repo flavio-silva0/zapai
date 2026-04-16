@@ -54,13 +54,26 @@ export default function TestSofia() {
     const textoCompleto = buffer.join("\n");
     setLoading(true);
     try {
-      // Prepara o historico do frontend para o formato Gemini
-      const historicoAnterior = mensagens
-        .filter(m => m.role !== "erro")
-        .map(m => ({
-           role: m.role === "sofia" ? "model" : "user",
-           parts: [{ text: m.texto }]
-        }));
+      // Isolar o histórico oficial removendo as mensagens que estão sendo processadas AGORA (trailing users)
+      let mensagensAnteriores = [...mensagens];
+      while (mensagensAnteriores.length > 0 && mensagensAnteriores[mensagensAnteriores.length - 1].role === "user") {
+        mensagensAnteriores.pop();
+      }
+
+      // O Gemini exige alternância estrita (user -> model -> user -> model).
+      // Vamos compactar mensagens seguidas do mesmo role.
+      const historicoAnterior = [];
+      let lastRole = null;
+
+      mensagensAnteriores.filter(m => m.role !== "erro").forEach(m => {
+        const currentRole = m.role === "sofia" ? "model" : "user";
+        if (currentRole === lastRole) {
+          historicoAnterior[historicoAnterior.length - 1].parts[0].text += "\n" + m.texto;
+        } else {
+          historicoAnterior.push({ role: currentRole, parts: [{ text: m.texto }] });
+          lastRole = currentRole;
+        }
+      });
 
       const res  = await apiFetch("/api/admin/sandbox/chat", { 
          method: "POST",
