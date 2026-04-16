@@ -114,6 +114,23 @@ export default function Profile() {
     }
   };
 
+  const handleCepSearch = async (cepStr) => {
+    const limpo = cepStr.replace(/\D/g, "");
+    if (limpo.length !== 8) return;
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${limpo}/json/`);
+      const data = await res.json();
+      if (!data.erro) {
+         setMagicForm(prev => ({
+           ...prev,
+           endereco: `${data.logradouro}, Número [X] - ${data.bairro}, ${data.localidade}/${data.uf}`
+         }));
+      }
+    } catch(err) {
+      // ignora silently
+    }
+  };
+
   const handleSavePrompt = async (textToSave, mode = "magic") => {
     setSavingPrompt(true);
     setErro("");
@@ -415,12 +432,25 @@ export default function Profile() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Field label="Endereço Dinâmico (Se Houver)">
-                    <EditInput 
-                      value={magicForm.endereco} 
-                      onChange={(e) => setMagicForm({ ...magicForm, endereco: e.target.value })} 
-                      placeholder="Av. Paulista, 1000 - SP" 
-                    />
+                  <Field label="Busque por CEP ou Digite o Endereço">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="CEP (Só Números)"
+                        maxLength={9}
+                        onChange={(e) => handleCepSearch(e.target.value)}
+                        className="w-32 rounded-xl px-3 py-3 text-[13px] text-white focus:outline-none transition-all border"
+                        style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.07)" }}
+                      />
+                      <input
+                        type="text"
+                        value={magicForm.endereco}
+                        onChange={(e) => setMagicForm({ ...magicForm, endereco: e.target.value })}
+                        placeholder="Av. Paulista, 1000 - SP"
+                        className="flex-1 rounded-xl px-3 py-3 text-[13px] text-white focus:outline-none transition-all border"
+                        style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.07)" }}
+                      />
+                    </div>
                   </Field>
                   <Field label="Dias e Horários de Func.">
                     <div className="flex gap-2">
