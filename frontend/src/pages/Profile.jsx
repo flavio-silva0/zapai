@@ -68,7 +68,13 @@ export default function Profile() {
   const [magicForm, setMagicForm] = useState({
     tomVoz: "Profissional e Empático",
     objetivo: "Atendimento Geral e Triagem",
-    endereco: "",
+    cep: "",
+    logradouro: "",
+    numero: "",
+    complemento: "",
+    bairro: "",
+    cidade: "",
+    uf: "",
     dias: "Segunda a Sexta",
     horaAbre: "08:00",
     horaFecha: "18:00",
@@ -92,8 +98,16 @@ export default function Profile() {
     setErro("");
     setMagicSuccess(false);
 
+    let finalEndereco = "";
+    if (magicForm.logradouro) {
+      finalEndereco = `${magicForm.logradouro}, ${magicForm.numero || "S/N"}`;
+      if (magicForm.complemento) finalEndereco += ` (${magicForm.complemento})`;
+      finalEndereco += ` - ${magicForm.bairro}, ${magicForm.cidade}/${magicForm.uf}, ${magicForm.cep}`;
+    }
+
     const fullForm = {
       ...magicForm,
+      endereco: finalEndereco,
       horarios: `${magicForm.dias}, das ${magicForm.horaAbre} às ${magicForm.horaFecha}`
     };
 
@@ -123,7 +137,12 @@ export default function Profile() {
       if (!data.erro) {
          setMagicForm(prev => ({
            ...prev,
-           endereco: `${data.logradouro}, Número [X] - ${data.bairro}, ${data.localidade}/${data.uf}`
+           cep: data.cep,
+           logradouro: data.logradouro,
+           bairro: data.bairro,
+           cidade: data.localidade,
+           uf: data.uf,
+           numero: "" // força reset para ele preencher de novo
          }));
       }
     } catch(err) {
@@ -432,24 +451,71 @@ export default function Profile() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <Field label="Busque por CEP ou Digite o Endereço">
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        placeholder="CEP (Só Números)"
-                        maxLength={9}
-                        onChange={(e) => handleCepSearch(e.target.value)}
-                        className="w-32 rounded-xl px-3 py-3 text-[13px] text-white focus:outline-none transition-all border"
-                        style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.07)" }}
-                      />
-                      <input
-                        type="text"
-                        value={magicForm.endereco}
-                        onChange={(e) => setMagicForm({ ...magicForm, endereco: e.target.value })}
-                        placeholder="Av. Paulista, 1000 - SP"
-                        className="flex-1 rounded-xl px-3 py-3 text-[13px] text-white focus:outline-none transition-all border"
-                        style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.07)" }}
-                      />
+                  <Field label="Endereço Completo">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="CEP"
+                          maxLength={9}
+                          value={magicForm.cep}
+                          onChange={(e) => { setMagicForm({ ...magicForm, cep: e.target.value }); handleCepSearch(e.target.value); }}
+                          className="w-1/3 rounded-xl px-3 py-3 text-[13px] text-white focus:outline-none transition-all border"
+                          style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.07)" }}
+                        />
+                        <input
+                          type="text"
+                          placeholder="Rua / Avenida"
+                          value={magicForm.logradouro}
+                          onChange={(e) => setMagicForm({ ...magicForm, logradouro: e.target.value })}
+                          className="w-2/3 rounded-xl px-3 py-3 text-[13px] text-white focus:outline-none transition-all border"
+                          style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.07)" }}
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Número"
+                          value={magicForm.numero}
+                          onChange={(e) => setMagicForm({ ...magicForm, numero: e.target.value })}
+                          className="w-1/3 rounded-xl px-3 py-3 text-[13px] text-white focus:outline-none transition-all border"
+                          style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.07)" }}
+                        />
+                        <input
+                          type="text"
+                          placeholder="Complemento (Opcional)"
+                          value={magicForm.complemento}
+                          onChange={(e) => setMagicForm({ ...magicForm, complemento: e.target.value })}
+                          className="w-2/3 rounded-xl px-3 py-3 text-[13px] text-white focus:outline-none transition-all border"
+                          style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.07)" }}
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="Bairro"
+                          value={magicForm.bairro}
+                          onChange={(e) => setMagicForm({ ...magicForm, bairro: e.target.value })}
+                          className="w-2/5 rounded-xl px-3 py-3 text-[13px] text-white focus:outline-none transition-all border"
+                          style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.07)" }}
+                        />
+                        <input
+                          type="text"
+                          placeholder="Cidade"
+                          value={magicForm.cidade}
+                          onChange={(e) => setMagicForm({ ...magicForm, cidade: e.target.value })}
+                          className="w-2/5 rounded-xl px-3 py-3 text-[13px] text-white focus:outline-none transition-all border"
+                          style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.07)" }}
+                        />
+                        <input
+                          type="text"
+                          placeholder="UF"
+                          value={magicForm.uf}
+                          onChange={(e) => setMagicForm({ ...magicForm, uf: e.target.value })}
+                          className="w-1/5 rounded-xl px-3 py-3 text-[13px] text-white focus:outline-none transition-all border text-center"
+                          style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.07)" }}
+                        />
+                      </div>
                     </div>
                   </Field>
                   <Field label="Dias e Horários de Func.">
