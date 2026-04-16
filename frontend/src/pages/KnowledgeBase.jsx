@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from "react";
-import { BookOpen, Link as LinkIcon, FileText, Trash2, Plus, Loader2, Globe, DatabaseZap } from "lucide-react";
+import { BookOpen, Link as LinkIcon, FileText, Trash2, Plus, Loader2, Globe, DatabaseZap, Edit3, Check, X } from "lucide-react";
 import { apiFetch } from "../api";
 import { AuthContext } from "../context/AuthContext";
 
@@ -13,6 +13,11 @@ export default function KnowledgeBase() {
   const [fileValue, setFileValue] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
+
+  // Estados de Edição
+  const [editingId, setEditingId] = useState(null);
+  const [editingContent, setEditingContent] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   useEffect(() => {
     fetchKnowledge();
@@ -120,6 +125,42 @@ export default function KnowledgeBase() {
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const startEditing = (item) => {
+    setEditingId(item.id);
+    setEditingContent(item.content);
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditingContent("");
+  };
+
+  const handleEditSave = async (id) => {
+    if (!editingContent.trim()) return;
+    setIsSavingEdit(true);
+
+    try {
+      const res = await apiFetch(`/api/admin/knowledge/${id}`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ content: editingContent.trim() })
+      });
+      if (res.ok) {
+        setKnowledgeList(knowledgeList.map(k => k.id === id ? { ...k, content: editingContent.trim() } : k));
+        setEditingId(null);
+        setEditingContent("");
+      } else {
+        const data = await res.json();
+        alert(data.error || "Erro ao salvar edição.");
+      }
+    } catch (err) {
+      console.error("Erro RAG Update Front:", err);
+      alert("Falha de rede ao salvar edição.");
+    } finally {
+      setIsSavingEdit(false);
     }
   };
 
@@ -274,23 +315,64 @@ export default function KnowledgeBase() {
                    onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; }}
                    onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.015)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.05)"; }}
                  >
-                   <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0">
+                   <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0 mt-1">
                      <FileText size={14} className="text-indigo-400" />
                    </div>
-                   <div className="flex-1 min-w-0 pr-8">
-                     <p className="text-sm text-slate-300 leading-relaxed font-medium line-clamp-2">{item.content}</p>
-                     <p className="text-[10px] text-slate-500 font-semibold mt-2 uppercase tracking-wide">
-                        Adicionado em {new Date(item.created_at).toLocaleDateString()}
-                     </p>
+                   <div className="flex-1 min-w-0 pr-16 md:pr-24">
+                     {editingId === item.id ? (
+                       <div className="space-y-3">
+                         <textarea 
+                           value={editingContent}
+                           onChange={(e) => setEditingContent(e.target.value)}
+                           disabled={isSavingEdit}
+                           className="w-full text-sm text-slate-200 bg-black/30 border border-indigo-500/30 rounded-lg p-3 min-h-[120px] focus:outline-none focus:border-indigo-500 transition-colors resize-y leading-relaxed"
+                         />
+                         <div className="flex items-center gap-2">
+                           <button 
+                             onClick={() => handleEditSave(item.id)}
+                             disabled={isSavingEdit || !editingContent.trim()}
+                             className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white rounded-lg text-xs font-bold transition-all disabled:opacity-50"
+                           >
+                             {isSavingEdit ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                             Salvar
+                           </button>
+                           <button 
+                             onClick={cancelEditing}
+                             disabled={isSavingEdit}
+                             className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-500/20 text-slate-400 hover:bg-slate-500 hover:text-white rounded-lg text-xs font-bold transition-all"
+                           >
+                             <X size={14} /> Cancelar
+                           </button>
+                         </div>
+                       </div>
+                     ) : (
+                       <>
+                         <p className="text-sm text-slate-300 leading-relaxed font-medium line-clamp-3 md:line-clamp-none whitespace-pre-wrap">{item.content}</p>
+                         <p className="text-[10px] text-slate-500 font-semibold mt-3 uppercase tracking-wide">
+                            Adicionado em {new Date(item.created_at).toLocaleDateString()}
+                         </p>
+                       </>
+                     )}
                    </div>
                    
-                   <button 
-                     onClick={() => handleDelete(item.id)}
-                     className="absolute top-1/2 -translate-y-1/2 right-4 p-2 rounded-lg text-rose-500 bg-rose-500/10 opacity-0 group-hover:opacity-100 transition-all hover:bg-rose-500 hover:text-white"
-                     title="Remover Neurônio"
-                   >
-                     <Trash2 size={14} />
-                   </button>
+                   {editingId !== item.id && (
+                     <div className="absolute top-3 right-4 flex flex-col md:flex-row gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-all">
+                       <button 
+                         onClick={() => startEditing(item)}
+                         className="p-2 rounded-lg text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white transition-all"
+                         title="Editar Memória"
+                       >
+                         <Edit3 size={15} />
+                       </button>
+                       <button 
+                         onClick={() => handleDelete(item.id)}
+                         className="p-2 rounded-lg text-rose-500 bg-rose-500/10 hover:bg-rose-500 hover:text-white transition-all"
+                         title="Remover Neurônio"
+                       >
+                         <Trash2 size={15} />
+                       </button>
+                     </div>
+                   )}
                  </div>
                ))}
              </div>

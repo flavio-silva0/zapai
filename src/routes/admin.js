@@ -345,6 +345,38 @@ router.post("/knowledge", requireAuth, async (req, res) => {
   }
 });
 
+// ── PUT /api/admin/knowledge/:id (Acessível a Tenants) ────────
+router.put("/knowledge/:id", requireAuth, async (req, res) => {
+  try {
+    const { content } = req.body;
+    const targetTenant = req.user.role === "super_admin" && req.query.tenantId ? req.query.tenantId : req.user.tenantId;
+    
+    if (!content || content.trim().length === 0) {
+      return res.status(400).json({ error: "O conteúdo não pode ser vazio." });
+    }
+
+    // 1. Recalcula o vetor de Embedding atualizado
+    const embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
+    const result = await comRetry(() => embeddingModel.embedContent(content), 4, 1500);
+    const vector = result.embedding.values.slice(0, 768);
+    const vectorString = `[${vector.join(",")}]`;
+
+    // 2. Atualiza os dados isoladamente no Tenant
+    let query = supabase.from("knowledge_base").update({ content, embedding: vectorString }).eq("id", req.params.id);
+    if (req.user.role !== "super_admin") {
+       query = query.eq("tenant_id", targetTenant);
+    }
+
+    const { error } = await query;
+    if (error) throw error;
+    
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Erro RAG Update:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── DELETE /api/admin/knowledge/:id (Acessível a Tenants) ────────
 router.delete("/knowledge/:id", requireAuth, async (req, res) => {
   try {
