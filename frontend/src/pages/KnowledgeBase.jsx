@@ -185,7 +185,7 @@ export default function KnowledgeBase() {
                     required
                   />
                 </div>
-              ) : (
+              ) : activeTab === "url" ? (
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Link do Site para Raspar</label>
                   <div className="relative">
