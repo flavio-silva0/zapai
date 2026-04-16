@@ -23,6 +23,7 @@ import FullKanban from "./pages/FullKanban";
 import TestSofia  from "./pages/TestZapAi";
 import Admin      from "./pages/Admin";
 import Profile    from "./pages/Profile";
+import AiSetup    from "./pages/AiSetup";
 
 // ── Admin guard ───────────────────────────────────────────
 function AdminRoute({ children }) {
@@ -67,6 +68,7 @@ export default function App() {
               <Route path="kanban"  element={<FullKanban />} />
               <Route path="test"    element={<TestSofia />} />
               <Route path="perfil"  element={<Profile />} />
+              <Route path="ia"      element={<AiSetup />} />
             </Route>
 
             {/* ── Fallback ── */}

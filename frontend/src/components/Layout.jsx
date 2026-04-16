@@ -4,7 +4,7 @@ import { AuthContext } from "../context/AuthContext";
 import { useConfig } from "../context/ConfigContext";
 import {
   LayoutDashboard, MessageSquare, KanbanSquare, LogOut,
-  Smartphone, FlaskConical, User, ShieldAlert, Zap, ChevronRight
+  Smartphone, FlaskConical, User, ShieldAlert, Zap, ChevronRight, BrainCircuit
 } from "lucide-react";
 import { apiFetch } from "../api";
 
@@ -29,6 +29,7 @@ export default function Layout() {
     { to: "/painel",        icon: LayoutDashboard, label: "Visão Geral" },
     { to: "/painel/chat",   icon: MessageSquare,   label: "Mensagens" },
     { to: "/painel/kanban", icon: KanbanSquare,    label: "Kanban" },
+    { to: "/painel/ia",     icon: BrainCircuit,    label: "Setup da IA" },
     { to: "/painel/test",   icon: FlaskConical,    label: `Testar ${botName}` },
     { to: "/painel/perfil", icon: User,            label: "Meu Perfil" },
   ];
