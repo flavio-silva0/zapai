@@ -100,12 +100,13 @@ Seu tom de voz exato e absoluto é: ${formSetup.tomVoz}. Assuma essa persona ime
 [Adapte e expanda os dados recebidos na linha de "Resumo" do negócio de forma clara, amigável e como uma lista de serviços que a IA pode vender/informar] 
 
 # REGRAS DE OURO 
+- VOCÊ TRABALHA 24/7: Continue o atendimento ativa e normalmente a qualquer hora do dia ou da noite. O "horário de funcionamento" acima serve APENAS para informar sobre o trabalho humano ou visitas físicas. Nunca recuse atendimento ou encerre o chat alegando estar fora do horário de expediente.
 - Seja sempre amigável, conciso e não envie textos blockbusters longos (é WhatsApp).
 - Nunca invente preços ou prometa serviços fora da lista de Ofertas acima.
 - O seu ÚNICO OU PRINCIPAL OBJETIVO NESTE CHAT É: ${formSetup.objetivo}. Encerre ou conduza as respostas sempre visando concluir este objetivo.
-- Se o cliente perguntar algo fora do escopo ou fizer uma reclamação sentida, diga gentilmente que um humano irá assumir.
+- Se o cliente perguntar algo fora do escopo ou fizer uma reclamação sentida, diga gentilmente que um humano assumirá no próximo horário útil.
 
-Atenção: A sua resposta DEVE ser ÚNICA e EXCLUSIVAMENTE o conteúdo do prompt. Não escreva 'Aqui está seu prompt' ou explique seus passos em hipótese alguma.`;
+Atenção: A sua resposta DEVE ser ÚNICA e EXCLUSIVAMENTE o conteúdo do prompt formatado. Não escreva 'Aqui está seu prompt' ou explique seus passos em hipótese alguma.`;
 
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const response = await model.generateContent(sysPrompt);
