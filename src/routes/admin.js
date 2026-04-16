@@ -20,6 +20,21 @@ function ehErroSobrecarga(err) {
   return msg.includes("503") || msg.includes("Service Unavailable") || msg.includes("overloaded");
 }
 
+function chunkText(text, maxChars = 1500) {
+  const paragraphs = text.split(/\n\s*\n/);
+  const chunks = [];
+  let currentChunk = '';
+  for (const p of paragraphs) {
+    if ((currentChunk.length + p.length) > maxChars && currentChunk.trim().length > 0) {
+      chunks.push(currentChunk.trim());
+      currentChunk = '';
+    }
+    currentChunk += p + '\n\n';
+  }
+  if (currentChunk.trim().length > 0) chunks.push(currentChunk.trim());
+  return chunks;
+}
+
 // â”€â”€ POST /api/admin/seed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 // Cria o super_admin inicial. NÃƒO exige autenticaÃ§Ã£o (bootstrap).
 // Auto-protegida: sÃ³ funciona se AINDA nÃ£o existir nenhum super_admin.
@@ -144,8 +159,37 @@ router.post("/sandbox/chat", requireAuth, async (req, res) => {
       return res.status(400).json({ error: "prompt_text e mensagemUsuario são obrigatórios." });
     }
 
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", systemInstruction: prompt_text });
-    const fallbackModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite", systemInstruction: prompt_text });
+    const currentTenantId = req.user.role === "super_admin" ? (req.body.tenantId || req.user.tenantId) : req.user.tenantId;
+
+    // --- RAG: Busca de Conhecimento Semântico ---
+    let ragContext = "";
+    try {
+      const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+      const queryResult = await embeddingModel.embedContent(mensagemUsuario);
+      const queryVector = queryResult.embedding.values;
+      const vectorString = `[${queryVector.join(",")}]`;
+
+      const { data: matches, error: rpcError } = await supabase.rpc("match_knowledge", {
+        query_embedding: vectorString,
+        match_threshold: 0.65, // Aceita apenas matches relevantes (~65%+)
+        match_count: 3,        // Retorna top 3 blocos
+        p_tenant_id: currentTenantId
+      });
+
+      if (!rpcError && matches && matches.length > 0) {
+        ragContext = matches.map(m => m.content).join("\n\n");
+      }
+    } catch (ragErr) {
+      console.warn("[RAG Warn] Falha na busca semântica do Sandbox:", ragErr);
+    }
+
+    let finalSystemPrompt = prompt_text;
+    if (ragContext) {
+      finalSystemPrompt += `\n\n# BASE DE CONHECIMENTO INTERNA (RAG)\nVocê possui as seguintes informações extraídas dos manuais da empresa para responder à última pergunta. Use ABSOLUTAMENTE esses dados se forem relevantes.\n<conhecimento>\n${ragContext}\n</conhecimento>`;
+    }
+
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash", systemInstruction: finalSystemPrompt });
+    const fallbackModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite", systemInstruction: finalSystemPrompt });
     
     let respostaBot = "";
     let success = false;
@@ -185,6 +229,100 @@ router.post("/sandbox/chat", requireAuth, async (req, res) => {
   } catch (error) {
     console.error("Erro no sandbox/chat:", error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ── GET /api/admin/knowledge (Acessível a Tenants) ────────
+router.get("/knowledge", requireAuth, async (req, res) => {
+  try {
+    const targetTenant = req.user.role === "super_admin" ? (req.query.tenantId || req.user.tenantId) : req.user.tenantId;
+    if (!targetTenant) return res.status(403).json({ error: "Sessão inválida" });
+
+    const { data, error } = await supabase
+      .from("knowledge_base")
+      .select("id, content, created_at")
+      .eq("tenant_id", targetTenant)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST /api/admin/knowledge (Acessível a Tenants) ────────
+router.post("/knowledge", requireAuth, async (req, res) => {
+  try {
+    const { tipo, url, texto } = req.body;
+    const targetTenant = req.user.role === "super_admin" ? (req.body.tenantId || req.user.tenantId) : req.user.tenantId;
+    
+    if (!targetTenant) return res.status(403).json({ error: "Sessão inválida." });
+
+    let textToProcess = texto || "";
+
+    // Web Scraping via API gratuita do Jina Reader
+    if (tipo === 'url' && url) {
+      const response = await fetch("https://r.jina.ai/" + url, {
+         headers: {
+            "Accept": "text/plain", // Exige markdown puro 
+         }
+      });
+      if (!response.ok) throw new Error("Falha ao ler o site alvo.");
+      textToProcess = await response.text();
+    }
+
+    if (!textToProcess || textToProcess.trim().length === 0) {
+      return res.status(400).json({ error: "Conteúdo vazio ou ilegível." });
+    }
+
+    const chunks = chunkText(textToProcess);
+    const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+
+    let successCount = 0;
+    for (const chunk of chunks) {
+      // 1. Gera Embedding do chunk usando o Google
+      const result = await embeddingModel.embedContent(chunk);
+      const vector = result.embedding.values;
+      const vectorString = `[${vector.join(",")}]`;
+
+      // 2. Salva no banco de dados vetorial do Supabase
+      const { error } = await supabase.from("knowledge_base").insert({
+        tenant_id: targetTenant,
+        content: chunk,
+        embedding: vectorString
+      });
+
+      if (error) {
+        console.error("Erro inserindo RAG:", error);
+      } else {
+        successCount++;
+      }
+    }
+
+    res.json({ success: true, chunksIngested: successCount, totalChunks: chunks.length });
+  } catch (err) {
+    console.error("Erro RAG:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── DELETE /api/admin/knowledge/:id (Acessível a Tenants) ────────
+router.delete("/knowledge/:id", requireAuth, async (req, res) => {
+  try {
+    const targetTenant = req.user.role === "super_admin" && req.query.tenantId ? req.query.tenantId : req.user.tenantId;
+    
+    // Deleta garantindo o tenant do usuario logado (Tenant Isolation)
+    let query = supabase.from("knowledge_base").delete().eq("id", req.params.id);
+    if (req.user.role !== "super_admin") {
+       query = query.eq("tenant_id", targetTenant);
+    }
+
+    const { error } = await query;
+    if (error) throw error;
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

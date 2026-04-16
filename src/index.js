@@ -205,6 +205,30 @@ async function consultarGeminiDinamicamente(historico, payloadObject, tenant, pa
     prompt += `\n\n=== MEMÓRIA DE LONGO PRAZO ===\nVocê já conversou com este usuário no passado ou nesta mesma sessão. Aqui estão informações essenciais sobre ele e suas interações anteriores para você manter o contexto vivo:\n${JSON.stringify(patientMemory, null, 2)}\nUse estes detalhes com naturalidade para prover um atendimento altamente personalizado.`;
   }
 
+  // --- INJEÇÃO RAG (BASE DE CONHECIMENTO VETORIAL) ---
+  try {
+    const embeddingModel = genAI.getGenerativeModel({ model: "text-embedding-004" });
+    const queryResult = await embeddingModel.embedContent(payloadObject.textoUsuario);
+    const queryVector = queryResult.embedding.values;
+    const vectorString = `[${queryVector.join(",")}]`;
+
+    const { data: matches, error: rpcError } = await supabase.rpc("match_knowledge", {
+      query_embedding: vectorString,
+      match_threshold: 0.65, // ~65%+ relevância semântica
+      match_count: 3,        // Buscar até 3 parágrafos relevantes
+      p_tenant_id: tenant.id
+    });
+
+    if (!rpcError && matches && matches.length > 0) {
+      const ragContext = matches.map(m => m.content).join("\n\n");
+      prompt += `\n\n# BASE DE CONHECIMENTO INTERNA (RAG)\nVocê possui as seguintes informações extraídas dos manuais da empresa para responder à última pergunta. Use ABSOLUTAMENTE esses dados se forem relevantes.\n<conhecimento>\n${ragContext}\n</conhecimento>`;
+      console.log(`📚 [RAG] Conteúdo vetorizado recuperado para tenant ${tenant.id}`);
+    }
+  } catch (ragErr) {
+    console.error(`⚠️ [RAG] Falha na busca vetorial no bot ao vivo: ${ragErr.message}`);
+  }
+  // ---------------------------------------------------
+
   const modeloPrincipal = genAI.getGenerativeModel({ model: "gemini-2.5-flash", systemInstruction: prompt });
   const modeloFallback = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite", systemInstruction: prompt });
 
