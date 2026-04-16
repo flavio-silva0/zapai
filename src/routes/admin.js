@@ -194,8 +194,8 @@ router.post("/sandbox/chat", requireAuth, async (req, res) => {
 
       const { data: matches, error: rpcError } = await supabase.rpc("match_knowledge", {
         query_embedding: vectorString,
-        match_threshold: 0.65, // Aceita apenas matches relevantes (~65%+)
-        match_count: 3,        // Retorna top 3 blocos
+        match_threshold: 0.45, // Mais sensível (era 0.65)
+        match_count: 5,        // Mais contexto (era 3)
         p_tenant_id: currentTenantId
       });
 

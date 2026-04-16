@@ -214,8 +214,8 @@ async function consultarGeminiDinamicamente(historico, payloadObject, tenant, pa
 
     const { data: matches, error: rpcError } = await supabase.rpc("match_knowledge", {
       query_embedding: vectorString,
-      match_threshold: 0.65, // ~65%+ relevância semântica
-      match_count: 3,        // Buscar até 3 parágrafos relevantes
+      match_threshold: 0.45, // Mais sensível (era 0.65)
+      match_count: 5,        // Buscar até 5 parágrafos (era 3)
       p_tenant_id: tenant.id
     });
 
