@@ -12,6 +12,10 @@ export default function TestSofia() {
   const [loading,    setLoading]    = useState(false);
   const [resetting,  setResetting]  = useState(false);
   const [countdown,  setCountdown]  = useState(null);
+  
+  // Pegamos o tenant atual para injetar o prompt do sandbox
+  const { tenant } = useConfig();
+  
   const bottomRef           = useRef(null);
   const bufferRef           = useRef([]);
   const timerRef            = useRef(null);
@@ -48,7 +52,20 @@ export default function TestSofia() {
     const textoCompleto = buffer.join("\n");
     setLoading(true);
     try {
-      const res  = await apiFetch("/api/test-chat", { method: "POST", body: JSON.stringify({ mensagem: textoCompleto }) });
+      // Prepara o historico do frontend para o formato Gemini
+      const historicoAnterior = mensagens.map(m => ({
+         role: m.role === "sofia" ? "model" : "user",
+         parts: [{ text: m.texto }]
+      }));
+
+      const res  = await apiFetch("/api/admin/sandbox/chat", { 
+         method: "POST", 
+         body: JSON.stringify({ 
+           prompt_text: tenant?.prompt_text || "Você é a assistente virtual.",
+           mensagemUsuario: textoCompleto,
+           historicoAnterior
+         }) 
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
       setMensagens((prev) => [...prev, { role: "sofia", texto: data.resposta }]);
@@ -70,15 +87,12 @@ export default function TestSofia() {
     timerRef.current = setTimeout(enviarBuffer, DEBOUNCE_TEST_MS);
   };
 
-  const resetar = async () => {
+  const resetar = () => {
     clearTimeout(timerRef.current);
     clearInterval(countdownIntervalRef.current);
     bufferRef.current = [];
     setCountdown(null);
-    setResetting(true);
-    await apiFetch("/api/test-chat/reset", { method: "POST" });
     setMensagens([]);
-    setResetting(false);
   };
 
   const handleInput = () => {

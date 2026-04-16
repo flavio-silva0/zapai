@@ -1,6 +1,6 @@
 import { useContext, useState, useEffect } from "react";
 import { AuthContext } from "../context/AuthContext";
-import { User, Building, Phone, CheckCircle, Edit2, Save, X, Shield, Zap } from "lucide-react";
+import { User, Building, Phone, CheckCircle, Edit2, Save, X, Shield, Sparkles } from "lucide-react";
 import { apiFetch } from "../api";
 
 function Field({ label, children }) {
@@ -64,6 +64,33 @@ export default function Profile() {
       });
     }
   }, [user, tenant, isEditing]);
+
+  const [magicText, setMagicText] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [magicSuccess, setMagicSuccess] = useState(false);
+
+  const handleMagicSetup = async () => {
+    if (!magicText.trim()) return;
+    setGenerating(true);
+    setErro("");
+    setMagicSuccess(false);
+    try {
+      const res = await apiFetch("/api/admin/magic-setup", {
+        method: "POST",
+        body: JSON.stringify({ descricaoNegocio: magicText }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      
+      setMagicSuccess(true);
+      setMagicText("");
+      setTimeout(() => setMagicSuccess(false), 5000);
+    } catch(err) {
+      setErro(err.message);
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   if (!user) return null;
 
@@ -269,6 +296,61 @@ export default function Profile() {
                   </p>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Magic Setup Card */}
+        {tenant && (
+          <div className="glass rounded-2xl p-6 lg:col-span-2 space-y-5 relative overflow-hidden" style={{ border: "1px solid rgba(16, 185, 129, 0.2)"}}>
+            <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-emerald-600/10 blur-3xl pointer-events-none" />
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                <Sparkles size={22} className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-white font-bold text-lg">Setup Mágico da IA</h2>
+                <p className="text-slate-500 text-xs">Descreva seu negócio e deixe nós criarmos o cérebro do robô para você.</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <p className="text-sm text-slate-300">
+                Escreva abaixo como seu negócio funciona (seus horários, produtos, preços principais e seu objetivo). 
+                A IA vai transformar isso no comportamento perfeito para o seu robô no WhatsApp.
+              </p>
+              
+              <textarea
+                value={magicText}
+                onChange={(e) => setMagicText(e.target.value)}
+                placeholder="Ex: Sou a lanchonete do Zé. Vendemos X-Tudo a R$ 20 e Coca a R$ 5. Abrimos das 18h às 23h. Quero que o robô anote o pedido e o endereço."
+                rows={4}
+                className="w-full rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none resize-none transition-all border"
+                style={{
+                  background: "rgba(255,255,255,0.04)",
+                  borderColor: "rgba(255,255,255,0.07)",
+                }}
+                onFocus={(e) => { e.target.style.borderColor = "rgba(16, 185, 129, 0.4)"; }}
+                onBlur={(e)  => { e.target.style.borderColor = "rgba(255,255,255,0.07)"; }}
+              />
+
+              <div className="flex items-center justify-between">
+                <div>
+                  {magicSuccess && (
+                     <span className="text-emerald-400 text-sm font-semibold flex items-center gap-1">
+                       <CheckCircle size={14}/> Comportamento da IA gerado e salvo! Vá testar.
+                     </span>
+                  )}
+                </div>
+                <button
+                  onClick={handleMagicSetup}
+                  disabled={generating || !magicText.trim()}
+                  className="flex items-center gap-2 px-5 py-2.5 text-sm font-bold text-white rounded-xl transition-all disabled:opacity-50"
+                  style={{ background: "linear-gradient(135deg, #10b981, #0d9488)" }}
+                >
+                  {generating ? "Processando Mágica..." : "Gerar Cérebro da IA"}
+                </button>
+              </div>
             </div>
           </div>
         )}
