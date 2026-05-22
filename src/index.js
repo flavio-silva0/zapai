@@ -28,9 +28,20 @@ const META_VERIFY_TOKEN = process.env.META_VERIFY_TOKEN ?? "sofia123";
 // Configurações do chatbot (delays, top-limit)
 const HISTORICO_LIMITE = parseInt(process.env.HISTORICO_LIMITE ?? "10", 10);
 const TIMEOUT_GEMINI_MS = parseInt(process.env.TIMEOUT_GEMINI_MS ?? "25000", 10);
-const DELAY_MINIMO_MS = parseInt(process.env.DELAY_MINIMO_MS ?? "3000", 10);
-const MS_POR_PALAVRA = parseInt(process.env.MS_POR_PALAVRA ?? "80", 10);
-const DELAY_MAXIMO_MS = parseInt(process.env.DELAY_MAXIMO_MS ?? "7500", 10);
+
+const DELAY_MINIMO_MS = parseInt(process.env.DELAY_MINIMO_MS ?? "2500", 10);
+const MS_POR_PALAVRA = parseInt(process.env.MS_POR_PALAVRA ?? "70", 10);
+const DELAY_MAXIMO_MS = parseInt(process.env.DELAY_MAXIMO_MS ?? "7000", 10);
+
+const WHATSAPP_MAX_CHARS = parseInt(process.env.WHATSAPP_MAX_CHARS ?? "280", 10);
+const WHATSAPP_MAX_MESSAGES = parseInt(process.env.WHATSAPP_MAX_MESSAGES ?? "4", 10);
+const DELAY_ENTRE_MENSAGENS_MIN_MS = parseInt(process.env.DELAY_ENTRE_MENSAGENS_MIN_MS ?? "800", 10);
+const DELAY_ENTRE_MENSAGENS_MAX_MS = parseInt(process.env.DELAY_ENTRE_MENSAGENS_MAX_MS ?? "1600", 10);
+
+const GEMINI_MAX_OUTPUT_TOKENS = parseInt(process.env.GEMINI_MAX_OUTPUT_TOKENS ?? "420", 10);
+const GEMINI_TEMPERATURE = Number(process.env.GEMINI_TEMPERATURE ?? "0.48");
+const GEMINI_TOP_P = Number(process.env.GEMINI_TOP_P ?? "0.85");
+const GEMINI_TOP_K = parseInt(process.env.GEMINI_TOP_K ?? "40", 10);
 
 // ── 2. VALIDAÇÕES NA INICIALIZAÇÃO ───────────────────────────
 const erros = [];
@@ -80,16 +91,14 @@ function calcularDelayRestante(resposta, inicioMs) {
 }
 
 function comTimeout(promise, ms) {
-  const rejeicao = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error(`Timeout de ${ms}ms`)), ms)
-  );
-  return Promise.race([promise, rejeicao]);
-}
+  let timeoutId;
 
-const WHATSAPP_MAX_CHARS = parseInt(process.env.WHATSAPP_MAX_CHARS ?? "220", 10);
-const WHATSAPP_MAX_MESSAGES = parseInt(process.env.WHATSAPP_MAX_MESSAGES ?? "4", 10);
-const DELAY_ENTRE_MENSAGENS_MIN_MS = parseInt(process.env.DELAY_ENTRE_MENSAGENS_MIN_MS ?? "800", 10);
-const DELAY_ENTRE_MENSAGENS_MAX_MS = parseInt(process.env.DELAY_ENTRE_MENSAGENS_MAX_MS ?? "1600", 10);
+  const rejeicao = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(`Timeout de ${ms}ms`)), ms);
+  });
+
+  return Promise.race([promise, rejeicao]).finally(() => clearTimeout(timeoutId));
+}
 
 function delayAleatorio(min = DELAY_ENTRE_MENSAGENS_MIN_MS, max = DELAY_ENTRE_MENSAGENS_MAX_MS) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -279,18 +288,29 @@ const MAX_TENTATIVAS_GEMINI = 3;
 const BACKOFF_BASE_MS = 2000;
 
 function ehErroSobrecarga(err) {
-  const msg = err?.message ?? "";
-  return msg.includes("503") || msg.includes("Service Unavailable") || msg.includes("overloaded");
+  const status = err?.status || err?.statusCode || err?.code;
+  const msg = String(err?.message || "").toLowerCase();
+
+  return (
+    [408, 429, 500, 502, 503, 504, "408", "429", "500", "502", "503", "504"].includes(status) ||
+    msg.includes("503") ||
+    msg.includes("service unavailable") ||
+    msg.includes("overloaded") ||
+    msg.includes("resource exhausted") ||
+    msg.includes("rate limit") ||
+    msg.includes("timeout") ||
+    msg.includes("deadline")
+  );
 }
 
 async function chamarModelo(modelo, historico, arrayMultiModal) {
   const chat = modelo.startChat({
     history: historico,
     generationConfig: {
-      maxOutputTokens: 220,
-      temperature: 0.45,
-      topP: 0.8,
-      topK: 32,
+      maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+      temperature: GEMINI_TEMPERATURE,
+      topP: GEMINI_TOP_P,
+      topK: GEMINI_TOP_K,
     },
   });
 
@@ -300,6 +320,7 @@ async function chamarModelo(modelo, historico, arrayMultiModal) {
 
 async function consultarGeminiDinamicamente(historico, payloadObject, tenant, patientMemory = null) {
   let prompt = tenant.prompt_text || "Você é a Sofia, uma assistente prestativa.";
+  let ragContext = "";
 
   if (patientMemory && typeof patientMemory === "object" && Object.keys(patientMemory).length > 0) {
     prompt += `
@@ -323,33 +344,40 @@ Não mencione que você possui uma memória interna.`;
 
     const { data: matches, error: rpcError } = await supabase.rpc("match_knowledge", {
       query_embedding: vectorString,
-      match_threshold: 0.45,
-      match_count: 5,
+      match_threshold: 0.42,
+      match_count: 7,
       p_tenant_id: tenant.id,
     });
 
     if (!rpcError && matches && matches.length > 0) {
-      const ragContext = matches
-        .map((m) => m.content)
+      ragContext = matches
+        .map((m, index) => `[Fonte ${index + 1}]\n${m.content}`)
         .filter(Boolean)
         .join("\n\n");
 
       prompt += `
 
-# BASE DE CONHECIMENTO INTERNA (RAG)
+# BASE DE CONHECIMENTO INTERNA / SITE / RAG
 
-Você possui as informações abaixo extraídas da base de conhecimento da empresa.
+Você possui as informações abaixo recuperadas da base de conhecimento da empresa.
+Esses dados podem ter vindo do site oficial, documentos internos ou materiais cadastrados.
 
-Use esses dados quando forem relevantes para a pergunta do cliente.
-Não copie tudo de uma vez.
-Não transforme a resposta em apresentação institucional.
-Responda somente o necessário para avançar a conversa.
+Use esses dados como fonte factual quando forem relevantes para a pergunta do cliente.
 
 <conhecimento>
 ${ragContext}
-</conhecimento>`;
+</conhecimento>
 
-      console.log(`📚 [RAG] Conteúdo vetorizado recuperado para tenant ${tenant.id}`);
+REGRAS PARA USAR A BASE:
+- Se o cliente perguntar sobre parceiros, clientes, empresas, cases ou transportadoras, você PODE citar nomes que apareçam claramente no conhecimento acima.
+- Nunca invente nomes que não estejam no conhecimento.
+- Se houver nomes no conhecimento, responda com eles de forma objetiva.
+- Se não houver nomes suficientes no conhecimento, diga que pode confirmar com o time.
+- Não responda só "temos grandes parceiros"; cite exemplos quando eles estiverem na base.
+- Não copie blocos inteiros do RAG.
+- Use o RAG para responder de forma curta, clara e útil.`;
+
+      console.log(`📚 [RAG] Conteúdo recuperado para tenant ${tenant.id}`);
     }
   } catch (ragErr) {
     console.error(`⚠️ [RAG] Falha na busca vetorial no bot ao vivo: ${ragErr.message}`);
@@ -362,18 +390,47 @@ ${ragContext}
 
 Estas regras têm prioridade sobre o estilo geral do prompt:
 
-- Responda como conversa natural de WhatsApp.
-- Não responda como apresentação institucional.
+- Responda como uma pessoa real conversando no WhatsApp.
+- Seja breve, mas não seco.
+- Use tom humano, consultivo, simpático e seguro.
 - Cada mensagem deve ter no máximo ${WHATSAPP_MAX_CHARS} caracteres.
-- Use 1 a 3 mensagens curtas por resposta.
+- Use normalmente 2 a 4 mensagens curtas por resposta.
 - Nunca envie blocos grandes de texto.
 - Faça somente 1 pergunta por vez.
 - Não repita pergunta já feita no histórico.
-- Primeiro entenda a necessidade do cliente.
-- Se o cliente pedir explicação geral, resuma em poucas linhas e pergunte qual ponto ele quer aprofundar.
-- Use emojis com moderação.
-- Nunca invente preços, prazos, promessas, disponibilidade ou condições.
-- Se a informação não estiver no prompt, na memória ou na base de conhecimento, diga que vai confirmar com um humano.
+- Sempre que o cliente revelar uma dor, valide essa dor antes de vender.
+- Primeiro acolha e entenda o cenário; depois explique como a empresa ajuda.
+- Não ofereça reunião/agendamento cedo demais.
+- Só ofereça falar com especialista depois de entender minimamente a necessidade.
+- Se o cliente pedir explicação geral, resuma de forma simples e pergunte qual ponto ele quer aprofundar.
+- Use emojis com naturalidade e moderação, no máximo 1 ou 2 por resposta.
+- Evite frases frias, genéricas ou institucionais.
+- Nunca invente preços, prazos, promessas, disponibilidade, clientes, parceiros, cases ou condições.
+- Quando usar informações da base de conhecimento, seja específico.
+- Se a pergunta for "quem são?", "quais empresas?", "quais parceiros?" ou similar, responda com nomes concretos que estejam na base.
+- Se não tiver certeza, diga que vai confirmar com o time.
+
+# COMO RESPONDER SOBRE PARCEIROS, CLIENTES OU CASES
+
+Se houver nomes no RAG:
+1. Confirme de forma natural.
+2. Cite alguns exemplos encontrados na base.
+3. Não exagere dizendo que são clientes se o texto só indicar parceiro, case ou empresa citada.
+4. Faça uma pergunta simples para avançar.
+
+Exemplo:
+"Sim. Na nossa base aparecem empresas do setor como Tozzo e Aceville, por exemplo."
+
+"A PX.Center atua conectando operações logísticas a profissionais qualificados sob demanda."
+
+"Você quer entender mais pela parte de motoristas, ajudantes ou tecnologia?"
+
+Se não houver nomes no RAG:
+"Temos atuação com empresas do setor logístico, sim."
+
+"Mas para te passar nomes específicos com segurança, preciso confirmar com o time."
+
+"Quer que eu te explique enquanto isso como funciona a operação?"
 `;
 
   const modeloPrincipal = genAI.getGenerativeModel({
@@ -412,6 +469,8 @@ Estas regras têm prioridade sobre o estilo geral do prompt:
       }
     }
   }
+
+  throw new Error("Falha ao consultar Gemini após todas as tentativas.");
 }
 
 // ── 7. SSE (Server-Sent Events) ──────────────────────────────
@@ -514,35 +573,41 @@ app.put("/api/patients/:id/ai-status", async (req, res) => {
 });
 
 async function enviarMensagemMeta(telefoneDestino, texto, tenant) {
-  if (!tenant || !tenant.phone_number_id || !tenant.wa_access_token) return;
+  if (!tenant || !tenant.phone_number_id || !tenant.wa_access_token) {
+    throw new Error("Tenant sem phone_number_id ou wa_access_token configurado.");
+  }
+
   try {
     const url = `https://graph.facebook.com/v20.0/${tenant.phone_number_id}/messages`;
-    await axios.post(url, {
-      messaging_product: "whatsapp",
-      recipient_type: "individual",
-      to: telefoneDestino,
-      type: "text",
-      text: { preview_url: false, body: texto },
-    }, {
-      headers: { "Authorization": `Bearer ${tenant.wa_access_token}`, "Content-Type": "application/json" },
-    });
+
+    await axios.post(
+      url,
+      {
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: telefoneDestino,
+        type: "text",
+        text: {
+          preview_url: false,
+          body: texto,
+        },
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${tenant.wa_access_token}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 25000,
+      }
+    );
+
+    return true;
   } catch (error) {
-    console.error(`❌ [META API] ${tenant.nome}: erro ao enviar para ${telefoneDestino} -> ${error.response?.data?.error?.message || error.message}`);
+    const metaMessage = error.response?.data?.error?.message || error.message;
+    console.error(`❌ [META API] ${tenant.nome}: erro ao enviar para ${telefoneDestino} -> ${metaMessage}`);
+    throw new Error(`Erro ao enviar mensagem Meta: ${metaMessage}`);
   }
 }
-
-async function enviarMensagensMetaSeparadas(telefoneDestino, mensagens, tenant) {
-  const lista = Array.isArray(mensagens) ? mensagens : [];
-
-  for (const mensagem of lista) {
-    const texto = String(mensagem || "").trim();
-    if (!texto) continue;
-
-    await enviarMensagemMeta(telefoneDestino, texto, tenant);
-    await sleep(delayAleatorio());
-  }
-}
-
 
 app.post("/api/patients/:id/send", async (req, res) => {
   const { texto } = req.body;
@@ -753,9 +818,12 @@ app.post("/webhook/whatsapp", async (req, res) => {
             break; // Sai do loop em caso de erro crítico
           }
 
-
           // Divide a resposta em mensagens curtas para WhatsApp
           const mensagensSofia = dividirMensagensWhatsApp(respostaSofia);
+
+          if (mensagensSofia.length === 0) {
+            mensagensSofia.push("Tive uma instabilidade aqui. Pode me mandar de novo, por favor?");
+          }
 
           // Atraso de digitação simulado baseado no conteúdo completo
           const textoCompletoSofia = mensagensSofia.join("\n\n");
@@ -773,7 +841,7 @@ app.post("/webhook/whatsapp", async (req, res) => {
           }
 
           // Atualiza memória em background
-          atualizarMemoriaLongoPrazo({ ...patient, ai_memory: patient.ai_memory }, historico, respostaSofia).catch(() => null);
+          atualizarMemoriaLongoPrazo({ ...patient, ai_memory: patient.ai_memory }, historico, textoCompletoSofia).catch(() => null);
 
           if (patient.status_kanban === "Novo") {
             const { data: atualizado } = await supabase.from("users_whatsapp").update({ status_kanban: "Em Atendimento" }).eq("id", patient.id).select().single();
