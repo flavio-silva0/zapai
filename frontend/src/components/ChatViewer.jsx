@@ -31,7 +31,7 @@ function MessageBubble({ msg, botName, botEmoji }) {
       {label && (
         <span className="text-xs text-slate-400 px-1">{label}</span>
       )}
-      <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${BUBBLE_STYLES[msg.origin]}`}>
+      <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words whitespace-pre-wrap ${BUBBLE_STYLES[msg.origin]}`}>
         {msg.texto}
       </div>
       <span className="text-xs text-slate-500 px-1">

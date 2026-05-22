@@ -53,7 +53,7 @@ const CONFIG = Object.freeze({
   ragInsertBatchSize: Number(process.env.RAG_INSERT_BATCH_SIZE || 50),
 
   whatsappMaxChars: Number(process.env.WHATSAPP_MAX_CHARS || 220),
-  whatsappMaxMessages: Number(process.env.WHATSAPP_MAX_MESSAGES || 4),
+  whatsappMaxMessages: Number(process.env.WHATSAPP_MAX_MESSAGES || 10),
 });
 
 const models = {

@@ -26,7 +26,7 @@ const PORT = parseInt(process.env.PORT ?? "3001", 10);
 const META_VERIFY_TOKEN = process.env.META_VERIFY_TOKEN ?? "sofia123";
 
 // Configurações do chatbot (delays, top-limit)
-const HISTORICO_LIMITE = parseInt(process.env.HISTORICO_LIMITE ?? "10", 10);
+const HISTORICO_LIMITE = parseInt(process.env.HISTORICO_LIMITE ?? "20", 10);
 const TIMEOUT_GEMINI_MS = parseInt(process.env.TIMEOUT_GEMINI_MS ?? "25000", 10);
 
 const DELAY_MINIMO_MS = parseInt(process.env.DELAY_MINIMO_MS ?? "2500", 10);
@@ -34,7 +34,7 @@ const MS_POR_PALAVRA = parseInt(process.env.MS_POR_PALAVRA ?? "70", 10);
 const DELAY_MAXIMO_MS = parseInt(process.env.DELAY_MAXIMO_MS ?? "7000", 10);
 
 const WHATSAPP_MAX_CHARS = parseInt(process.env.WHATSAPP_MAX_CHARS ?? "280", 10);
-const WHATSAPP_MAX_MESSAGES = parseInt(process.env.WHATSAPP_MAX_MESSAGES ?? "4", 10);
+const WHATSAPP_MAX_MESSAGES = parseInt(process.env.WHATSAPP_MAX_MESSAGES ?? "10", 10);
 const DELAY_ENTRE_MENSAGENS_MIN_MS = parseInt(process.env.DELAY_ENTRE_MENSAGENS_MIN_MS ?? "800", 10);
 const DELAY_ENTRE_MENSAGENS_MAX_MS = parseInt(process.env.DELAY_ENTRE_MENSAGENS_MAX_MS ?? "1600", 10);
 
@@ -133,28 +133,71 @@ function dividirTextoLongo(texto, maxChars = WHATSAPP_MAX_CHARS) {
   const frases = clean.match(/[^.!?;:\n]+[.!?;:]?|\n+/g) || [clean];
   let atual = "";
 
+  const pushAtual = () => {
+    if (atual.trim()) {
+      partes.push(atual.trim());
+      atual = "";
+    }
+  };
+
+  const adicionarLinha = (linha) => {
+    if (!linha) return;
+    const textoCombinado = atual ? `${atual} ${linha}` : linha;
+    if (textoCombinado.length <= maxChars) {
+      atual = textoCombinado;
+    } else {
+      pushAtual();
+      atual = linha;
+    }
+  };
+
   for (const frase of frases) {
     const pedaco = frase.trim();
     if (!pedaco) continue;
 
-    if (pedaco.length > maxChars) {
-      if (atual.trim()) {
-        partes.push(atual.trim());
-        atual = "";
-      }
-
-      for (let i = 0; i < pedaco.length; i += maxChars) {
-        partes.push(pedaco.slice(i, i + maxChars).trim());
-      }
-
+    if (pedaco.length <= maxChars) {
+      adicionarLinha(pedaco);
       continue;
     }
 
-    if (atual && `${atual} ${pedaco}`.length > maxChars) {
-      partes.push(atual.trim());
-      atual = pedaco;
-    } else {
-      atual = `${atual} ${pedaco}`.trim();
+    pushAtual();
+
+    const tokens = pedaco.split(/(\s+)/).filter(Boolean);
+    let linhaAtual = "";
+
+    for (const token of tokens) {
+      if (linhaAtual.length + token.length <= maxChars) {
+        linhaAtual += token;
+        continue;
+      }
+
+      if (!token.trim()) {
+        if (linhaAtual.trim()) {
+          partes.push(linhaAtual.trim());
+        }
+        linhaAtual = "";
+        continue;
+      }
+
+      if (token.length > maxChars) {
+        if (linhaAtual.trim()) {
+          partes.push(linhaAtual.trim());
+          linhaAtual = "";
+        }
+        for (let i = 0; i < token.length; i += maxChars) {
+          partes.push(token.slice(i, i + maxChars));
+        }
+        continue;
+      }
+
+      if (linhaAtual.trim()) {
+        partes.push(linhaAtual.trim());
+      }
+      linhaAtual = token.trim();
+    }
+
+    if (linhaAtual.trim()) {
+      partes.push(linhaAtual.trim());
     }
   }
 
@@ -172,6 +215,7 @@ function dividirMensagensWhatsApp(texto, maxChars = WHATSAPP_MAX_CHARS, maxMessa
     .filter(Boolean);
 
   const mensagens = [];
+  let excedeuMaxMessages = false;
 
   for (const bloco of blocos) {
     if (bloco.length <= maxChars) {
@@ -180,13 +224,22 @@ function dividirMensagensWhatsApp(texto, maxChars = WHATSAPP_MAX_CHARS, maxMessa
       mensagens.push(...dividirTextoLongo(bloco, maxChars));
     }
 
-    if (mensagens.length >= maxMessages) break;
+    if (mensagens.length >= maxMessages) {
+      excedeuMaxMessages = true;
+      break;
+    }
   }
 
-  return mensagens
+  const mensagensFiltradas = mensagens
     .map((mensagem) => mensagem.trim())
-    .filter(Boolean)
-    .slice(0, maxMessages);
+    .filter(Boolean);
+
+  const selecionadas = mensagensFiltradas.slice(0, maxMessages);
+  if (excedeuMaxMessages && selecionadas.length > 0) {
+    selecionadas[selecionadas.length - 1] = `${selecionadas[selecionadas.length - 1].trim()} ...`;
+  }
+
+  return selecionadas;
 }
 
 // ── 5. FUNÇÕES SUPABASE ──────────────────────────────────────
@@ -225,11 +278,11 @@ async function getHistoricoGemini(patient_id) {
     .from("messages")
     .select("texto, origin")
     .eq("patient_id", patient_id)
-    .order("created_at", { ascending: true })
+    .order("created_at", { ascending: false })
     .limit(HISTORICO_LIMITE * 2);
 
   const history = [];
-  for (const m of data) {
+  for (const m of data.reverse()) {
     const role = m.origin === "user" ? "user" : "model";
     if (history.length > 0 && history[history.length - 1].role === role) {
       history[history.length - 1].parts[0].text += `\n${m.texto}`;
@@ -260,7 +313,8 @@ ${textoConversa}
 Regras:
 1. Responda APENAS com um objeto JSON válido. Nada de texto antes ou depois.
 2. Mescle os dados novos com os dados da "Memória Existente". Mantenha o que for importante.
-3. Se a conversa recente não tiver nenhuma informação nova ou relevante, retorne exatamente o JSON da Memória Existente.
+3. Preserve fatos numéricos e dados de operação, como número de caminhões, tamanho da frota, tipo de carga e dor do cliente.
+4. Se a conversa recente não tiver nenhuma informação nova ou relevante, retorne exatamente o JSON da Memória Existente.
 `;
 
     const abstractor = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
@@ -394,10 +448,13 @@ Estas regras têm prioridade sobre o estilo geral do prompt:
 - Seja breve, mas não seco.
 - Use tom humano, consultivo, simpático e seguro.
 - Cada mensagem deve ter no máximo ${WHATSAPP_MAX_CHARS} caracteres.
-- Use normalmente 2 a 4 mensagens curtas por resposta.
+- Use normalmente 2 a 5 mensagens curtas por resposta.
 - Nunca envie blocos grandes de texto.
 - Faça somente 1 pergunta por vez.
 - Não repita pergunta já feita no histórico.
+- Não peça novamente informações que o cliente já forneceu, como número de caminhões, tamanho da frota, tipo de carga ou objetivos de operação.
+- Use sempre os fatos já apresentados no histórico e não mude o que o cliente já confirmou.
+- Se precisar confirmar algo, faça isso de forma concreta e não repita a mesma pergunta.
 - Sempre que o cliente revelar uma dor, valide essa dor antes de vender.
 - Primeiro acolha e entenda o cenário; depois explique como a empresa ajuda.
 - Não ofereça reunião/agendamento cedo demais.
