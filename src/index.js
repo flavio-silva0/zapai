@@ -86,6 +86,100 @@ function comTimeout(promise, ms) {
   return Promise.race([promise, rejeicao]);
 }
 
+const WHATSAPP_MAX_CHARS = parseInt(process.env.WHATSAPP_MAX_CHARS ?? "220", 10);
+const WHATSAPP_MAX_MESSAGES = parseInt(process.env.WHATSAPP_MAX_MESSAGES ?? "4", 10);
+const DELAY_ENTRE_MENSAGENS_MIN_MS = parseInt(process.env.DELAY_ENTRE_MENSAGENS_MIN_MS ?? "800", 10);
+const DELAY_ENTRE_MENSAGENS_MAX_MS = parseInt(process.env.DELAY_ENTRE_MENSAGENS_MAX_MS ?? "1600", 10);
+
+function delayAleatorio(min = DELAY_ENTRE_MENSAGENS_MIN_MS, max = DELAY_ENTRE_MENSAGENS_MAX_MS) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function normalizarEspacos(texto) {
+  return String(texto || "")
+    .replace(/\r\n/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n[ \t]+/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function limparRespostaIA(texto) {
+  return normalizarEspacos(texto)
+    .replace(/^sofia:\s*/i, "")
+    .replace(/^beatriz:\s*/i, "")
+    .replace(/^assistente:\s*/i, "")
+    .replace(/\bcomo uma ia\b/gi, "")
+    .replace(/\bcomo assistente virtual\b/gi, "")
+    .replace(/\n?\s*#{1,6}\s+/g, "\n")
+    .trim();
+}
+
+function dividirTextoLongo(texto, maxChars = WHATSAPP_MAX_CHARS) {
+  const clean = String(texto || "").trim();
+  if (!clean) return [];
+  if (clean.length <= maxChars) return [clean];
+
+  const partes = [];
+  const frases = clean.match(/[^.!?;:\n]+[.!?;:]?|\n+/g) || [clean];
+  let atual = "";
+
+  for (const frase of frases) {
+    const pedaco = frase.trim();
+    if (!pedaco) continue;
+
+    if (pedaco.length > maxChars) {
+      if (atual.trim()) {
+        partes.push(atual.trim());
+        atual = "";
+      }
+
+      for (let i = 0; i < pedaco.length; i += maxChars) {
+        partes.push(pedaco.slice(i, i + maxChars).trim());
+      }
+
+      continue;
+    }
+
+    if (atual && `${atual} ${pedaco}`.length > maxChars) {
+      partes.push(atual.trim());
+      atual = pedaco;
+    } else {
+      atual = `${atual} ${pedaco}`.trim();
+    }
+  }
+
+  if (atual.trim()) partes.push(atual.trim());
+  return partes;
+}
+
+function dividirMensagensWhatsApp(texto, maxChars = WHATSAPP_MAX_CHARS, maxMessages = WHATSAPP_MAX_MESSAGES) {
+  const clean = limparRespostaIA(texto);
+  if (!clean) return [];
+
+  const blocos = clean
+    .split(/\n{2,}|(?=\n(?:\d+️⃣|[0-9]+[.)]|[-•]))/g)
+    .map((bloco) => bloco.replace(/\n+/g, "\n").trim())
+    .filter(Boolean);
+
+  const mensagens = [];
+
+  for (const bloco of blocos) {
+    if (bloco.length <= maxChars) {
+      mensagens.push(bloco);
+    } else {
+      mensagens.push(...dividirTextoLongo(bloco, maxChars));
+    }
+
+    if (mensagens.length >= maxMessages) break;
+  }
+
+  return mensagens
+    .map((mensagem) => mensagem.trim())
+    .filter(Boolean)
+    .slice(0, maxMessages);
+}
+
 // ── 5. FUNÇÕES SUPABASE ──────────────────────────────────────
 async function getOrCreatePatient(telefone, nome = "Contato", tenantId = null) {
   // Busca pela combinação de telefone + tenant_id (se houver isolamento por número)
@@ -159,13 +253,13 @@ Regras:
 2. Mescle os dados novos com os dados da "Memória Existente". Mantenha o que for importante.
 3. Se a conversa recente não tiver nenhuma informação nova ou relevante, retorne exatamente o JSON da Memória Existente.
 `;
-    
+
     const abstractor = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const result = await abstractor.generateContent(promptMemoria);
     let textResult = result.response.text().trim();
     // Limpeza de blocos de código se vierem acidentalmente
     textResult = textResult.replace(/^```[a-z]*\n?/, "").replace(/\n?```$/, "").trim();
-    
+
     try {
       const novaMemoria = JSON.parse(textResult);
       if (Object.keys(novaMemoria).length > 0) {
@@ -173,7 +267,7 @@ Regras:
         console.log(`🧠 [MEMÓRIA] Perfil do contato ${patient.telefone} enriquecido!`);
       }
     } catch (parseErr) {
-       console.log(`🧠 [MEMÓRIA] Falha ao efetuar parse do JSON de memória: ${textResult}`);
+      console.log(`🧠 [MEMÓRIA] Falha ao efetuar parse do JSON de memória: ${textResult}`);
     }
   } catch (err) {
     console.error(`🧠 [MEMÓRIA] Erro ao processar memória de longo prazo: ${err.message}`);
@@ -192,8 +286,14 @@ function ehErroSobrecarga(err) {
 async function chamarModelo(modelo, historico, arrayMultiModal) {
   const chat = modelo.startChat({
     history: historico,
-    generationConfig: { maxOutputTokens: 800, temperature: 0.85 },
+    generationConfig: {
+      maxOutputTokens: 220,
+      temperature: 0.45,
+      topP: 0.8,
+      topK: 32,
+    },
   });
+
   const resultado = await comTimeout(chat.sendMessage(arrayMultiModal), TIMEOUT_GEMINI_MS);
   return resultado.response.text();
 }
@@ -201,8 +301,17 @@ async function chamarModelo(modelo, historico, arrayMultiModal) {
 async function consultarGeminiDinamicamente(historico, payloadObject, tenant, patientMemory = null) {
   let prompt = tenant.prompt_text || "Você é a Sofia, uma assistente prestativa.";
 
-  if (patientMemory && typeof patientMemory === 'object' && Object.keys(patientMemory).length > 0) {
-    prompt += `\n\n=== MEMÓRIA DE LONGO PRAZO ===\nVocê já conversou com este usuário no passado ou nesta mesma sessão. Aqui estão informações essenciais sobre ele e suas interações anteriores para você manter o contexto vivo:\n${JSON.stringify(patientMemory, null, 2)}\nUse estes detalhes com naturalidade para prover um atendimento altamente personalizado.`;
+  if (patientMemory && typeof patientMemory === "object" && Object.keys(patientMemory).length > 0) {
+    prompt += `
+
+=== MEMÓRIA DE LONGO PRAZO ===
+Você já conversou com este usuário no passado ou nesta mesma sessão.
+
+Informações úteis sobre ele:
+${JSON.stringify(patientMemory, null, 2)}
+
+Use estes detalhes com naturalidade para manter contexto e personalizar o atendimento.
+Não mencione que você possui uma memória interna.`;
   }
 
   // --- INJEÇÃO RAG (BASE DE CONHECIMENTO VETORIAL) ---
@@ -214,14 +323,32 @@ async function consultarGeminiDinamicamente(historico, payloadObject, tenant, pa
 
     const { data: matches, error: rpcError } = await supabase.rpc("match_knowledge", {
       query_embedding: vectorString,
-      match_threshold: 0.45, // Mais sensível (era 0.65)
-      match_count: 5,        // Buscar até 5 parágrafos (era 3)
-      p_tenant_id: tenant.id
+      match_threshold: 0.45,
+      match_count: 5,
+      p_tenant_id: tenant.id,
     });
 
     if (!rpcError && matches && matches.length > 0) {
-      const ragContext = matches.map(m => m.content).join("\n\n");
-      prompt += `\n\n# BASE DE CONHECIMENTO INTERNA (RAG)\nVocê possui as seguintes informações extraídas dos manuais da empresa para responder à última pergunta. Use ABSOLUTAMENTE esses dados se forem relevantes.\n<conhecimento>\n${ragContext}\n</conhecimento>`;
+      const ragContext = matches
+        .map((m) => m.content)
+        .filter(Boolean)
+        .join("\n\n");
+
+      prompt += `
+
+# BASE DE CONHECIMENTO INTERNA (RAG)
+
+Você possui as informações abaixo extraídas da base de conhecimento da empresa.
+
+Use esses dados quando forem relevantes para a pergunta do cliente.
+Não copie tudo de uma vez.
+Não transforme a resposta em apresentação institucional.
+Responda somente o necessário para avançar a conversa.
+
+<conhecimento>
+${ragContext}
+</conhecimento>`;
+
       console.log(`📚 [RAG] Conteúdo vetorizado recuperado para tenant ${tenant.id}`);
     }
   } catch (ragErr) {
@@ -229,10 +356,38 @@ async function consultarGeminiDinamicamente(historico, payloadObject, tenant, pa
   }
   // ---------------------------------------------------
 
-  const modeloPrincipal = genAI.getGenerativeModel({ model: "gemini-2.5-flash", systemInstruction: prompt });
-  const modeloFallback = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite", systemInstruction: prompt });
+  prompt += `
+
+# REGRAS FINAIS OBRIGATÓRIAS PARA WHATSAPP
+
+Estas regras têm prioridade sobre o estilo geral do prompt:
+
+- Responda como conversa natural de WhatsApp.
+- Não responda como apresentação institucional.
+- Cada mensagem deve ter no máximo ${WHATSAPP_MAX_CHARS} caracteres.
+- Use 1 a 3 mensagens curtas por resposta.
+- Nunca envie blocos grandes de texto.
+- Faça somente 1 pergunta por vez.
+- Não repita pergunta já feita no histórico.
+- Primeiro entenda a necessidade do cliente.
+- Se o cliente pedir explicação geral, resuma em poucas linhas e pergunte qual ponto ele quer aprofundar.
+- Use emojis com moderação.
+- Nunca invente preços, prazos, promessas, disponibilidade ou condições.
+- Se a informação não estiver no prompt, na memória ou na base de conhecimento, diga que vai confirmar com um humano.
+`;
+
+  const modeloPrincipal = genAI.getGenerativeModel({
+    model: "gemini-2.5-flash",
+    systemInstruction: prompt,
+  });
+
+  const modeloFallback = genAI.getGenerativeModel({
+    model: "gemini-2.5-flash-lite",
+    systemInstruction: prompt,
+  });
 
   const arrayMultiModal = [];
+
   if (payloadObject.inlineDatas && Array.isArray(payloadObject.inlineDatas)) {
     for (const data of payloadObject.inlineDatas) {
       arrayMultiModal.push({ inlineData: data });
@@ -240,6 +395,7 @@ async function consultarGeminiDinamicamente(historico, payloadObject, tenant, pa
   } else if (payloadObject.inlineData) {
     arrayMultiModal.push({ inlineData: payloadObject.inlineData });
   }
+
   arrayMultiModal.push({ text: payloadObject.textoUsuario });
 
   for (let tentativa = 1; tentativa <= MAX_TENTATIVAS_GEMINI; tentativa++) {
@@ -249,7 +405,7 @@ async function consultarGeminiDinamicamente(historico, payloadObject, tenant, pa
       if (ehErroSobrecarga(err) && tentativa < MAX_TENTATIVAS_GEMINI) {
         await sleep(BACKOFF_BASE_MS * Math.pow(2, tentativa - 1));
       } else if (ehErroSobrecarga(err)) {
-        console.warn(`[GEMINI] Fallback gemini-2.0-flash acionado para ${tenant.nome}.`);
+        console.warn(`[GEMINI] Fallback gemini-2.5-flash-lite acionado para ${tenant.nome}.`);
         return await chamarModelo(modeloFallback, historico, arrayMultiModal);
       } else {
         throw err;
@@ -374,6 +530,19 @@ async function enviarMensagemMeta(telefoneDestino, texto, tenant) {
     console.error(`❌ [META API] ${tenant.nome}: erro ao enviar para ${telefoneDestino} -> ${error.response?.data?.error?.message || error.message}`);
   }
 }
+
+async function enviarMensagensMetaSeparadas(telefoneDestino, mensagens, tenant) {
+  const lista = Array.isArray(mensagens) ? mensagens : [];
+
+  for (const mensagem of lista) {
+    const texto = String(mensagem || "").trim();
+    if (!texto) continue;
+
+    await enviarMensagemMeta(telefoneDestino, texto, tenant);
+    await sleep(delayAleatorio());
+  }
+}
+
 
 app.post("/api/patients/:id/send", async (req, res) => {
   const { texto } = req.body;
@@ -584,17 +753,27 @@ app.post("/webhook/whatsapp", async (req, res) => {
             break; // Sai do loop em caso de erro crítico
           }
 
-          // Atraso de digitação simulado
-          const delay = calcularDelayRestante(respostaSofia, inicioMs);
+
+          // Divide a resposta em mensagens curtas para WhatsApp
+          const mensagensSofia = dividirMensagensWhatsApp(respostaSofia);
+
+          // Atraso de digitação simulado baseado no conteúdo completo
+          const textoCompletoSofia = mensagensSofia.join("\n\n");
+          const delay = calcularDelayRestante(textoCompletoSofia, inicioMs);
           if (delay > 0) await sleep(delay);
 
-          // Envia e Salva
-          await enviarMensagemMeta(telefoneUsuario, respostaSofia, tenant);
-          const msgBot = await saveMessage(patient.id, respostaSofia, "bot", tenant.id);
-          emitirEvento("new_message", msgBot);
+          // Envia e salva cada mensagem separadamente
+          for (const mensagem of mensagensSofia) {
+            await enviarMensagemMeta(telefoneUsuario, mensagem, tenant);
+
+            const msgBot = await saveMessage(patient.id, mensagem, "bot", tenant.id);
+            emitirEvento("new_message", msgBot);
+
+            await sleep(delayAleatorio());
+          }
 
           // Atualiza memória em background
-          atualizarMemoriaLongoPrazo({ ...patient, ai_memory: patient.ai_memory }, historico, respostaSofia).catch(()=>null);
+          atualizarMemoriaLongoPrazo({ ...patient, ai_memory: patient.ai_memory }, historico, respostaSofia).catch(() => null);
 
           if (patient.status_kanban === "Novo") {
             const { data: atualizado } = await supabase.from("users_whatsapp").update({ status_kanban: "Em Atendimento" }).eq("id", patient.id).select().single();
