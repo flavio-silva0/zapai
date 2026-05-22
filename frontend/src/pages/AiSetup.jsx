@@ -20,7 +20,7 @@ export default function AiSetup() {
   const [magicForm, setMagicForm] = useState({
     nomeAgente: tenant?.bot_name || "Assistente",
     tomVoz: "Profissional e Empático",
-    objetivo: "Atendimento Geral e Triagem",
+    objetivo: "BDR/SDR",
     cep: "",
     logradouro: "",
     numero: "",
@@ -222,6 +222,7 @@ export default function AiSetup() {
                     >
                       <option value="Atendimento Geral e Triagem" className="bg-slate-800 text-white">Atendimento Geral e Triagem</option>
                       <option value="Agendar Horários e Consultas" className="bg-slate-800 text-white">Agendar Horários e Consultas</option>
+                      <option value="BDR/SDR" className="bg-slate-800 text-white">BDR/SDR (Qualificar Leads e Agendar Reuniões para o Closer)</option>
                       <option value="Qualificar Leads" className="bg-slate-800 text-white">Qualificar Leads (Coletar Dados)</option>
                       <option value="Anotar Pedidos (Vendas)" className="bg-slate-800 text-white">Anotar Pedidos (Delivery/Lojas)</option>
                       <option value="Suporte Tecnico" className="bg-slate-800 text-white">Suporte Técnico e Resolução de Dúvidas</option>

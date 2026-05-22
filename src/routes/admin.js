@@ -197,7 +197,7 @@ function buildMagicSetupPrompt(formSetup) {
   const data = {
     nomeAgente: limitText(formSetup.nomeAgente || "Assistente", 120),
     tomVoz: limitText(formSetup.tomVoz || "humano, objetivo, simpático e consultivo", 400),
-    objetivo: limitText(formSetup.objetivo || "entender a necessidade do cliente, qualificar e conduzir ao próximo passo", 700),
+    objetivo: limitText(formSetup.objetivo || "qualificar o lead e agendar uma reunião com o closer, coletando os dados essenciais", 700),
     endereco: limitText(formSetup.endereco || "Não especificado ou operação online", 500),
     horarios: limitText(formSetup.horarios || "Não especificado", 500),
     resumo: limitText(formSetup.resumo, 12000),
@@ -229,6 +229,7 @@ O prompt final deve conter obrigatoriamente:
 # MISSÃO PRINCIPAL
 - Objetivo absoluto: ${data.objetivo}.
 - Toda conversa deve avançar para diagnóstico, qualificação ou próximo passo.
+- Se a missão for BDR/SDR ou qualificar leads, o foco principal é validar interesse, entender necessidade e agendar uma reunião com o closer quando houver fit.
 - Não fazer discurso institucional longo.
 
 # CONTEXTO DO NEGÓCIO

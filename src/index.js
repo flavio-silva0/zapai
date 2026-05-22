@@ -429,7 +429,9 @@ REGRAS PARA USAR A BASE:
 - Se não houver nomes suficientes no conhecimento, diga que pode confirmar com o time.
 - Não responda só "temos grandes parceiros"; cite exemplos quando eles estiverem na base.
 - Não copie blocos inteiros do RAG.
-- Use o RAG para responder de forma curta, clara e útil.`;
+- Use o RAG para responder de forma curta, clara e útil.
+- Se o cliente enviar mais de uma mensagem antes de você responder, considere todas como parte do mesmo contexto e responda ao pedido mais recente usando todas as informações relevantes.
+- Não divida ideias sem necessidade; responda com mensagens completas e contextualizadas.`;
 
       console.log(`📚 [RAG] Conteúdo recuperado para tenant ${tenant.id}`);
     }
@@ -449,6 +451,8 @@ Estas regras têm prioridade sobre o estilo geral do prompt:
 - Use tom humano, consultivo, simpático e seguro.
 - Cada mensagem deve ter no máximo ${WHATSAPP_MAX_CHARS} caracteres.
 - Use normalmente 2 a 5 mensagens curtas por resposta.
+- Cada mensagem deve ser completa e não terminar no meio de uma frase.
+- Se precisar enviar em sequência, cada mensagem deve manter sentido próprio e ser inteligível.
 - Nunca envie blocos grandes de texto.
 - Faça somente 1 pergunta por vez.
 - Não repita pergunta já feita no histórico.
@@ -848,10 +852,12 @@ app.post("/webhook/whatsapp", async (req, res) => {
           const items = [...userPayloadBuffers.get(patient.id)];
           userPayloadBuffers.set(patient.id, []); // Esvazia o buffer para a rodada atual
 
-          let combinedTexto = "";
+          const combinedTexto = items
+            .filter((item) => item.textoParaGemini)
+            .map((item) => `Usuário: ${item.textoParaGemini}`)
+            .join("\n");
           const combinedInlineDatas = [];
           for (const item of items) {
-            if (item.textoParaGemini) combinedTexto += `${item.textoParaGemini}\n`;
             if (item.inlineData) combinedInlineDatas.push(item.inlineData);
           }
 
