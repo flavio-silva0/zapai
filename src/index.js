@@ -317,7 +317,7 @@ Regras:
 4. Se a conversa recente não tiver nenhuma informação nova ou relevante, retorne exatamente o JSON da Memória Existente.
 `;
 
-    const abstractor = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const abstractor = genAI.getGenerativeModel({ model: "gemini-3-ultra" });
     const result = await abstractor.generateContent(promptMemoria);
     let textResult = result.response.text().trim();
     // Limpeza de blocos de código se vierem acidentalmente
@@ -495,7 +495,7 @@ Se não houver nomes no RAG:
 `;
 
   const modeloPrincipal = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
+    model: "gemini-3-ultra",
     systemInstruction: prompt,
   });
 

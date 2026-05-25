@@ -1,6 +1,6 @@
 # 🤖 ZapAI (SaaS Multi-Tenant)
 
-> **Plataforma de Atendimento Inteligente 24/7** via WhatsApp Cloud API (Oficial da Meta), gerenciada por um único painel e utilizando o **Google Gemini 2.5 Flash** como motor conversacional para múltiplos nichos.
+> **Plataforma de Atendimento Inteligente 24/7** via WhatsApp Cloud API (Oficial da Meta), gerenciada por um único painel e utilizando o **Google Gemini 3 Ultra** como motor conversacional para múltiplos nichos.
 
 ---
 
