@@ -24,7 +24,7 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SER
 });
 
 const CONFIG = Object.freeze({
-  aiModel: process.env.GEMINI_MODEL || "gemini-3-ultra",
+  aiModel: process.env.GEMINI_MODEL || "gemini-3.5-flash",
   aiFallbackModel: process.env.GEMINI_FALLBACK_MODEL || "gemini-2.5-flash-lite",
   embeddingModel: process.env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-001",
   embeddingDimensions: Number(process.env.EMBEDDING_DIMENSIONS || 768),
