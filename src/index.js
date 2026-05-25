@@ -290,7 +290,36 @@ async function getHistoricoGemini(patient_id) {
       history.push({ role, parts: [{ text: m.texto }] });
     }
   }
-  return history;
+  return sanitizeGeminiHistory(history);
+}
+
+function sanitizeGeminiHistory(history) {
+  if (!Array.isArray(history)) return [];
+
+  const normalized = history
+    .filter((item) => item && (item.role === "user" || item.role === "model") && Array.isArray(item.parts))
+    .map((item) => ({
+      role: item.role,
+      parts: item.parts
+        .filter((part) => typeof part?.text === "string")
+        .map((part) => ({ text: part.text.trim() }))
+        .filter((part) => part.text.length > 0),
+    }))
+    .filter((item) => item.parts.length > 0);
+
+  let startIndex = 0;
+  while (startIndex < normalized.length && normalized[startIndex].role !== "user") {
+    startIndex += 1;
+  }
+
+  return normalized.slice(startIndex).reduce((acc, item) => {
+    if (acc.length === 0 || acc[acc.length - 1].role !== item.role) {
+      acc.push(item);
+    } else {
+      acc[acc.length - 1].parts[0].text += `\n${item.parts[0].text}`;
+    }
+    return acc;
+  }, []);
 }
 
 // ── 6.5 MEMÓRIA DE LONGO PRAZO ──────────────────────────────
