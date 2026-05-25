@@ -114,7 +114,7 @@ function normalizarEspacos(texto) {
 }
 
 function limparRespostaIA(texto) {
-  return normalizarEspacos(texto)
+  let clean = normalizarEspacos(texto)
     .replace(/^sofia:\s*/i, "")
     .replace(/^beatriz:\s*/i, "")
     .replace(/^assistente:\s*/i, "")
@@ -122,6 +122,24 @@ function limparRespostaIA(texto) {
     .replace(/\bcomo assistente virtual\b/gi, "")
     .replace(/\n?\s*#{1,6}\s+/g, "\n")
     .trim();
+
+  clean = clean
+    .split("\n")
+    .filter((linha) => {
+      const trimmed = linha.trim();
+      if (!trimmed) return true;
+      if (/^question\*:/i.test(trimmed)) return false;
+      if (/^total\s+messages?:/i.test(trimmed)) return false;
+      if (/^\d+\s+chars?\.?\s*$/i.test(trimmed)) return false;
+      if (/^•\s+total/i.test(trimmed)) return false;
+      if (/^ℹ️|^📝|^⚠️|^❓|^🤔/.test(trimmed) && trimmed.length < 15) return false;
+      return true;
+    })
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  return clean;
 }
 
 function dividirTextoLongo(texto, maxChars = WHATSAPP_MAX_CHARS) {
