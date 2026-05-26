@@ -38,9 +38,10 @@ const WHATSAPP_MAX_MESSAGES = parseInt(process.env.WHATSAPP_MAX_MESSAGES ?? "10"
 const DELAY_ENTRE_MENSAGENS_MIN_MS = parseInt(process.env.DELAY_ENTRE_MENSAGENS_MIN_MS ?? "800", 10);
 const DELAY_ENTRE_MENSAGENS_MAX_MS = parseInt(process.env.DELAY_ENTRE_MENSAGENS_MAX_MS ?? "1600", 10);
 
-const GEMINI_MAX_OUTPUT_TOKENS = parseInt(process.env.GEMINI_MAX_OUTPUT_TOKENS ?? "420", 10);
-const GEMINI_TEMPERATURE = Number(process.env.GEMINI_TEMPERATURE ?? "0.48");
-const GEMINI_TOP_P = Number(process.env.GEMINI_TOP_P ?? "0.85");
+// Defaults tuned for conservative outputs to reduce hallucinations
+const GEMINI_MAX_OUTPUT_TOKENS = parseInt(process.env.GEMINI_MAX_OUTPUT_TOKENS ?? "300", 10);
+const GEMINI_TEMPERATURE = Number(process.env.GEMINI_TEMPERATURE ?? "0.20");
+const GEMINI_TOP_P = Number(process.env.GEMINI_TOP_P ?? "0.80");
 const GEMINI_TOP_K = parseInt(process.env.GEMINI_TOP_K ?? "40", 10);
 
 // ── 2. VALIDAÇÕES NA INICIALIZAÇÃO ───────────────────────────
@@ -510,6 +511,7 @@ REGRAS PARA USAR A BASE:
 - Não responda só "temos grandes parceiros"; cite exemplos quando eles estiverem na base.
 - Não copie blocos inteiros do RAG.
 - Use o RAG para responder de forma curta, clara e útil.
+- Quando usar informações da base e citar nomes, dados ou fatos, inclua a fonte entre colchetes no final da frase, por exemplo: [FONTE: Site da Empresa X].
 - Se o cliente enviar mais de uma mensagem antes de você responder, considere todas como parte do mesmo contexto e responda ao pedido mais recente usando todas as informações relevantes.
 - Não divida ideias sem necessidade; responda com mensagens completas e contextualizadas.`;
 
@@ -596,22 +598,51 @@ Se não houver nomes no RAG:
 
   arrayMultiModal.push({ text: payloadObject.textoUsuario });
 
+  let lastError = null;
+  let modelText = null;
   for (let tentativa = 1; tentativa <= MAX_TENTATIVAS_GEMINI; tentativa++) {
     try {
-      return await chamarModelo(modeloPrincipal, historico, arrayMultiModal);
+      modelText = await chamarModelo(modeloPrincipal, historico, arrayMultiModal);
+      break;
     } catch (err) {
+      lastError = err;
       if (ehErroSobrecarga(err) && tentativa < MAX_TENTATIVAS_GEMINI) {
         await sleep(BACKOFF_BASE_MS * Math.pow(2, tentativa - 1));
+        continue;
       } else if (ehErroSobrecarga(err)) {
         console.warn(`[GEMINI] Fallback gemini-2.5-flash-lite acionado para ${tenant.nome}.`);
-        return await chamarModelo(modeloFallback, historico, arrayMultiModal);
+        try {
+          modelText = await chamarModelo(modeloFallback, historico, arrayMultiModal);
+          break;
+        } catch (fbErr) {
+          lastError = fbErr;
+          break;
+        }
       } else {
         throw err;
       }
     }
   }
 
-  throw new Error("Falha ao consultar Gemini após todas as tentativas.");
+  if (!modelText && lastError) throw new Error(`Falha ao consultar Gemini: ${lastError.message}`);
+
+  // Pós-processamento: detectar possíveis alucinações simples
+  const ragUsed = Boolean(ragContext && ragContext.trim().length > 0);
+  let possibleHallucination = false;
+
+  try {
+    const mentionsFacts = /\b(empresa|parceir|cliente|case|contrato|marca|parceiro|cliente)\b/i.test(modelText);
+    const probableNames = /[A-Z][a-z]{2,}(?:\s[A-Z][a-z]{2,})+/g;
+    const foundNames = modelText.match(probableNames) || [];
+
+    if (!ragUsed && mentionsFacts && foundNames.length > 0) {
+      possibleHallucination = true;
+    }
+  } catch (e) {
+    // silencioso - evita quebra por regex
+  }
+
+  return { text: modelText, ragUsed, possibleHallucination };
 }
 
 // ── 7. SSE (Server-Sent Events) ──────────────────────────────
@@ -990,9 +1021,9 @@ app.post("/webhook/whatsapp", async (req, res) => {
             historico.pop();
           }
 
-          let respostaSofia;
+          let respostaObj;
           try {
-            respostaSofia = await consultarGeminiDinamicamente(historico, {
+            respostaObj = await consultarGeminiDinamicamente(historico, {
               textoUsuario: combinedTexto.trim(),
               inlineDatas: combinedInlineDatas
             }, tenant, patient.ai_memory);
@@ -1006,6 +1037,23 @@ app.post("/webhook/whatsapp", async (req, res) => {
             }
             break; // Sai do loop em caso de erro crítico
           }
+
+          // Se o modelo possivelmente alucinou, enviar fallback e registrar
+          if (respostaObj && respostaObj.possibleHallucination) {
+            console.warn(`⚠️ [HALLUCINATION] Possível alucinação detectada para patient ${patient.id}`);
+            const fallback = "Desculpe, não tenho essa informação confirmada. Posso verificar com a equipe ou explicar de forma geral?";
+            try {
+              await enviarMensagemMeta(telefoneUsuario, fallback, tenant);
+              const msgBot = await saveMessage(patient.id, fallback, "bot", tenant.id);
+              emitirEvento("new_message", msgBot);
+            } catch (sendErr) {
+              console.error(`❌ [WEBHOOK] Erro ao enviar fallback de alucinação: ${sendErr.message}`);
+            }
+            // Não envia a resposta do modelo potencialmente incorreta
+            continue;
+          }
+
+          const respostaSofia = respostaObj?.text || "";
 
           // ── VALIDAÇÃO DE RESPOSTA ────────────────────────
           // Verifica se a resposta não é vazia ou inválida
