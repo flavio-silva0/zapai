@@ -14,9 +14,7 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 
-// Rotas multi-tenant (Fase 1)
-const authRouter = require("./routes/auth");
-const adminRouter = require("./routes/admin");
+// Rotas multi-tenant (Fase 1) - requeridas depois da injeção de mocks
 
 // ── 1. VARIÁVEIS DE AMBIENTE ─────────────────────────────────
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -52,12 +50,34 @@ if (!SUPABASE_SERVICE_KEY) erros.push("SUPABASE_SERVICE_KEY não definida");
 
 if (erros.length > 0) {
   erros.forEach((e) => console.error(`❌  ${e}`));
-  process.exit(1);
+  // Em modo de teste, não abortamos o processo — permitimos mocks e injeções
+  if (process.env.TEST_MODE === "1" || process.env.TEST_MODE === "true") {
+    console.warn("⚠️ [INIT] Ambiente incompleto, seguindo em TEST_MODE");
+  } else {
+    process.exit(1);
+  }
 }
 
 // ── 3. CLIENTES EXTERNOS ─────────────────────────────────────
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+// Allow test-mode injection/mocks
+let supabase;
+let genAI;
+if (process.env.TEST_MODE === "1" || process.env.TEST_MODE === "true") {
+  try {
+    // In test mode, prefer local mocks (optional)
+    const geminiMock = require("./mocks/geminiMock");
+    genAI = geminiMock;
+    const supabaseMock = require("./mocks/supabaseMock");
+    supabase = supabaseMock;
+    console.log("🧪 [TEST MODE] Mocks de Gemini e Supabase ativados");
+  } catch (e) {
+    console.warn("⚠️ [TEST MODE] Falha ao carregar mocks:", e.message);
+    genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+  }
+} else {
+  supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+  genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+}
 
 // ── 4. UTILITÁRIOS ───────────────────────────────────────────
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -79,6 +99,11 @@ function isMessageAlreadyProcessed(messageId) {
 
 function markMessageAsProcessed(messageId) {
   processedMessages.set(messageId, Date.now());
+}
+
+// Test-mode global state (populated only in TEST_MODE)
+if (process.env.TEST_MODE === "true") {
+  global.__testState__ = global.__testState__ || { sentMessages: [], geminiCalls: [] };
 }
 
 // Limpar cache expirado a cada 10 minutos
@@ -454,6 +479,19 @@ async function chamarModelo(modelo, historico, arrayMultiModal) {
 }
 
 async function consultarGeminiDinamicamente(historico, payloadObject, tenant, patientMemory = null) {
+  // Test-mode shortcut: deterministic responses for integration tests
+  if (process.env.TEST_MODE === "1" || process.env.TEST_MODE === "true") {
+    global.__testState__ = global.__testState__ || { sentMessages: [], geminiCalls: [] };
+    global.__testState__.geminiCalls.push({ tenantId: tenant?.id || null, texto: payloadObject?.textoUsuario || "" });
+    const userText = String(payloadObject?.textoUsuario || "");
+    if (userText.includes("__DRAFT__")) {
+      return { text: "Draft: rascunho interno da IA - não enviar", ragUsed: false, possibleHallucination: false };
+    }
+    if (userText.includes("__HALLU__")) {
+      return { text: "A empresa Tozzo é cliente da nossa operação.", ragUsed: false, possibleHallucination: true };
+    }
+    return { text: "Resposta final limpa e natural.", ragUsed: false, possibleHallucination: false };
+  }
   let prompt = tenant.prompt_text || "Você é a Sofia, uma assistente prestativa.";
   let ragContext = "";
 
@@ -628,19 +666,8 @@ Se não houver nomes no RAG:
 
   // Pós-processamento: detectar possíveis alucinações simples
   const ragUsed = Boolean(ragContext && ragContext.trim().length > 0);
-  let possibleHallucination = false;
-
-  try {
-    const mentionsFacts = /\b(empresa|parceir|cliente|case|contrato|marca|parceiro|cliente)\b/i.test(modelText);
-    const probableNames = /[A-Z][a-z]{2,}(?:\s[A-Z][a-z]{2,})+/g;
-    const foundNames = modelText.match(probableNames) || [];
-
-    if (!ragUsed && mentionsFacts && foundNames.length > 0) {
-      possibleHallucination = true;
-    }
-  } catch (e) {
-    // silencioso - evita quebra por regex
-  }
+  const { detectPossibleHallucination } = require("./utils/hallucination");
+  const possibleHallucination = detectPossibleHallucination(modelText, ragUsed);
 
   return { text: modelText, ragUsed, possibleHallucination };
 }
@@ -658,6 +685,10 @@ function emitirEvento(evento, dados) {
 const app = express();
 app.use(cors({ origin: "*" }));
 app.use(express.json({ limit: "10mb" }));
+
+// Now require routers (after possible TEST_MODE injection)
+const authRouter = require("./routes/auth");
+const adminRouter = require("./routes/admin");
 
 app.get("/health", (_req, res) => {
   res.json({
@@ -759,6 +790,15 @@ function isRetryableMetaError(error) {
 }
 
 async function enviarMensagemMeta(telefoneDestino, texto, tenant) {
+  // In test mode, don't call external Meta API — record the message locally
+  if (process.env.TEST_MODE === "1" || process.env.TEST_MODE === "true") {
+    global.__testState__ = global.__testState__ || { sentMessages: [], geminiCalls: [] };
+    const msgObj = { to: telefoneDestino, text: texto, tenant: tenant?.nome || null };
+    global.__testState__.sentMessages.push(msgObj);
+    console.log(`✅ [META MOCK] (TEST_MODE) Mensagem simulada para ${telefoneDestino}`);
+    return msgObj;
+  }
+
   if (!tenant || !tenant.phone_number_id || !tenant.wa_access_token) {
     throw new Error("Tenant sem phone_number_id ou wa_access_token configurado.");
   }
@@ -1145,6 +1185,19 @@ app.post("/webhook/whatsapp", async (req, res) => {
 });
 
 // ── 10. INICIAÇÃO ────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`\n🚀 SofiaAI SaaS v3.0.0 (API Oficial Meta) em http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`\n🚀 SofiaAI SaaS v3.0.0 (API Oficial Meta) em http://localhost:${PORT}`);
+  });
+}
+
+module.exports = {
+  app,
+  enviarMensagemMeta,
+  consultarGeminiDinamicamente,
+  testState: global.__testState__ || null,
+  clearTestState: () => {
+    global.__testState__ = { sentMessages: [], geminiCalls: [] };
+    return global.__testState__;
+  },
+};
