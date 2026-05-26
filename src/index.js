@@ -243,6 +243,12 @@ const processedMessagesCleanupTimer = setInterval(() => {
       processedMessages.delete(msgId);
     }
   }
+
+  for (const [turnKey, timestamp] of recentUserTurns.entries()) {
+    if (now - timestamp > RECENT_TURN_TTL_MS) {
+      recentUserTurns.delete(turnKey);
+    }
+  }
 }, 600000);
 if (typeof processedMessagesCleanupTimer.unref === "function") {
   processedMessagesCleanupTimer.unref();
@@ -389,48 +395,67 @@ function dividirMensagensWhatsApp(texto, maxChars = WHATSAPP_MAX_CHARS, maxMessa
   const clean = limparRespostaIA(texto, { ...options, maxChars: maxChars * maxMessages });
   if (!clean) return [];
 
-  const blocos = clean
-    .split(/\n{2,}|(?=\n(?:\d+️⃣|[0-9]+[.)]|[-•]))/g)
-    .map((bloco) => bloco.replace(/\n+/g, "\n").trim())
-    .filter(Boolean);
+  const sentences = clean.match(/[^.!?\n]+[.!?]+|[^.!?\n]+$/g) || [clean];
+  const messages = [];
+  let current = "";
 
-  const mensagens = [];
-  let excedeuMaxMessages = false;
+  const pushCurrent = () => {
+    const trimmed = current.trim();
+    if (trimmed) messages.push(trimmed);
+    current = "";
+  };
 
-  for (const bloco of blocos) {
-    if (bloco.length <= maxChars) {
-      mensagens.push(bloco);
+  for (const sentence of sentences) {
+    const piece = sentence.replace(/\s+/g, " ").trim();
+    if (!piece) continue;
+
+    const candidate = current ? `${current} ${piece}` : piece;
+    if (candidate.length <= maxChars) {
+      current = candidate;
+      continue;
+    }
+
+    pushCurrent();
+    if (piece.length <= maxChars) {
+      current = piece;
     } else {
-      mensagens.push(...dividirTextoLongo(bloco, maxChars));
-    }
-
-    if (mensagens.length >= maxMessages) {
-      excedeuMaxMessages = true;
-      break;
+      const chunks = dividirTextoLongo(piece, maxChars);
+      for (const chunk of chunks) messages.push(chunk.trim());
     }
   }
 
-  const mensagensFiltradas = mensagens
-    .map((mensagem) => mensagem.trim())
-    .filter(Boolean);
+  pushCurrent();
 
-  const selecionadas = mensagensFiltradas.slice(0, maxMessages);
-  if (excedeuMaxMessages && selecionadas.length > 0) {
-    selecionadas[selecionadas.length - 1] = `${selecionadas[selecionadas.length - 1].trim()} ...`;
-  }
-
-  // Evita enviar último fragmento muito curto/abrupto como "Há", "e", "com"
-  if (selecionadas.length >= 2) {
-    const last = selecionadas[selecionadas.length - 1].trim();
-    const prev = selecionadas[selecionadas.length - 2].trim();
-    const shortTail = last.length <= 18 || last.split(/\s+/).length <= 3;
-    if (shortTail && prev.length + 1 + last.length <= maxChars) {
-      selecionadas[selecionadas.length - 2] = `${prev} ${last}`.trim();
-      selecionadas.pop();
+  const selected = messages.filter(Boolean).slice(0, maxMessages);
+  if (selected.length >= 2) {
+    const last = selected[selected.length - 1];
+    const prev = selected[selected.length - 2];
+    const lastShort = last.length <= 18 || last.split(/\s+/).length <= 3;
+    if (lastShort && prev.length + 1 + last.length <= maxChars) {
+      selected[selected.length - 2] = `${prev} ${last}`;
+      selected.pop();
     }
   }
 
-  return selecionadas.filter(Boolean);
+  return selected;
+}
+
+function normalizeTurnText(text) {
+  return String(text || "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function shouldSkipRecentTurn(patientId, text) {
+  const normalized = normalizeTurnText(text);
+  if (!patientId || !normalized) return false;
+  const key = `${patientId}:${normalized}`;
+  const now = Date.now();
+  const prev = recentUserTurns.get(key);
+  if (prev && now - prev < RECENT_TURN_TTL_MS) return true;
+  recentUserTurns.set(key, now);
+  return false;
 }
 
 // ── 5. FUNÇÕES SUPABASE ──────────────────────────────────────
@@ -1204,6 +1229,8 @@ const userPayloadBuffers = new Map();
 const processingUsers = new Set();
 const processingLocks = new Map(); // Locks por usuário para evitar race condition
 const DEBOUNCE_MS = parseInt(process.env.DEBOUNCE_MS ?? "7500", 10);
+const recentUserTurns = new Map();
+const RECENT_TURN_TTL_MS = parseInt(process.env.RECENT_TURN_TTL_MS ?? "25000", 10);
 
 // Validação
 app.get("/webhook/whatsapp", (req, res) => {
@@ -1362,6 +1389,12 @@ app.post("/webhook/whatsapp", async (req, res) => {
 
           const inicioMs = Date.now();
           const historico = await getHistoricoGemini(patient.id, tenant.id);
+
+          if (shouldSkipRecentTurn(patient.id, combinedTexto)) {
+            console.log(`⏭️  [QUEUE] Turno duplicado recente detectado para usuário ${patient.id}. Ignorando.`);
+            markItemsStatus("answered", { patientId: patient.id, skipped: "recent_turn_duplicate" });
+            continue;
+          }
 
           // Remove o texto que acabamos de salvar no banco da memória do histórico, 
           // pois ele já vai explicitamente via prompt do 'sendMessage' agrupado.
@@ -1555,6 +1588,7 @@ module.exports = {
     userPayloadBuffers.clear();
     processingUsers.clear();
     processingLocks.clear();
+    recentUserTurns.clear();
     return global.__testState__;
   },
 };
