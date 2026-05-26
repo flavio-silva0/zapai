@@ -40,8 +40,14 @@ const DELAY_MINIMO_MS = parseInt(process.env.DELAY_MINIMO_MS ?? "2500", 10);
 const MS_POR_PALAVRA = parseInt(process.env.MS_POR_PALAVRA ?? "70", 10);
 const DELAY_MAXIMO_MS = parseInt(process.env.DELAY_MAXIMO_MS ?? "7000", 10);
 
-const WHATSAPP_MAX_CHARS = parseInt(process.env.WHATSAPP_MAX_CHARS ?? "900", 10);
-const WHATSAPP_MAX_MESSAGES = parseInt(process.env.WHATSAPP_MAX_MESSAGES ?? "10", 10);
+const RAW_WHATSAPP_MAX_CHARS = parseInt(process.env.WHATSAPP_MAX_CHARS ?? "1600", 10);
+const WHATSAPP_MAX_CHARS = Number.isFinite(RAW_WHATSAPP_MAX_CHARS)
+  ? Math.min(3000, Math.max(600, RAW_WHATSAPP_MAX_CHARS))
+  : 1600;
+const RAW_WHATSAPP_MAX_MESSAGES = parseInt(process.env.WHATSAPP_MAX_MESSAGES ?? "1", 10);
+const WHATSAPP_MAX_MESSAGES = Number.isFinite(RAW_WHATSAPP_MAX_MESSAGES)
+  ? Math.min(3, Math.max(1, RAW_WHATSAPP_MAX_MESSAGES))
+  : 1;
 const DELAY_ENTRE_MENSAGENS_MIN_MS = parseInt(process.env.DELAY_ENTRE_MENSAGENS_MIN_MS ?? "800", 10);
 const DELAY_ENTRE_MENSAGENS_MAX_MS = parseInt(process.env.DELAY_ENTRE_MENSAGENS_MAX_MS ?? "1600", 10);
 
@@ -743,7 +749,8 @@ Estas regras têm prioridade sobre o estilo geral do prompt:
 - Seja breve, mas não seco.
 - Use tom humano, consultivo, simpático e seguro.
 - Cada mensagem deve ter no máximo ${WHATSAPP_MAX_CHARS} caracteres.
-- Use normalmente 1 mensagem curta; use no máximo 3 mensagens somente quando isso ajudar a clareza.
+- Responda preferencialmente em uma única mensagem completa.
+- Só divida em mais de 1 mensagem quando for realmente necessário.
 - Cada mensagem deve ser completa e não terminar no meio de uma frase.
 - Se precisar enviar em sequência, cada mensagem deve manter sentido próprio e ser inteligível.
 - Nunca envie blocos grandes de texto.
@@ -1465,7 +1472,7 @@ app.post("/webhook/whatsapp", async (req, res) => {
           const safetyReport = finalResult.report;
           logSanitization("model_response_finalized", safetyReport, { patientId: patient.id, tenantId: tenant.id });
 
-          // Divide a resposta em mensagens curtas para WhatsApp
+          // Divide a resposta para WhatsApp (prioriza mensagem única para evitar cortes por falha parcial de envio)
           const mensagensSofia = dividirMensagensWhatsApp(finalResult.text, WHATSAPP_MAX_CHARS, WHATSAPP_MAX_MESSAGES, {
             contextText: combinedTexto,
             fallback: getSafeFallback(combinedTexto),

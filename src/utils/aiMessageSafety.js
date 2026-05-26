@@ -202,6 +202,7 @@ function looksIncompleteTail(text) {
   const clean = normalizeWhitespace(text);
   if (!clean || clean.length < 18) return false;
   if (/[.!?:]$/.test(clean)) return false;
+  if (/[,;]$/.test(clean)) return true;
   if (/["')\]]$/.test(clean) && !/[(\["]/.test(clean.slice(-2))) return false;
 
   const tail = clean.toLowerCase().split(/\s+/).slice(-3).join(" ");
@@ -214,8 +215,10 @@ function looksIncompleteTail(text) {
   const shortAfterPunctuation = /[.!?]\s+[A-Za-zÀ-ÖØ-öø-ÿ]{1,3}$/.test(clean);
   const danglingQualifier = /\b(?:com|de|por|para|há)\s+(?:quase|mais|menos|cerca|aprox(?:imadamente)?|pouco)\s*$/i.test(clean);
   const danglingRange = /\b(?:mais|menos)\s+de\s*$/i.test(clean);
+  const danglingVerbStart = /\b(?:criamos|fazemos|trabalhamos|atuamos|somos)\s+\w{1,12},?\s*$/i.test(clean)
+    && clean.split(/\s+/).length <= 6;
 
-  return connectorTail || abruptTail || tinyTail || openParen || openBracket || openQuote || shortAfterPunctuation || danglingQualifier || danglingRange;
+  return connectorTail || abruptTail || tinyTail || openParen || openBracket || openQuote || shortAfterPunctuation || danglingQualifier || danglingRange || danglingVerbStart;
 }
 
 function limitText(text, maxChars) {
