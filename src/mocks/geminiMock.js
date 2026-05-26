@@ -23,6 +23,9 @@ module.exports = {
         // Return a deterministic fake embedding
         return { embedding: { values: new Array(768).fill(0.001) } };
       },
+      generateContent: async function () {
+        return { response: { text: () => "{}" } };
+      },
     };
   },
 };

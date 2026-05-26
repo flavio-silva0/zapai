@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "frontend": "npm run dev --prefix frontend"
+    "frontend": "npm run dev --prefix frontend",
+    "test": "node tests/ai-safety.test.js && node tests/hallucination.spec.js && node tests/integration/webhook.integration.test.js && node tests/integration/integration.spec.js"
   },
   "author": "",
   "license": "ISC",
