@@ -61,6 +61,35 @@ const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 // ── 4. UTILITÁRIOS ───────────────────────────────────────────
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// ── IDEMPOTÊNCIA: Rastreia mensagens já processadas (cache simples em memória + TTL)
+const processedMessages = new Map();
+const MESSAGE_CACHE_TTL_MS = 3600000; // 1 hora
+
+function isMessageAlreadyProcessed(messageId) {
+  if (!processedMessages.has(messageId)) return false;
+  const timestamp = processedMessages.get(messageId);
+  const isExpired = Date.now() - timestamp > MESSAGE_CACHE_TTL_MS;
+  if (isExpired) {
+    processedMessages.delete(messageId);
+    return false;
+  }
+  return true;
+}
+
+function markMessageAsProcessed(messageId) {
+  processedMessages.set(messageId, Date.now());
+}
+
+// Limpar cache expirado a cada 10 minutos
+setInterval(() => {
+  const now = Date.now();
+  for (const [msgId, timestamp] of processedMessages.entries()) {
+    if (now - timestamp > MESSAGE_CACHE_TTL_MS) {
+      processedMessages.delete(msgId);
+    }
+  }
+}, 600000);
+
 /**
  * Normaliza número de telefone brasileiro para o formato E.164 sem o "+".
  * Corrige automaticamente celulares BR com 12 dígitos (sem o 9º dígito)
@@ -680,41 +709,71 @@ app.put("/api/patients/:id/ai-status", async (req, res) => {
   res.json(data);
 });
 
+// ── RETRY COM BACKOFF EXPONENCIAL ────────────────────────────
+const MAX_TENTATIVAS_META = 3;
+const BACKOFF_BASE_META_MS = 1000;
+
+function isRetryableMetaError(error) {
+  const status = error?.response?.status;
+  const code = error?.code;
+  // Retentar em: timeout, rate limit, 5xx
+  return [408, 429, 500, 502, 503, 504].includes(status) || 
+         code === 'ECONNABORTED' || 
+         code === 'ECONNRESET' ||
+         code === 'ETIMEDOUT';
+}
+
 async function enviarMensagemMeta(telefoneDestino, texto, tenant) {
   if (!tenant || !tenant.phone_number_id || !tenant.wa_access_token) {
     throw new Error("Tenant sem phone_number_id ou wa_access_token configurado.");
   }
 
-  try {
-    const url = `https://graph.facebook.com/v20.0/${tenant.phone_number_id}/messages`;
+  for (let tentativa = 1; tentativa <= MAX_TENTATIVAS_META; tentativa++) {
+    try {
+      const url = `https://graph.facebook.com/v20.0/${tenant.phone_number_id}/messages`;
 
-    await axios.post(
-      url,
-      {
-        messaging_product: "whatsapp",
-        recipient_type: "individual",
-        to: telefoneDestino,
-        type: "text",
-        text: {
-          preview_url: false,
-          body: texto,
+      await axios.post(
+        url,
+        {
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: telefoneDestino,
+          type: "text",
+          text: {
+            preview_url: false,
+            body: texto,
+          },
         },
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${tenant.wa_access_token}`,
-          "Content-Type": "application/json",
-        },
-        timeout: 25000,
+        {
+          headers: {
+            Authorization: `Bearer ${tenant.wa_access_token}`,
+            "Content-Type": "application/json",
+          },
+          timeout: 25000,
+        }
+      );
+
+      console.log(`✅ [META API] Mensagem enviada com sucesso para ${telefoneDestino} (tentativa ${tentativa}/${MAX_TENTATIVAS_META})`);
+      return true;
+    } catch (error) {
+      const metaMessage = error.response?.data?.error?.message || error.message;
+      const isRetryable = isRetryableMetaError(error);
+      
+      console.warn(`⚠️ [META API] Tentativa ${tentativa}/${MAX_TENTATIVAS_META} falhou para ${telefoneDestino}: ${metaMessage}`);
+
+      if (isRetryable && tentativa < MAX_TENTATIVAS_META) {
+        const delayMs = BACKOFF_BASE_META_MS * Math.pow(2, tentativa - 1);
+        console.log(`⏳ [META API] Aguardando ${delayMs}ms antes de retentar...`);
+        await sleep(delayMs);
+        continue;
       }
-    );
-
-    return true;
-  } catch (error) {
-    const metaMessage = error.response?.data?.error?.message || error.message;
-    console.error(`❌ [META API] ${tenant.nome}: erro ao enviar para ${telefoneDestino} -> ${metaMessage}`);
-    throw new Error(`Erro ao enviar mensagem Meta: ${metaMessage}`);
+      
+      console.error(`❌ [META API] ${tenant.nome}: erro crítico ao enviar para ${telefoneDestino} -> ${metaMessage}`);
+      throw new Error(`Erro ao enviar mensagem Meta: ${metaMessage}`);
+    }
   }
+
+  throw new Error("Falha ao enviar mensagem após todas as tentativas");
 }
 
 app.post("/api/patients/:id/send", async (req, res) => {
@@ -784,6 +843,7 @@ async function baixarMidiaMeta(mediaId, tenant) {
 const debounceTimers = new Map();
 const userPayloadBuffers = new Map();
 const processingUsers = new Set();
+const processingLocks = new Map(); // Locks por usuário para evitar race condition
 const DEBOUNCE_MS = 7500;
 
 // Validação
@@ -817,6 +877,16 @@ app.post("/webhook/whatsapp", async (req, res) => {
       return;
     }
 
+    const paramMsg = change.messages[0];
+    const messageId = paramMsg.id;
+    
+    // ── VERIFICAÇÃO DE IDEMPOTÊNCIA ──────────────────────
+    if (isMessageAlreadyProcessed(messageId)) {
+      console.log(`⏭️  [WEBHOOK] Mensagem ${messageId} já foi processada. Ignorando duplicata.`);
+      return;
+    }
+    markMessageAsProcessed(messageId);
+
     const phoneNumberId = change.metadata.phone_number_id;
     console.log(`🔍 [WEBHOOK] Buscando tenant para o Phone ID: ${phoneNumberId}`);
     const { data: tenant } = await supabase.from("tenants").select("*").eq("phone_number_id", phoneNumberId).single();
@@ -827,8 +897,6 @@ app.post("/webhook/whatsapp", async (req, res) => {
     }
 
     console.log(`✅ [WEBHOOK] Tenant identificado: ${tenant.nome}`);
-
-    const paramMsg = change.messages[0];
     const telefoneUsuario = normalizarTelefoneBR(paramMsg.from);
     const nomeContato = change.contacts?.[0]?.profile?.name || "Contato";
 
@@ -892,6 +960,7 @@ app.post("/webhook/whatsapp", async (req, res) => {
     clearTimeout(debounceTimers.get(patient.id));
     const timer = setTimeout(async () => {
       processingUsers.add(patient.id);
+      processingLocks.set(patient.id, true);
 
       try {
         // Loop para processar todas as mensagens que chegarem durante o processamento
@@ -925,14 +994,43 @@ app.post("/webhook/whatsapp", async (req, res) => {
             }, tenant, patient.ai_memory);
           } catch (e) {
             console.error(`❌ [GEMINI ERROR] Falha ao processar IA: ${e.message}`);
+            console.error(`❌ [GEMINI] Enviando mensagem de erro para o usuário...`);
+            try {
+              await enviarMensagemMeta(telefoneUsuario, "Desculpe, tive uma instabilidade técnica. Pode tentar novamente?", tenant);
+            } catch (sendErr) {
+              console.error(`❌ [WEBHOOK] Erro ao enviar mensagem de erro: ${sendErr.message}`);
+            }
             break; // Sai do loop em caso de erro crítico
+          }
+
+          // ── VALIDAÇÃO DE RESPOSTA ────────────────────────
+          // Verifica se a resposta não é vazia ou inválida
+          const respostaLimpa = respostaSofia?.trim();
+          if (!respostaLimpa) {
+            console.warn(`⚠️  [GEMINI] Resposta vazia recebida. Enviando fallback...`);
+            try {
+              await enviarMensagemMeta(telefoneUsuario, "Tive uma instabilidade aqui. Pode me mandar de novo, por favor?", tenant);
+              const msgBot = await saveMessage(patient.id, "[Erro: Resposta vazia]", "bot", tenant.id);
+              emitirEvento("new_message", msgBot);
+            } catch (sendErr) {
+              console.error(`❌ [WEBHOOK] Erro ao enviar fallback: ${sendErr.message}`);
+            }
+            continue;
           }
 
           // Divide a resposta em mensagens curtas para WhatsApp
           const mensagensSofia = dividirMensagensWhatsApp(respostaSofia);
 
           if (mensagensSofia.length === 0) {
-            mensagensSofia.push("Tive uma instabilidade aqui. Pode me mandar de novo, por favor?");
+            console.warn(`⚠️  [WEBHOOK] Nenhuma mensagem foi gerada após dividir. Enviando fallback...`);
+            try {
+              await enviarMensagemMeta(telefoneUsuario, "Tive uma instabilidade aqui. Pode me mandar de novo, por favor?", tenant);
+              const msgBot = await saveMessage(patient.id, "[Erro: Divisão de mensagens falhou]", "bot", tenant.id);
+              emitirEvento("new_message", msgBot);
+            } catch (sendErr) {
+              console.error(`❌ [WEBHOOK] Erro ao enviar fallback: ${sendErr.message}`);
+            }
+            continue;
           }
 
           // Atraso de digitação simulado baseado no conteúdo completo
@@ -940,33 +1038,51 @@ app.post("/webhook/whatsapp", async (req, res) => {
           const delay = calcularDelayRestante(textoCompletoSofia, inicioMs);
           if (delay > 0) await sleep(delay);
 
-          // Envia e salva cada mensagem separadamente
+          // Envia e salva cada mensagem separadamente com melhor tratamento de erro
           for (const mensagem of mensagensSofia) {
-            await enviarMensagemMeta(telefoneUsuario, mensagem, tenant);
-
-            const msgBot = await saveMessage(patient.id, mensagem, "bot", tenant.id);
-            emitirEvento("new_message", msgBot);
-
+            try {
+              await enviarMensagemMeta(telefoneUsuario, mensagem, tenant);
+              const msgBot = await saveMessage(patient.id, mensagem, "bot", tenant.id);
+              emitirEvento("new_message", msgBot);
+              console.log(`✅ [WEBHOOK] Mensagem salva e enviada com sucesso para ${telefoneUsuario}`);
+            } catch (sendErr) {
+              console.error(`❌ [WEBHOOK] Erro ao enviar mensagem para ${telefoneUsuario}: ${sendErr.message}`);
+              // Tenta salvar a mensagem mesmo se o envio falhar, para auditoria
+              try {
+                const msgBot = await saveMessage(patient.id, `[Erro ao enviar] ${mensagem}`, "bot_error", tenant.id);
+                emitirEvento("new_message", msgBot);
+              } catch (saveErr) {
+                console.error(`❌ [WEBHOOK] Erro ao salvar mensagem de erro: ${saveErr.message}`);
+              }
+            }
             await sleep(delayAleatorio());
           }
 
           // Atualiza memória em background
-          atualizarMemoriaLongoPrazo({ ...patient, ai_memory: patient.ai_memory }, historico, textoCompletoSofia).catch(() => null);
+          atualizarMemoriaLongoPrazo({ ...patient, ai_memory: patient.ai_memory }, historico, textoCompletoSofia).catch((err) => {
+            console.warn(`⚠️  [WEBHOOK] Erro ao atualizar memória: ${err.message}`);
+          });
 
           if (patient.status_kanban === "Novo") {
-            const { data: atualizado } = await supabase.from("users_whatsapp").update({ status_kanban: "Em Atendimento" }).eq("id", patient.id).select().single();
-            if (atualizado) emitirEvento("patient_updated", atualizado);
+            try {
+              const { data: atualizado } = await supabase.from("users_whatsapp").update({ status_kanban: "Em Atendimento" }).eq("id", patient.id).select().single();
+              if (atualizado) emitirEvento("patient_updated", atualizado);
+            } catch (updateErr) {
+              console.warn(`⚠️  [WEBHOOK] Erro ao atualizar status do paciente: ${updateErr.message}`);
+            }
           }
 
           // Pequeno respiro entre mensagens em fila para não parecer robótico demais
           if (userPayloadBuffers.get(patient.id).length > 0) await sleep(1500);
         }
       } catch (err) {
-        console.error("❌ Erro no loop de processamento:", err.message);
+        console.error("❌ Erro no loop de processamento:", err.message, err.stack);
       } finally {
         processingUsers.delete(patient.id);
+        processingLocks.delete(patient.id);
         userPayloadBuffers.delete(patient.id);
         debounceTimers.delete(patient.id);
+        console.log(`✅ [WEBHOOK] Limpeza concluída para usuário ${patient.id}`);
       }
     }, delayDebounceAtivo);
     debounceTimers.set(patient.id, timer);
