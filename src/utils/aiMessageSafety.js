@@ -212,8 +212,10 @@ function looksIncompleteTail(text) {
   const openBracket = (clean.match(/\[/g) || []).length > (clean.match(/\]/g) || []).length;
   const openQuote = (clean.match(/"/g) || []).length % 2 === 1;
   const shortAfterPunctuation = /[.!?]\s+[A-Za-zÀ-ÖØ-öø-ÿ]{1,3}$/.test(clean);
+  const danglingQualifier = /\b(?:com|de|por|para|há)\s+(?:quase|mais|menos|cerca|aprox(?:imadamente)?|pouco)\s*$/i.test(clean);
+  const danglingRange = /\b(?:mais|menos)\s+de\s*$/i.test(clean);
 
-  return connectorTail || abruptTail || tinyTail || openParen || openBracket || openQuote || shortAfterPunctuation;
+  return connectorTail || abruptTail || tinyTail || openParen || openBracket || openQuote || shortAfterPunctuation || danglingQualifier || danglingRange;
 }
 
 function limitText(text, maxChars) {

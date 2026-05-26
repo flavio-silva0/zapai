@@ -64,6 +64,8 @@ const openParen = sanitizeAiMessage("Nós criamos desde a identidade visual (log
 assert.ok(!/\(log$/i.test(openParen), "mensagem com parêntese aberto deve ser tratada como truncada");
 const abruptShort = sanitizeAiMessage("Nós somos uma agência de publicidade completa! Há");
 assert.ok(!/completa!\s+Há$/i.test(abruptShort), "cauda curta após pontuação deve ser tratada como truncada");
+const qualifierCut = sanitizeAiMessage("Nós somos uma agência de publicidade com quase");
+assert.ok(!/com quase$/i.test(qualifierCut), "qualificador pendente no fim deve ser tratado como truncado");
 
 const brokenFlow = sanitizeAiMessage("Opa, desculpe! Minha mensagem acabou");
 assert.ok(!/mensagem acabou/i.test(brokenFlow), "auto-desculpa por mensagem cortada não deve ser enviada");

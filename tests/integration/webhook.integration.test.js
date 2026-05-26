@@ -148,6 +148,15 @@ async function run() {
     clearTestState();
     supabaseMock.reset();
 
+    await postWebhook("msg-cut-qualifier", "__CUT_QUALIFIER__");
+    await wait(80);
+    const qualifierReply = global.__testState__.sentMessages[0]?.text || "";
+    assert.ok(qualifierReply.length > 35, "resposta com qualificador pendente deve ser reparada");
+    assert.ok(!/com quase$/i.test(qualifierReply), "resposta final não deve terminar em qualificador pendente");
+
+    clearTestState();
+    supabaseMock.reset();
+
     await postWebhook("msg-error", "__ERROR__");
     await wait(80);
     const errorReply = global.__testState__.sentMessages[0]?.text || "";

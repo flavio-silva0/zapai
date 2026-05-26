@@ -602,7 +602,7 @@ async function consultarGeminiDinamicamente(historico, payloadObject, tenant, pa
       throw new Error("TypeError: Cannot read properties of undefined\n    at gerarResposta (/app/src/index.js:10:5)");
     }
     if (userText.includes("__GENERIC_GREETING__")) {
-      if (userText.includes("Reescreva sua última resposta para WhatsApp")) {
+      if (userText.includes("Reescreva apenas a resposta final para WhatsApp")) {
         return {
           text: "Claro. Sobre isso, trabalhamos com estratégia, criação e execução para posicionar sua marca e gerar resultado. Se você quiser, eu te explico os próximos passos.",
           ragUsed: false,
@@ -612,7 +612,7 @@ async function consultarGeminiDinamicamente(historico, payloadObject, tenant, pa
       return { text: "Oi! Tudo ótimo por aqui, e com você? Oi! Tudo ótimo por aqui, e com você?", ragUsed: false, possibleHallucination: false };
     }
     if (userText.includes("__CUT__")) {
-      if (userText.includes("Reescreva sua última resposta para WhatsApp")) {
+      if (userText.includes("Reescreva apenas a resposta final para WhatsApp")) {
         return {
           text: "Nós criamos projetos sob medida, começando por diagnóstico, depois estratégia e execução completa da comunicação.",
           ragUsed: false,
@@ -620,6 +620,16 @@ async function consultarGeminiDinamicamente(historico, payloadObject, tenant, pa
         };
       }
       return { text: "Nós criamos desde a identidade visual (log", ragUsed: false, possibleHallucination: false };
+    }
+    if (userText.includes("__CUT_QUALIFIER__")) {
+      if (userText.includes("Reescreva apenas a resposta final para WhatsApp")) {
+        return {
+          text: "Nós somos uma agência de publicidade com mais de 11 anos de mercado, atendendo marcas com estratégia, criação e execução.",
+          ragUsed: false,
+          possibleHallucination: false
+        };
+      }
+      return { text: "Nós somos uma agência de publicidade com quase", ragUsed: false, possibleHallucination: false };
     }
     if (userText.includes("__HALLU__")) {
       return { text: "A empresa Tozzo é cliente da nossa operação.", ragUsed: false, possibleHallucination: true };
@@ -725,7 +735,7 @@ Estas regras têm prioridade sobre o estilo geral do prompt:
 - Não ofereça reunião/agendamento cedo demais.
 - Só ofereça falar com especialista depois de entender minimamente a necessidade.
 - Se o cliente pedir explicação geral, resuma de forma simples e pergunte qual ponto ele quer aprofundar.
-- Se o cliente disser "Gostaria de saber mais sobre a Lado B" ou pedir para conhecer a empresa, responda ao interesse comercial. Não responda apenas saudação.
+- Se o cliente pedir para conhecer a empresa ou saber mais sobre o negócio, responda ao interesse comercial. Não responda apenas saudação.
 - Use emojis com naturalidade e moderação, no máximo 1 ou 2 por resposta.
 - Evite frases frias, genéricas ou institucionais.
 - Não diga "minha mensagem acabou", "mensagem cortada", "continuo na próxima" ou frases parecidas.
@@ -1046,47 +1056,68 @@ Contexto adicional:
 - Responda diretamente ao ponto pedido pelo cliente, sem repetir a pergunta anterior.`;
 }
 
-async function repairModelResponseIfNeeded({ respostaOriginal, safetyReport, historico, tenant, payloadObject, contextText }) {
-  if (!respostaOriginal || !safetyReport || safetyReport.valid) {
-    return { text: respostaOriginal, report: safetyReport, repaired: false };
-  }
+async function finalizeAssistantResponse({ candidateText, historico, tenant, payloadObject, contextText, maxRepairAttempts = 2 }) {
+  let currentText = String(candidateText || "");
+  let lastReport = null;
 
-  const reparableReasons = new Set(["generic_greeting_for_business_intent", "incomplete_tail"]);
-  const hasReparableReason = (safetyReport.reasons || []).some((reason) => reparableReasons.has(reason));
-  if (!hasReparableReason) {
-    return { text: respostaOriginal, report: safetyReport, repaired: false };
-  }
-
-  const repairInstruction = `Reescreva sua última resposta para WhatsApp seguindo estas regras:
-- Responda diretamente ao último pedido do cliente.
-- Não repita saudação nem repita a mesma pergunta.
-- Entregue uma resposta completa, sem frase cortada.
-- Use texto natural, curto e objetivo.
-- Não inclua notas internas, rascunhos, labels ou JSON.`;
-
-  const repairPayload = {
-    ...payloadObject,
-    textoUsuario: `${payloadObject.textoUsuario}\n\n${repairInstruction}`,
-  };
-
-  try {
-    const repairedObj = await consultarGeminiDinamicamente(historico, repairPayload, tenant);
-    const repairedText = repairedObj?.text || "";
-    const repairedReport = sanitizeAiMessageWithReport(repairedText, {
+  for (let attempt = 0; attempt <= maxRepairAttempts; attempt++) {
+    const report = sanitizeAiMessageWithReport(currentText, {
       contextText,
       fallback: getSafeFallback(contextText),
       maxChars: WHATSAPP_MAX_CHARS * WHATSAPP_MAX_MESSAGES,
+      allowFallback: false,
     });
+    lastReport = report;
 
-    if (repairedReport.valid) {
-      logSanitization("model_response_repaired", repairedReport, { tenantId: tenant?.id });
-      return { text: repairedText, report: repairedReport, repaired: true };
+    if (report.valid) {
+      return {
+        text: report.text,
+        report,
+        repaired: attempt > 0,
+        usedFallback: false,
+      };
     }
-  } catch (err) {
-    console.warn(`⚠️ [AI SAFETY] Repair pass falhou: ${err.message}`);
+
+    if (attempt >= maxRepairAttempts) break;
+
+    const repairInstruction = `Reescreva apenas a resposta final para WhatsApp.
+Regras obrigatórias:
+- Responda diretamente ao último pedido do cliente.
+- Entregue uma resposta completa, sem frase cortada.
+- Não repita saudação, não repita perguntas já feitas.
+- Não inclua notas internas, rascunhos, labels, markdown técnico ou JSON.
+- Texto curto, claro e natural em português brasileiro.
+
+Resposta anterior para corrigir:
+"${currentText}"`;
+
+    const repairPayload = {
+      ...payloadObject,
+      textoUsuario: `${payloadObject.textoUsuario}\n\n${repairInstruction}`,
+    };
+
+    try {
+      const repairedObj = await consultarGeminiDinamicamente(historico, repairPayload, tenant);
+      currentText = String(repairedObj?.text || "");
+    } catch (err) {
+      console.warn(`⚠️ [AI SAFETY] Repair pass ${attempt + 1} falhou: ${err.message}`);
+      break;
+    }
   }
 
-  return { text: respostaOriginal, report: safetyReport, repaired: false };
+  const fallbackReport = sanitizeAiMessageWithReport(lastReport?.original || currentText, {
+    contextText,
+    fallback: getSafeFallback(contextText),
+    maxChars: WHATSAPP_MAX_CHARS * WHATSAPP_MAX_MESSAGES,
+    allowFallback: true,
+  });
+
+  return {
+    text: fallbackReport.text,
+    report: fallbackReport,
+    repaired: true,
+    usedFallback: true,
+  };
 }
 
 async function sendAndSaveBotMessage({ patient, telefoneUsuario, text, tenant, contextText = "", fallback, stage = "webhook" }) {
@@ -1391,26 +1422,18 @@ app.post("/webhook/whatsapp", async (req, res) => {
           }
 
           const respostaSofia = respostaObj?.text || "";
-          let safetyReport = sanitizeAiMessageWithReport(respostaSofia, {
-            contextText: combinedTexto,
-            fallback: getSafeFallback(combinedTexto),
-            maxChars: WHATSAPP_MAX_CHARS * WHATSAPP_MAX_MESSAGES,
-          });
-          logSanitization("model_response", safetyReport, { patientId: patient.id, tenantId: tenant.id });
-
-          const repairResult = await repairModelResponseIfNeeded({
-            respostaOriginal: respostaSofia,
-            safetyReport,
+          const finalResult = await finalizeAssistantResponse({
+            candidateText: respostaSofia,
             historico,
             tenant,
             payloadObject: payloadModel,
             contextText: combinedTexto,
           });
-
-          safetyReport = repairResult.report || safetyReport;
+          const safetyReport = finalResult.report;
+          logSanitization("model_response_finalized", safetyReport, { patientId: patient.id, tenantId: tenant.id });
 
           // Divide a resposta em mensagens curtas para WhatsApp
-          const mensagensSofia = dividirMensagensWhatsApp(safetyReport.text, WHATSAPP_MAX_CHARS, WHATSAPP_MAX_MESSAGES, {
+          const mensagensSofia = dividirMensagensWhatsApp(finalResult.text, WHATSAPP_MAX_CHARS, WHATSAPP_MAX_MESSAGES, {
             contextText: combinedTexto,
             fallback: getSafeFallback(combinedTexto),
           });
