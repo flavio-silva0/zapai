@@ -202,13 +202,17 @@ function looksIncompleteTail(text) {
   const clean = normalizeWhitespace(text);
   if (!clean || clean.length < 18) return false;
   if (/[.!?:]$/.test(clean)) return false;
+  if (/["')\]]$/.test(clean) && !/[(\["]/.test(clean.slice(-2))) return false;
 
   const tail = clean.toLowerCase().split(/\s+/).slice(-3).join(" ");
   const connectorTail = /\b(?:a|o|as|os|de|da|do|das|dos|e|em|para|por|com|sobre|que|se)\s*$/.test(clean.toLowerCase());
   const abruptTail = /\b(?:mas|porque|quando|como|então|entao|al[eé]m)\s*$/.test(clean.toLowerCase());
   const tinyTail = tail.length <= 8;
+  const openParen = (clean.match(/\(/g) || []).length > (clean.match(/\)/g) || []).length;
+  const openBracket = (clean.match(/\[/g) || []).length > (clean.match(/\]/g) || []).length;
+  const openQuote = (clean.match(/"/g) || []).length % 2 === 1;
 
-  return connectorTail || abruptTail || tinyTail;
+  return connectorTail || abruptTail || tinyTail || openParen || openBracket || openQuote;
 }
 
 function limitText(text, maxChars) {

@@ -134,6 +134,16 @@ async function run() {
     const commercialReply = global.__testState__.sentMessages[0]?.text || "";
     assert.ok(commercialReply.length > 20, "fallback comercial deve retornar uma resposta útil");
     assert.ok(!/^Oi! Tudo ótimo/i.test(commercialReply), "saudação genérica não deve dominar a resposta");
+    assert.ok(/estratégia|criação|execução|resultado/i.test(commercialReply), "repair pass deve gerar resposta contextual");
+
+    clearTestState();
+    supabaseMock.reset();
+
+    await postWebhook("msg-cut", "__CUT__");
+    await wait(80);
+    const cutReply = global.__testState__.sentMessages[0]?.text || "";
+    assert.ok(cutReply.length > 30, "resposta cortada deve ser reparada");
+    assert.ok(!/\($|log$/i.test(cutReply), "resposta final não deve terminar truncada");
 
     clearTestState();
     supabaseMock.reset();

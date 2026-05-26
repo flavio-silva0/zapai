@@ -591,7 +591,24 @@ async function consultarGeminiDinamicamente(historico, payloadObject, tenant, pa
       throw new Error("TypeError: Cannot read properties of undefined\n    at gerarResposta (/app/src/index.js:10:5)");
     }
     if (userText.includes("__GENERIC_GREETING__")) {
+      if (userText.includes("Reescreva sua última resposta para WhatsApp")) {
+        return {
+          text: "Claro. Sobre isso, trabalhamos com estratégia, criação e execução para posicionar sua marca e gerar resultado. Se você quiser, eu te explico os próximos passos.",
+          ragUsed: false,
+          possibleHallucination: false
+        };
+      }
       return { text: "Oi! Tudo ótimo por aqui, e com você? Oi! Tudo ótimo por aqui, e com você?", ragUsed: false, possibleHallucination: false };
+    }
+    if (userText.includes("__CUT__")) {
+      if (userText.includes("Reescreva sua última resposta para WhatsApp")) {
+        return {
+          text: "Nós criamos projetos sob medida, começando por diagnóstico, depois estratégia e execução completa da comunicação.",
+          ragUsed: false,
+          possibleHallucination: false
+        };
+      }
+      return { text: "Nós criamos desde a identidade visual (log", ragUsed: false, possibleHallucination: false };
     }
     if (userText.includes("__HALLU__")) {
       return { text: "A empresa Tozzo é cliente da nossa operação.", ragUsed: false, possibleHallucination: true };
@@ -975,6 +992,92 @@ function logSanitization(stage, report, extra = {}) {
   console.warn(`⚠️  [AI SAFETY] ${stage}: ${report.reasons.join(", ")}${context ? ` (${context})` : ""}`);
 }
 
+function isShortContinuation(text) {
+  const clean = String(text || "").trim().toLowerCase();
+  if (!clean) return false;
+  if (clean.length <= 2) return true;
+  if (clean.split(/\s+/).length <= 3) return true;
+  return /^(valores?|pre(?:ç|c)o|or(?:ç|c)amento|prazo|como\s+funciona|e\s+mais|mais|ok|sim|isso|esse|essa|quero\s+saber\s+mais)$/i.test(clean);
+}
+
+function getLastAssistantQuestion(historico = []) {
+  const reversed = [...historico].reverse();
+  for (const item of reversed) {
+    if (item?.role !== "model") continue;
+    const text = String(item?.parts?.[0]?.text || "").trim();
+    if (!text) continue;
+    if (text.includes("?")) return text;
+  }
+  return "";
+}
+
+function enrichUserIntentForModel(combinedTexto, historico = []) {
+  const raw = String(combinedTexto || "").trim();
+  if (!raw) return raw;
+
+  const cleanUserLine = raw
+    .split("\n")
+    .filter((line) => line.trim().toLowerCase().startsWith("usuário:"))
+    .map((line) => line.replace(/^usuário:\s*/i, "").trim())
+    .filter(Boolean)
+    .join(" ");
+
+  if (!isShortContinuation(cleanUserLine)) return raw;
+
+  const lastQuestion = getLastAssistantQuestion(historico);
+  if (!lastQuestion) return raw;
+
+  return `${raw}
+
+Contexto adicional:
+- O cliente respondeu de forma curta à última pergunta do atendimento.
+- Última pergunta feita ao cliente: "${lastQuestion}"
+- Responda diretamente ao ponto pedido pelo cliente, sem repetir a pergunta anterior.`;
+}
+
+async function repairModelResponseIfNeeded({ respostaOriginal, safetyReport, historico, tenant, payloadObject, contextText }) {
+  if (!respostaOriginal || !safetyReport || safetyReport.valid) {
+    return { text: respostaOriginal, report: safetyReport, repaired: false };
+  }
+
+  const reparableReasons = new Set(["generic_greeting_for_business_intent", "incomplete_tail"]);
+  const hasReparableReason = (safetyReport.reasons || []).some((reason) => reparableReasons.has(reason));
+  if (!hasReparableReason) {
+    return { text: respostaOriginal, report: safetyReport, repaired: false };
+  }
+
+  const repairInstruction = `Reescreva sua última resposta para WhatsApp seguindo estas regras:
+- Responda diretamente ao último pedido do cliente.
+- Não repita saudação nem repita a mesma pergunta.
+- Entregue uma resposta completa, sem frase cortada.
+- Use texto natural, curto e objetivo.
+- Não inclua notas internas, rascunhos, labels ou JSON.`;
+
+  const repairPayload = {
+    ...payloadObject,
+    textoUsuario: `${payloadObject.textoUsuario}\n\n${repairInstruction}`,
+  };
+
+  try {
+    const repairedObj = await consultarGeminiDinamicamente(historico, repairPayload, tenant);
+    const repairedText = repairedObj?.text || "";
+    const repairedReport = sanitizeAiMessageWithReport(repairedText, {
+      contextText,
+      fallback: getSafeFallback(contextText),
+      maxChars: WHATSAPP_MAX_CHARS * WHATSAPP_MAX_MESSAGES,
+    });
+
+    if (repairedReport.valid) {
+      logSanitization("model_response_repaired", repairedReport, { tenantId: tenant?.id });
+      return { text: repairedText, report: repairedReport, repaired: true };
+    }
+  } catch (err) {
+    console.warn(`⚠️ [AI SAFETY] Repair pass falhou: ${err.message}`);
+  }
+
+  return { text: respostaOriginal, report: safetyReport, repaired: false };
+}
+
 async function sendAndSaveBotMessage({ patient, telefoneUsuario, text, tenant, contextText = "", fallback, stage = "webhook" }) {
   const report = sanitizeAiMessageWithReport(text, {
     contextText,
@@ -1224,12 +1327,15 @@ app.post("/webhook/whatsapp", async (req, res) => {
             historico.pop();
           }
 
+          const combinedTextoEnriquecido = enrichUserIntentForModel(combinedTexto, historico);
+          const payloadModel = {
+            textoUsuario: combinedTextoEnriquecido.trim(),
+            inlineDatas: combinedInlineDatas
+          };
+
           let respostaObj;
           try {
-            respostaObj = await consultarGeminiDinamicamente(historico, {
-              textoUsuario: combinedTexto.trim(),
-              inlineDatas: combinedInlineDatas
-            }, tenant, patient.ai_memory);
+            respostaObj = await consultarGeminiDinamicamente(historico, payloadModel, tenant, patient.ai_memory);
           } catch (e) {
             console.error(`❌ [GEMINI ERROR] Falha ao processar IA: ${e.message}`);
             try {
@@ -1274,12 +1380,23 @@ app.post("/webhook/whatsapp", async (req, res) => {
           }
 
           const respostaSofia = respostaObj?.text || "";
-          const safetyReport = sanitizeAiMessageWithReport(respostaSofia, {
+          let safetyReport = sanitizeAiMessageWithReport(respostaSofia, {
             contextText: combinedTexto,
             fallback: getSafeFallback(combinedTexto),
             maxChars: WHATSAPP_MAX_CHARS * WHATSAPP_MAX_MESSAGES,
           });
           logSanitization("model_response", safetyReport, { patientId: patient.id, tenantId: tenant.id });
+
+          const repairResult = await repairModelResponseIfNeeded({
+            respostaOriginal: respostaSofia,
+            safetyReport,
+            historico,
+            tenant,
+            payloadObject: payloadModel,
+            contextText: combinedTexto,
+          });
+
+          safetyReport = repairResult.report || safetyReport;
 
           // Divide a resposta em mensagens curtas para WhatsApp
           const mensagensSofia = dividirMensagensWhatsApp(safetyReport.text, WHATSAPP_MAX_CHARS, WHATSAPP_MAX_MESSAGES, {

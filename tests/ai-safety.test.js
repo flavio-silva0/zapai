@@ -60,6 +60,8 @@ assert.ok(!/TypeError|at gerarResposta|stack/i.test(stack), "erro da IA não dev
 
 const cut = sanitizeAiMessage("Como nós criamos projetos sob medida para cada cliente, os");
 assert.ok(!/sob medida para cada cliente, os$/i.test(cut), "mensagem truncada não deve ser enviada");
+const openParen = sanitizeAiMessage("Nós criamos desde a identidade visual (log");
+assert.ok(!/\(log$/i.test(openParen), "mensagem com parêntese aberto deve ser tratada como truncada");
 
 const brokenFlow = sanitizeAiMessage("Opa, desculpe! Minha mensagem acabou");
 assert.ok(!/mensagem acabou/i.test(brokenFlow), "auto-desculpa por mensagem cortada não deve ser enviada");
