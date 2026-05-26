@@ -211,8 +211,9 @@ function looksIncompleteTail(text) {
   const openParen = (clean.match(/\(/g) || []).length > (clean.match(/\)/g) || []).length;
   const openBracket = (clean.match(/\[/g) || []).length > (clean.match(/\]/g) || []).length;
   const openQuote = (clean.match(/"/g) || []).length % 2 === 1;
+  const shortAfterPunctuation = /[.!?]\s+[A-Za-zÀ-ÖØ-öø-ÿ]{1,3}$/.test(clean);
 
-  return connectorTail || abruptTail || tinyTail || openParen || openBracket || openQuote;
+  return connectorTail || abruptTail || tinyTail || openParen || openBracket || openQuote || shortAfterPunctuation;
 }
 
 function limitText(text, maxChars) {

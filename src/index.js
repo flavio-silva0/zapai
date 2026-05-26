@@ -40,13 +40,13 @@ const DELAY_MINIMO_MS = parseInt(process.env.DELAY_MINIMO_MS ?? "2500", 10);
 const MS_POR_PALAVRA = parseInt(process.env.MS_POR_PALAVRA ?? "70", 10);
 const DELAY_MAXIMO_MS = parseInt(process.env.DELAY_MAXIMO_MS ?? "7000", 10);
 
-const WHATSAPP_MAX_CHARS = parseInt(process.env.WHATSAPP_MAX_CHARS ?? "280", 10);
+const WHATSAPP_MAX_CHARS = parseInt(process.env.WHATSAPP_MAX_CHARS ?? "900", 10);
 const WHATSAPP_MAX_MESSAGES = parseInt(process.env.WHATSAPP_MAX_MESSAGES ?? "10", 10);
 const DELAY_ENTRE_MENSAGENS_MIN_MS = parseInt(process.env.DELAY_ENTRE_MENSAGENS_MIN_MS ?? "800", 10);
 const DELAY_ENTRE_MENSAGENS_MAX_MS = parseInt(process.env.DELAY_ENTRE_MENSAGENS_MAX_MS ?? "1600", 10);
 
 // Defaults tuned for conservative outputs to reduce hallucinations
-const GEMINI_MAX_OUTPUT_TOKENS = parseInt(process.env.GEMINI_MAX_OUTPUT_TOKENS ?? "300", 10);
+const GEMINI_MAX_OUTPUT_TOKENS = parseInt(process.env.GEMINI_MAX_OUTPUT_TOKENS ?? "700", 10);
 const GEMINI_TEMPERATURE = Number(process.env.GEMINI_TEMPERATURE ?? "0.20");
 const GEMINI_TOP_P = Number(process.env.GEMINI_TOP_P ?? "0.80");
 const GEMINI_TOP_K = parseInt(process.env.GEMINI_TOP_K ?? "40", 10);
@@ -419,7 +419,18 @@ function dividirMensagensWhatsApp(texto, maxChars = WHATSAPP_MAX_CHARS, maxMessa
     selecionadas[selecionadas.length - 1] = `${selecionadas[selecionadas.length - 1].trim()} ...`;
   }
 
-  return selecionadas;
+  // Evita enviar último fragmento muito curto/abrupto como "Há", "e", "com"
+  if (selecionadas.length >= 2) {
+    const last = selecionadas[selecionadas.length - 1].trim();
+    const prev = selecionadas[selecionadas.length - 2].trim();
+    const shortTail = last.length <= 18 || last.split(/\s+/).length <= 3;
+    if (shortTail && prev.length + 1 + last.length <= maxChars) {
+      selecionadas[selecionadas.length - 2] = `${prev} ${last}`.trim();
+      selecionadas.pop();
+    }
+  }
+
+  return selecionadas.filter(Boolean);
 }
 
 // ── 5. FUNÇÕES SUPABASE ──────────────────────────────────────
