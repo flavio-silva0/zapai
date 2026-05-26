@@ -31,6 +31,7 @@ assert.ok(!jsonReport.text.includes("{"), "JSON bruto não deve ser enviado");
 
 const empty = sanitizeAiMessage("");
 assert.ok(empty.length > 0, "resposta vazia deve gerar fallback");
+assert.ok(!/serviços, valores ou como funciona/i.test(empty), "fallback padrão não deve induzir tópicos fixos");
 
 const history = buildGeminiHistoryFromRows(
   [
@@ -56,5 +57,11 @@ assert.strictEqual(ladoB, DEFAULT_AI_FALLBACK, "intenção comercial não deve r
 
 const stack = sanitizeAiMessage("TypeError: Cannot read properties of undefined\n    at gerarResposta (/app/src/index.js:10:5)");
 assert.ok(!/TypeError|at gerarResposta|stack/i.test(stack), "erro da IA não deve vazar stack trace");
+
+const cut = sanitizeAiMessage("Como nós criamos projetos sob medida para cada cliente, os");
+assert.ok(!/sob medida para cada cliente, os$/i.test(cut), "mensagem truncada não deve ser enviada");
+
+const brokenFlow = sanitizeAiMessage("Opa, desculpe! Minha mensagem acabou");
+assert.ok(!/mensagem acabou/i.test(brokenFlow), "auto-desculpa por mensagem cortada não deve ser enviada");
 
 console.log("AI safety tests passed ✅");

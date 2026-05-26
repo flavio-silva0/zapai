@@ -1,7 +1,7 @@
 "use strict";
 
 const DEFAULT_AI_FALLBACK =
-  "Claro! Posso te explicar melhor. Você quer saber sobre os serviços, valores ou como funciona?";
+  "Perfeito. Entendi sua mensagem. Me diga em uma frase o que você quer saber e eu te respondo de forma direta.";
 
 const SAFE_ERROR_FALLBACK =
   "Tive uma instabilidade aqui, mas já posso continuar te ajudando. Pode me mandar sua dúvida de novo?";
@@ -28,6 +28,9 @@ const FORBIDDEN_PATTERNS = [
   /\bstack\s+trace\b/i,
   /\b(?:TypeError|ReferenceError|SyntaxError|RangeError|UnhandledPromiseRejection|ECONNRESET|ETIMEDOUT)\b/,
   /^\s*at\s+[\w.<>]+\s+\(.+:\d+:\d+\)\s*$/m,
+  /\bminha\s+mensagem\s+acabou\b/i,
+  /\bmensagem\s+cortad[ao]\b/i,
+  /\bcontinua(?:ndo)?\s+na\s+pr[oó]xima\b/i,
 ];
 
 function normalizeWhitespace(text) {
@@ -195,6 +198,19 @@ function looksLikeGenericGreetingOnly(text) {
   return hasGreeting && asksBack && !hasBusinessTerm;
 }
 
+function looksIncompleteTail(text) {
+  const clean = normalizeWhitespace(text);
+  if (!clean || clean.length < 18) return false;
+  if (/[.!?:]$/.test(clean)) return false;
+
+  const tail = clean.toLowerCase().split(/\s+/).slice(-3).join(" ");
+  const connectorTail = /\b(?:a|o|as|os|de|da|do|das|dos|e|em|para|por|com|sobre|que|se)\s*$/.test(clean.toLowerCase());
+  const abruptTail = /\b(?:mas|porque|quando|como|então|entao|al[eé]m)\s*$/.test(clean.toLowerCase());
+  const tinyTail = tail.length <= 8;
+
+  return connectorTail || abruptTail || tinyTail;
+}
+
 function limitText(text, maxChars) {
   if (!maxChars || text.length <= maxChars) return text;
 
@@ -232,6 +248,7 @@ function sanitizeAiMessageWithReport(value, options = {}) {
   if (hasForbiddenPattern(clean)) reasons.push("internal_artifact");
   if (looksLikeRawJson(clean)) reasons.push("raw_json");
   if (looksLikeNoise(clean)) reasons.push("noise");
+  if (looksIncompleteTail(clean)) reasons.push("incomplete_tail");
   if (hasCommercialIntent(contextText) && looksLikeGenericGreetingOnly(clean)) {
     reasons.push("generic_greeting_for_business_intent");
   }
