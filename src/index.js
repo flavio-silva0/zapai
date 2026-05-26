@@ -157,6 +157,10 @@ function limparRespostaIA(texto) {
     .filter((linha) => {
       const trimmed = linha.trim();
       if (!trimmed) return true;
+      // Remove artefatos como "Draft 1*:", "Draft:" e variações
+      if (/^draft\s*\d*\*?:/i.test(trimmed)) return false;
+      if (/^draft\b/i.test(trimmed)) return false;
+      // Remove linhas de debug/metadata do modelo
       if (/^question\*:/i.test(trimmed)) return false;
       if (/^total\s+messages?:/i.test(trimmed)) return false;
       if (/^\d+\s+chars?\.?\s*$/i.test(trimmed)) return false;
