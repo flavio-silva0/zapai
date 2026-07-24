@@ -15,6 +15,18 @@ const tenants = [
 const users_whatsapp = [];
 const messages = [];
 const whatsapp_message_processing = [];
+const users = [
+  {
+    id: 1,
+    tenant_id: 1,
+    email: "teste@teste.com",
+    nome: "Usuário Teste",
+    // hash da senha "teste1234"
+    password_hash: "$2a$12$rKsqdCRtaFZZttQc51sIT.bFNw6BKXYg0xNOj7A4J4vIa/3nhwYfe", 
+    role: "owner",
+    is_active: true
+  }
+];
 let messageIdCounter = 1;
 
 function tableRows(table) {
@@ -22,6 +34,7 @@ function tableRows(table) {
   if (table === "users_whatsapp") return users_whatsapp;
   if (table === "messages") return messages;
   if (table === "whatsapp_message_processing") return whatsapp_message_processing;
+  if (table === "users") return users;
   return [];
 }
 

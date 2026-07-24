@@ -59,7 +59,7 @@ const GEMINI_TOP_K = parseInt(process.env.GEMINI_TOP_K ?? "40", 10);
 
 // ── 2. VALIDAÇÕES NA INICIALIZAÇÃO ───────────────────────────
 const erros = [];
-if (!GEMINI_API_KEY || !GEMINI_API_KEY.startsWith("AIza")) erros.push("GEMINI_API_KEY inválida ou não definida");
+if (!GEMINI_API_KEY) erros.push("GEMINI_API_KEY inválida ou não definida");
 if (!SUPABASE_URL) erros.push("SUPABASE_URL não definida");
 if (!SUPABASE_SERVICE_KEY) erros.push("SUPABASE_SERVICE_KEY não definida");
 
@@ -79,12 +79,16 @@ let supabase;
 let genAI;
 if (process.env.TEST_MODE === "1" || process.env.TEST_MODE === "true") {
   try {
-    // In test mode, prefer local mocks (optional)
-    const geminiMock = require("./mocks/geminiMock");
-    genAI = geminiMock;
+    if (process.env.USE_REAL_GEMINI === "1" || process.env.USE_REAL_GEMINI === "true") {
+      genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+      console.log("🧪 [TEST MODE] Usando Gemini REAL e Supabase MOCK");
+    } else {
+      const geminiMock = require("./mocks/geminiMock");
+      genAI = geminiMock;
+      console.log("🧪 [TEST MODE] Mocks de Gemini e Supabase ativados");
+    }
     const supabaseMock = require("./mocks/supabaseMock");
     supabase = supabaseMock;
-    console.log("🧪 [TEST MODE] Mocks de Gemini e Supabase ativados");
   } catch (e) {
     console.warn("⚠️ [TEST MODE] Falha ao carregar mocks:", e.message);
     genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
@@ -571,7 +575,7 @@ Regras:
 4. Se a conversa recente não tiver nenhuma informação nova ou relevante, retorne exatamente o JSON da Memória Existente.
 `;
 
-    const abstractor = genAI.getGenerativeModel({ model: "gemini-3.5-flash" });
+    const abstractor = genAI.getGenerativeModel({ model: "gemini-3.5-flash-lite" });
     const result = await abstractor.generateContent(promptMemoria);
     let textResult = result.response.text().trim();
     // Limpeza de blocos de código se vierem acidentalmente
@@ -701,7 +705,7 @@ Não mencione que você possui uma memória interna.`;
 
   // --- INJEÇÃO RAG (BASE DE CONHECIMENTO VETORIAL) ---
   try {
-    const embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-001" });
+    const embeddingModel = genAI.getGenerativeModel({ model: "gemini-embedding-2" });
     const queryResult = await embeddingModel.embedContent(payloadObject.textoUsuario);
     const queryVector = queryResult.embedding.values.slice(0, 768);
     const vectorString = `[${queryVector.join(",")}]`;
@@ -816,12 +820,12 @@ Se não houver nomes no RAG:
 `;
 
   const modeloPrincipal = genAI.getGenerativeModel({
-    model: "gemini-3.5-flash",
+    model: "gemini-3.5-flash-lite",
     systemInstruction: prompt,
   });
 
   const modeloFallback = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash-lite",
+    model: "gemini-3.5-flash-lite",
     systemInstruction: prompt,
   });
 
@@ -849,7 +853,7 @@ Se não houver nomes no RAG:
         await sleep(BACKOFF_BASE_MS * Math.pow(2, tentativa - 1));
         continue;
       } else if (ehErroSobrecarga(err)) {
-        console.warn(`[GEMINI] Fallback gemini-2.5-flash-lite acionado para ${tenant.nome}.`);
+        console.warn(`[GEMINI] Fallback acionado para ${tenant.nome}.`);
         try {
           modelText = await chamarModelo(modeloFallback, historico, arrayMultiModal);
           break;
@@ -858,6 +862,7 @@ Se não houver nomes no RAG:
           break;
         }
       } else {
+        console.error(`[GEMINI_API_ERROR] Erro inesperado: ${err.message}`, err);
         throw err;
       }
     }
@@ -1435,14 +1440,16 @@ app.post("/webhook/whatsapp", async (req, res) => {
             respostaObj = await consultarGeminiDinamicamente(historico, payloadModel, tenant, patient.ai_memory);
           } catch (e) {
             console.error(`❌ [GEMINI ERROR] Falha ao processar IA: ${e.message}`);
+            // Appending error message for debugging
+            const fallback = "Tive uma instabilidade aqui (Erro Interno: " + e.message + ")";
             try {
               await sendAndSaveBotMessage({
                 patient,
                 telefoneUsuario,
-                text: SAFE_ERROR_FALLBACK,
+                text: fallback,
                 tenant,
                 contextText: combinedTexto,
-                fallback: SAFE_ERROR_FALLBACK,
+                fallback: fallback,
                 stage: "gemini_error",
               });
               markItemsStatus("answered", { patientId: patient.id, fallback: "gemini_error" });
