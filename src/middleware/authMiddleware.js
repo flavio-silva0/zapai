@@ -11,7 +11,16 @@
 "use strict";
 
 const jwt = require("jsonwebtoken");
-const JWT_SECRET = process.env.JWT_SECRET ?? "CHANGE_ME";
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  console.error("❌ ERRO CRÍTICO: JWT_SECRET não está definido no ambiente.");
+  // Não lançamos Error para não crashear o import, mas sim no middleware, ou exportamos config.
+  // Como é inicialização, é melhor avisar fortemente, ou forçar falha:
+  // process.exit(1); 
+  // No caso, se chamarem jwt.verify sem secret vai dar erro. Vamos lançar um erro explícito.
+  throw new Error("FATAL: JWT_SECRET must be defined in environment variables.");
+}
 
 /**
  * Middleware principal — rejeita requests sem token válido.

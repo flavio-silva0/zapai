@@ -100,6 +100,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // ── IDEMPOTÊNCIA: Rastreia mensagens recebidas (cache em memória + TTL)
 const processedMessages = new Map();
 const MESSAGE_CACHE_TTL_MS = 3600000; // 1 hora
+const recentUserTurns = new Map();
 let dbIdempotencyAvailable = null;
 
 function getMessageProcessingState(messageId) {
@@ -124,6 +125,13 @@ function claimIncomingMessage(messageId, details = {}) {
   }
 
   const now = Date.now();
+  if (processedMessages.size > 10000) {
+    let i = 0;
+    for (const key of processedMessages.keys()) {
+      if (i++ > 1000) break;
+      processedMessages.delete(key);
+    }
+  }
   processedMessages.set(messageId, {
     ...details,
     status: "received",
@@ -460,6 +468,14 @@ function shouldSkipRecentTurn(patientId, text) {
   const now = Date.now();
   const prev = recentUserTurns.get(key);
   if (prev && now - prev < RECENT_TURN_TTL_MS) return true;
+  
+  if (recentUserTurns.size > 5000) {
+    let i = 0;
+    for (const k of recentUserTurns.keys()) {
+      if (i++ > 500) break;
+      recentUserTurns.delete(k);
+    }
+  }
   recentUserTurns.set(key, now);
   return false;
 }
@@ -471,7 +487,7 @@ async function getOrCreatePatient(telefone, nome = "Contato", tenantId = null) {
   const query = supabase.from("users_whatsapp").select("*").eq("telefone", telefone);
   if (tenantId) query.eq("tenant_id", tenantId);
 
-  const { data } = await query.maybeSingle();
+  const { data } = await query.limit(1).maybeSingle();
   if (data) return data;
 
   const { data: novo, error } = await supabase
@@ -1236,7 +1252,6 @@ const userPayloadBuffers = new Map();
 const processingUsers = new Set();
 const processingLocks = new Map(); // Locks por usuário para evitar race condition
 const DEBOUNCE_MS = parseInt(process.env.DEBOUNCE_MS ?? "7500", 10);
-const recentUserTurns = new Map();
 const RECENT_TURN_TTL_MS = parseInt(process.env.RECENT_TURN_TTL_MS ?? "25000", 10);
 
 // Validação

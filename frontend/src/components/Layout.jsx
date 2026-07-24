@@ -1,15 +1,17 @@
 import { useContext, useState, useEffect } from "react";
-import { Outlet, NavLink, Link } from "react-router-dom";
+import { Outlet, NavLink, Link, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import { useConfig } from "../context/ConfigContext";
 import {
   LayoutDashboard, MessageSquare, KanbanSquare, LogOut,
-  Smartphone, FlaskConical, User, ShieldAlert, Zap, ChevronRight, BrainCircuit, DatabaseZap
+  Smartphone, FlaskConical, User, ShieldAlert, Zap, ChevronRight, BrainCircuit, DatabaseZap,
+  Menu, X
 } from "lucide-react";
 import { apiFetch } from "../api";
 
 export default function Layout() {
   const { user, tenant, logout } = useContext(AuthContext);
+  const location = useLocation();
 
   const isSuperAdmin = user?.role === "super_admin";
   const botName  = isSuperAdmin ? "Admin" : (tenant?.bot_name || "Assistente");
@@ -17,6 +19,7 @@ export default function Layout() {
   const clinica  = isSuperAdmin ? "Sistema Master" : (tenant?.nome || user?.nome || "Painel");
 
   const [sofiaNumero, setSofiaNumero] = useState(null);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   useEffect(() => {
     apiFetch("/api/stats")
@@ -24,6 +27,11 @@ export default function Layout() {
       .then((d) => setSofiaNumero(d.sofiaNumero ?? null))
       .catch(() => {});
   }, []);
+
+  // Fechar o menu ao mudar de rota no mobile
+  useEffect(() => {
+    setIsMobileOpen(false);
+  }, [location.pathname]);
 
   const NAV_ITEMS = [
     { to: "/painel",        icon: LayoutDashboard, label: "Visão Geral" },
@@ -42,10 +50,18 @@ export default function Layout() {
     : "Conectando...";
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: "var(--bg-base)" }}>
+    <div className="flex h-[100dvh] overflow-hidden" style={{ background: "var(--bg-base)" }}>
+
+      {/* ── Overlay Mobile ── */}
+      {isMobileOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setIsMobileOpen(false)}
+        />
+      )}
 
       {/* ── Sidebar ──────────────────────────────────────────── */}
-      <aside className="w-64 min-w-[256px] flex flex-col relative z-20"
+      <aside className={`fixed inset-y-0 left-0 transform ${isMobileOpen ? "translate-x-0" : "-translate-x-full"} lg:relative lg:translate-x-0 w-64 min-w-[256px] flex flex-col z-50 transition-transform duration-300 ease-in-out`}
         style={{
           background: "rgba(6,14,26,0.98)",
           borderRight: "1px solid rgba(255,255,255,0.06)",
@@ -55,29 +71,38 @@ export default function Layout() {
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent" />
 
         {/* ── Logo / Header ── */}
-        <div className="px-5 py-5 border-b" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
-          <Link to="/" className="flex items-center gap-2.5 mb-4 group w-fit">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-105 transition-transform">
-              <Zap size={15} className="text-white" strokeWidth={2.5} />
-            </div>
-            <span className="font-display font-black text-[17px] text-white tracking-tight">
-              Zap<span className="gradient-text">AI</span>
-            </span>
-          </Link>
+        <div className="px-5 py-5 border-b flex items-center justify-between" style={{ borderColor: "rgba(255,255,255,0.05)" }}>
+          <div className="flex-1">
+            <Link to="/" className="flex items-center gap-2.5 mb-4 group w-fit">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 group-hover:scale-105 transition-transform">
+                <Zap size={15} className="text-white" strokeWidth={2.5} />
+              </div>
+              <span className="font-display font-black text-[17px] text-white tracking-tight">
+                Zap<span className="gradient-text">AI</span>
+              </span>
+            </Link>
 
-          {/* Bot/Tenant pill */}
-          <div className="glass rounded-xl px-3 py-2.5 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500/20 to-violet-600/20 border border-indigo-500/20 flex items-center justify-center text-base flex-shrink-0">
-              {isSuperAdmin ? "⚙️" : botEmoji}
+            {/* Bot/Tenant pill */}
+            <div className="glass rounded-xl px-3 py-2.5 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500/20 to-violet-600/20 border border-indigo-500/20 flex items-center justify-center text-base flex-shrink-0">
+                {isSuperAdmin ? "⚙️" : botEmoji}
+              </div>
+              <div className="min-w-0">
+                <p className="text-white text-sm font-semibold truncate leading-tight">{botName}</p>
+                <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider truncate">
+                  {isSuperAdmin ? "Super Admin" : "Powered by ZapAI"}
+                </p>
+              </div>
+              <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 animate-pulse ml-auto" />
             </div>
-            <div className="min-w-0">
-              <p className="text-white text-sm font-semibold truncate leading-tight">{botName}</p>
-              <p className="text-slate-500 text-[10px] font-bold uppercase tracking-wider truncate">
-                {isSuperAdmin ? "Super Admin" : "Powered by ZapAI"}
-              </p>
-            </div>
-            <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 animate-pulse ml-auto" />
           </div>
+          
+          <button 
+            className="lg:hidden p-1 text-slate-400 hover:text-white transition-colors absolute top-5 right-5"
+            onClick={() => setIsMobileOpen(false)}
+          >
+            <X size={20} />
+          </button>
         </div>
 
         {/* ── Nav ── */}
@@ -165,6 +190,22 @@ export default function Layout() {
 
       {/* ── Main Content ─────────────────────────────────────── */}
       <main className="flex-1 flex flex-col overflow-hidden relative" style={{ background: "#060e1a" }}>
+        
+        {/* Mobile Header Toggle */}
+        <div className="lg:hidden flex items-center justify-between px-5 py-4 border-b relative z-20" style={{ borderColor: "rgba(255,255,255,0.05)", background: "rgba(6,14,26,0.8)", backdropFilter: "blur(10px)" }}>
+           <div className="flex items-center gap-2.5">
+             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-md">
+                <Zap size={15} className="text-white" strokeWidth={2.5} />
+             </div>
+             <span className="font-display font-black text-[17px] text-white tracking-tight">
+               Zap<span className="gradient-text">AI</span>
+             </span>
+           </div>
+           <button onClick={() => setIsMobileOpen(true)} className="p-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/5 transition-all">
+             <Menu size={20} />
+           </button>
+        </div>
+
         {/* Subtle background grid */}
         <div className="absolute inset-0 bg-grid opacity-50 pointer-events-none" />
         {/* Top gradient glow */}
@@ -172,7 +213,7 @@ export default function Layout() {
           style={{ background: "radial-gradient(ellipse at top right, rgba(99,102,241,0.06) 0%, transparent 70%)" }}
         />
         {/* Watermark */}
-        <div className="absolute top-5 right-6 z-10 pointer-events-none opacity-60 mix-blend-screen">
+        <div className="absolute top-5 right-6 z-10 pointer-events-none opacity-60 mix-blend-screen hidden lg:block">
           <img
             src="/logo_full_dark.png"
             alt="ZapAI"
@@ -180,7 +221,7 @@ export default function Layout() {
           />
         </div>
 
-        <div className="flex-1 overflow-auto relative z-10">
+        <div className="flex-1 overflow-auto relative z-10 flex flex-col">
           <Outlet />
         </div>
       </main>

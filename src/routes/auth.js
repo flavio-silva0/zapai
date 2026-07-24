@@ -118,7 +118,7 @@ router.post("/register", async (req, res) => {
     email:    user.email,
   });
 
-  console.log(`🆕  Novo cliente: ${businessName} (${email}) | Nicho: ${nicho}`);
+  console.log(`🆕  Novo cliente: ${businessName} | Nicho: ${nicho}`);
 
   res.status(201).json({
     token,
