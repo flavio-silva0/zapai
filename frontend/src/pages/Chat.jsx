@@ -108,14 +108,14 @@ export default function Chat() {
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center gap-5">
             <div className="relative">
-              <div className="w-20 h-20 rounded-2xl glass flex items-center justify-center">
-                <MessageSquare size={36} className="text-indigo-400/40" strokeWidth={1.5} />
+              <div className="w-20 h-20 rounded-2xl bg-[var(--clr-primary)]/5 border border-[var(--clr-primary)]/10 flex items-center justify-center">
+                <MessageSquare size={36} className="text-[var(--clr-primary)]/40" strokeWidth={1.5} />
               </div>
-              <div className="absolute inset-0 rounded-2xl bg-indigo-500/5 animate-pulse" />
+              <div className="absolute inset-0 rounded-2xl bg-[var(--clr-primary)]/5 animate-pulse pointer-events-none" />
             </div>
             <div className="text-center">
-              <p className="text-white font-semibold mb-1">Nenhuma conversa selecionada</p>
-              <p className="text-slate-500 text-sm">Selecione um contato na lista ao lado</p>
+              <p className="text-[var(--text-primary)] font-semibold mb-1">Nenhuma conversa selecionada</p>
+              <p className="text-[var(--text-secondary)] text-sm">Selecione um contato na lista ao lado</p>
             </div>
           </div>
         )}

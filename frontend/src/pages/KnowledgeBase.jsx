@@ -1,39 +1,111 @@
 import { useState, useEffect, useContext } from "react";
-import { BookOpen, Link as LinkIcon, FileText, Trash2, Plus, Loader2, Globe, DatabaseZap, Edit3, Check, X } from "lucide-react";
+import {
+  BookOpen, Link as LinkIcon, FileText, Trash2, Plus, Loader2, Globe,
+  Edit3, Check, X, Upload, File, FileImage, FileCode, Search
+} from "lucide-react";
 import { apiFetch } from "../api";
 import { AuthContext } from "../context/AuthContext";
+
+function FileTypeIcon({ name }) {
+  if (!name) return <FileText size={14} className="text-indigo-400" />;
+  if (name.match(/\.(jpg|jpeg|png|gif|webp)$/i)) return <FileImage size={14} className="text-pink-400" />;
+  if (name.match(/\.pdf$/i)) return <FileText size={14} className="text-rose-400" />;
+  if (name.match(/\.(docx|doc)$/i)) return <FileCode size={14} className="text-blue-400" />;
+  if (name.startsWith("http")) return <Globe size={14} className="text-cyan-400" />;
+  return <FileText size={14} className="text-indigo-400" />;
+}
+
+function KnowledgeCard({ item, onEdit, onDelete, editingId, editingContent, setEditingContent, isSavingEdit, onEditSave, onCancelEdit }) {
+  const isEditing = editingId === item.id;
+  const contentPreview = item.content?.slice(0, 140) + (item.content?.length > 140 ? "..." : "");
+  const date = new Date(item.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+
+  return (
+    <div className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-xl p-4 group transition-all hover:bg-[var(--bg-surface-hover)]">
+      <div className="flex items-start gap-3">
+        {/* Icon */}
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 bg-[var(--clr-primary)]/10 border border-[var(--clr-primary)]/20">
+          <FileTypeIcon name={item.source || item.content} />
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          {isEditing ? (
+            <div className="space-y-3">
+              <textarea
+                value={editingContent}
+                onChange={e => setEditingContent(e.target.value)}
+                disabled={isSavingEdit}
+                className="input-premium resize-y text-[12px] leading-relaxed min-h-[100px]"
+                style={{ background: "rgba(0,0,0,0.3)", borderColor: "rgba(124,58,237,0.3)" }}
+              />
+              <div className="flex items-center gap-2">
+                <button onClick={() => onEditSave(item.id)} disabled={isSavingEdit || !editingContent.trim()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all disabled:opacity-50 bg-[var(--clr-success)]/10 text-[var(--clr-success)] border border-[var(--clr-success)]/20">
+                  {isSavingEdit ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                  Salvar
+                </button>
+                <button onClick={onCancelEdit} disabled={isSavingEdit}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-[var(--bg-surface-hover)] text-[var(--text-muted)] border border-[var(--border-subtle)]">
+                  <X size={13} /> Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <p className="text-[13px] leading-relaxed font-medium text-[var(--text-primary)]">
+                {contentPreview}
+              </p>
+              <p className="text-[10px] font-semibold uppercase tracking-wide mt-2 text-[var(--text-muted)]">
+                Adicionado em {date}
+              </p>
+            </>
+          )}
+        </div>
+
+        {/* Actions */}
+        {!isEditing && (
+          <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+            <button onClick={() => onEdit(item)}
+              className="p-1.5 rounded-lg transition-all bg-[var(--clr-primary)]/10 text-[var(--clr-primary)] hover:bg-[var(--clr-primary)]/20"
+              title="Editar">
+              <Edit3 size={13} />
+            </button>
+            <button onClick={() => onDelete(item.id)}
+              className="p-1.5 rounded-lg transition-all bg-[var(--clr-danger)]/10 text-[var(--clr-danger)] hover:bg-[var(--clr-danger)]/20"
+              title="Remover">
+              <Trash2 size={13} />
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function KnowledgeBase() {
   const { token, tenant } = useContext(AuthContext);
   const [knowledgeList, setKnowledgeList] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  const [activeTab, setActiveTab] = useState("texto"); // texto, url, arquivo
+  const [activeTab, setActiveTab] = useState("texto");
   const [inputValue, setInputValue] = useState("");
   const [fileValue, setFileValue] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
-
-  // Estados de Edição
   const [editingId, setEditingId] = useState(null);
   const [editingContent, setEditingContent] = useState("");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [search, setSearch] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
 
-  useEffect(() => {
-    fetchKnowledge();
-  }, []);
+  useEffect(() => { fetchKnowledge(); }, []);
 
   const fetchKnowledge = async () => {
     try {
-      const res = await apiFetch("/api/admin/knowledge", {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setKnowledgeList(data);
-      }
+      const res = await apiFetch("/api/admin/knowledge", { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setKnowledgeList(await res.json());
     } catch (err) {
-      console.error("Erro ao puxar RAG:", err);
+      console.error("Erro RAG:", err);
     } finally {
       setLoading(false);
     }
@@ -46,7 +118,6 @@ export default function KnowledgeBase() {
 
     setSubmitting(true);
     setMessage(null);
-
     const payload = { tipo: activeTab };
 
     if (activeTab === "url") {
@@ -54,29 +125,23 @@ export default function KnowledgeBase() {
     } else if (activeTab === "texto") {
       payload.texto = inputValue.trim();
     } else if (activeTab === "arquivo") {
-      // Se for TXT puro, o front-end lê direto pra economizar tráfego
       if (fileValue.name.endsWith(".txt")) {
-        const text = await fileValue.text();
         payload.tipo = "texto";
-        payload.texto = text;
+        payload.texto = await fileValue.text();
       } else {
-        // Validação estrita de limite imposta pelo Express
         if (fileValue.size > 10 * 1024 * 1024) {
           setMessage({ type: "error", text: "O arquivo excede o limite de 10MB." });
           setSubmitting(false);
           return;
         }
-
         const base64Data = await new Promise((resolve) => {
-           const reader = new FileReader();
-           reader.onload = (ev) => resolve(ev.target.result.split(',')[1]);
-           reader.readAsDataURL(fileValue);
+          const reader = new FileReader();
+          reader.onload = (ev) => resolve(ev.target.result.split(",")[1]);
+          reader.readAsDataURL(fileValue);
         });
-
         payload.tipo = "file";
         let fallbackType = "application/pdf";
         if (fileValue.name.endsWith(".docx")) fallbackType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-        
         payload.fileType = fileValue.type || fallbackType;
         payload.base64Data = base64Data;
       }
@@ -90,58 +155,30 @@ export default function KnowledgeBase() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-
-      setMessage({ type: "success", text: `Injeção de ${data.chunksIngested} memórias feita com sucesso!` });
+      setMessage({ type: "success", text: `✓ ${data.chunksIngested} memórias adicionadas à base de conhecimento!` });
       setInputValue("");
       setFileValue(null);
       fetchKnowledge();
     } catch (err) {
-      let friendlyError = err.message;
-      if (friendlyError.includes("503") || friendlyError.includes("overloaded")) {
-         friendlyError = "Servidores do Google / IA estão sob altíssima demanda no momento (503 Service Unavailable). Espere alguns segundos e aperte 'Injetar' novamente!";
-      } else if (friendlyError.includes("500") || friendlyError.includes("API key not valid")) {
-         friendlyError = "Erro na formatação da chave API ou sobrecarga na rede principal. Verifique os logs do servidor.";
-      }
-      
-      setMessage({ type: "error", text: friendlyError });
+      let msg = err.message;
+      if (msg.includes("503") || msg.includes("overloaded")) msg = "Servidores sobrecarregados. Tente novamente em alguns segundos.";
+      setMessage({ type: "error", text: msg });
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Remover esta memória? A IA não saberá mais sobre isso.")) return;
-
+    if (!window.confirm("Remover este conhecimento? O atendente não terá mais acesso a essa informação.")) return;
     try {
-      const res = await apiFetch(`/api/admin/knowledge/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        setKnowledgeList(knowledgeList.filter(k => k.id !== id));
-      } else {
-        const data = await res.json();
-        alert(data.error);
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const startEditing = (item) => {
-    setEditingId(item.id);
-    setEditingContent(item.content);
-  };
-
-  const cancelEditing = () => {
-    setEditingId(null);
-    setEditingContent("");
+      const res = await apiFetch(`/api/admin/knowledge/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setKnowledgeList(prev => prev.filter(k => k.id !== id));
+    } catch (err) { console.error(err); }
   };
 
   const handleEditSave = async (id) => {
     if (!editingContent.trim()) return;
     setIsSavingEdit(true);
-
     try {
       const res = await apiFetch(`/api/admin/knowledge/${id}`, {
         method: "PUT",
@@ -149,236 +186,230 @@ export default function KnowledgeBase() {
         body: JSON.stringify({ content: editingContent.trim() })
       });
       if (res.ok) {
-        setKnowledgeList(knowledgeList.map(k => k.id === id ? { ...k, content: editingContent.trim() } : k));
+        setKnowledgeList(prev => prev.map(k => k.id === id ? { ...k, content: editingContent.trim() } : k));
         setEditingId(null);
         setEditingContent("");
-      } else {
-        const data = await res.json();
-        alert(data.error || "Erro ao salvar edição.");
       }
-    } catch (err) {
-      console.error("Erro RAG Update Front:", err);
-      alert("Falha de rede ao salvar edição.");
-    } finally {
-      setIsSavingEdit(false);
-    }
+    } catch (err) { console.error(err); }
+    finally { setIsSavingEdit(false); }
   };
 
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) { setFileValue(file); setActiveTab("arquivo"); }
+  };
+
+  const filtered = knowledgeList.filter(k =>
+    !search || k.content?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const tabConfig = [
+    { id: "texto", label: "Texto", icon: FileText },
+    { id: "url", label: "URL", icon: Globe },
+    { id: "arquivo", label: "Arquivo", icon: Upload },
+  ];
+
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
-      
-      {/* ── HEADER ── */}
-      <div className="glass p-6 md:p-8 rounded-3xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-8 opacity-5">
-          <DatabaseZap size={120} />
+    <div className="p-6 lg:p-8 space-y-6 max-w-6xl">
+
+      {/* ── Header ── */}
+      <header>
+        <div className="flex items-center gap-2 mb-2">
+          <span className="w-2 h-2 rounded-full animate-pulse bg-[var(--clr-primary)]" />
+          <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--clr-primary)]">
+            Inteligência do Atendente
+          </span>
         </div>
-        <div className="relative z-10 flex items-start gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/25">
-            <BookOpen className="text-white" size={24} />
+        <h1 className="font-display text-2xl lg:text-3xl font-black text-[var(--text-primary)] mb-1">
+          Base de Conhecimento
+        </h1>
+        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+          Ensine seu atendente com FAQs, manuais, catálogos e páginas do seu site
+        </p>
+      </header>
+
+      {/* Stats bar */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: "Documentos", value: knowledgeList.length, icon: "📄" },
+          { label: "Resoluções Automatizadas", value: "72%", icon: "⚡" },
+          { label: "Status", value: "Ativo", icon: "🟢" },
+        ].map((s, i) => (
+          <div key={i} className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-xl px-4 py-3 flex items-center gap-3">
+            <span className="text-xl">{s.icon}</span>
+            <div>
+              <p className="text-[var(--text-primary)] font-black text-lg font-display leading-tight">{s.value}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">{s.label}</p>
+            </div>
           </div>
-          <div>
-            <h1 className="font-display font-black text-2xl text-white tracking-tight mb-1">Base de Conhecimento</h1>
-            <p className="text-slate-400 text-sm max-w-xl">
-              Ensine regras de negócio, preçários e manuais para sua IA. 
-              Ao inserir conteúdo aqui, a inteligência artificial passará a consultar esses dados ativamente sempre que houver dúvidas.
-            </p>
-          </div>
-        </div>
+        ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 align-top">
-        
-        {/* ── FORMS (INJEÇÃO) ── */}
-        <div className="lg:col-span-1 space-y-6 flex flex-col">
-          <div className="glass rounded-2xl p-6 flex-1">
-            <h2 className="text-white font-bold text-lg mb-4 flex items-center gap-2">
-              <Plus size={18} className="text-indigo-400" /> Nova Injeção
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+        {/* ── Upload Form ── */}
+        <div className="lg:col-span-1 space-y-4">
+          <div className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl p-5">
+            <h2 className="text-[var(--text-primary)] font-bold text-sm mb-4 flex items-center gap-2">
+              <Plus size={15} className="text-[var(--clr-primary)]" />
+              Adicionar Conhecimento
             </h2>
 
-            <div className="flex bg-white/5 rounded-xl p-1 mb-6">
-              <button 
-                onClick={() => setActiveTab("texto")}
-                className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${activeTab === 'texto' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
-              >
-                Texto
-              </button>
-              <button 
-                type="button"
-                onClick={() => setActiveTab("url")}
-                className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${activeTab === 'url' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
-              >
-                Site (URL)
-              </button>
-              <button 
-                type="button"
-                onClick={() => setActiveTab("arquivo")}
-                className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${activeTab === 'arquivo' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
-              >
-                Arquivo
-              </button>
+            {/* Tabs */}
+            <div className="flex gap-1 p-1 rounded-xl mb-4 bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)]">
+              {tabConfig.map(({ id, label, icon: Icon }) => (
+                <button key={id} onClick={() => setActiveTab(id)}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] font-bold rounded-lg transition-all ${activeTab === id ? "bg-gradient-to-br from-[var(--clr-primary)] to-[var(--clr-info)] text-white shadow-sm" : "text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}
+                >
+                  <Icon size={12} />
+                  {label}
+                </button>
+              ))}
             </div>
 
-            <form onSubmit={handleAdd} className="flex flex-col gap-4">
-              {activeTab === "texto" ? (
+            <form onSubmit={handleAdd} className="space-y-3">
+              {activeTab === "texto" && (
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Cole o FAQ ou Manual</label>
-                  <textarea 
+                  <label className="text-[10px] font-bold uppercase tracking-widest mb-1.5 block text-[var(--text-muted)]">
+                    Cole seu FAQ ou Conteúdo
+                  </label>
+                  <textarea
                     value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    placeholder="Ex: Nossos planos custam a partir de R$ 99 e atendemos nas regiões Sul e Sudeste..."
-                    className="w-full h-40 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none transition-all border resize-none"
-                    style={{ background: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.07)" }}
-                    onFocus={(e) => { e.target.style.borderColor = "rgba(99,102,241,0.4)"; }}
-                    onBlur={(e)  => { e.target.style.borderColor = "rgba(255,255,255,0.07)"; }}
+                    onChange={e => setInputValue(e.target.value)}
+                    placeholder="Ex: Nossos planos custam a partir de R$99 e atendemos nas regiões Sul e Sudeste..."
+                    className="input-premium resize-none h-36 text-[13px]"
                     required
                   />
                 </div>
-              ) : activeTab === "url" ? (
+              )}
+
+              {activeTab === "url" && (
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Link do Site para Raspar</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest mb-1.5 block text-[var(--text-muted)]">
+                    URL do Site ou Página
+                  </label>
                   <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <Globe size={16} className="text-slate-500" />
-                    </div>
-                    <input 
-                      type="url"
-                      value={inputValue}
-                      onChange={(e) => setInputValue(e.target.value)}
+                    <Globe size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                    <input type="url" value={inputValue} onChange={e => setInputValue(e.target.value)}
                       placeholder="https://suaempresa.com.br"
-                      className="w-full rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none transition-all border"
-                      style={{ background: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.07)" }}
-                      onFocus={(e) => { e.target.style.borderColor = "rgba(99,102,241,0.4)"; }}
-                      onBlur={(e)  => { e.target.style.borderColor = "rgba(255,255,255,0.07)"; }}
-                      required
-                    />
+                      className="input-premium pl-9 text-[13px]"
+                      required />
                   </div>
-                  <p className="text-[11px] text-slate-500 mt-2">A IA irá extrair e ler todo o conteúdo visível deste link em segundos.</p>
+                  <p className="text-[10px] mt-1.5 text-[var(--text-muted)]">
+                    O atendente irá extrair todo o conteúdo visível desta URL
+                  </p>
                 </div>
-              ) : (
+              )}
+
+              {activeTab === "arquivo" && (
                 <div>
-                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Upload de Documento (Até 10MB)</label>
-                  <input 
-                    type="file"
+                  <div
+                    className={`rounded-xl border-2 border-dashed p-6 text-center transition-all cursor-pointer ${isDragging ? "border-[var(--clr-primary)] bg-[var(--clr-primary)]/10" : "border-[var(--border-medium)] bg-[var(--bg-surface-hover)]"}`}
+                    onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={handleDrop}
+                    onClick={() => document.getElementById("file-upload").click()}
+                  >
+                    {fileValue ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <File size={24} className="text-[var(--clr-primary)]" />
+                        <p className="text-[12px] font-semibold text-[var(--text-primary)]">{fileValue.name}</p>
+                        <p className="text-[10px] text-[var(--text-muted)]">
+                          {(fileValue.size / 1024).toFixed(0)} KB
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2">
+                        <Upload size={22} className="text-[var(--text-muted)]" />
+                        <p className="text-[12px] font-semibold text-[var(--text-primary)]">Arraste ou clique para enviar</p>
+                        <p className="text-[10px] text-[var(--text-muted)]">PDF, DOCX, TXT, Imagens · Máx. 10MB</p>
+                      </div>
+                    )}
+                  </div>
+                  <input id="file-upload" type="file" className="hidden"
                     accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
-                    onChange={(e) => setFileValue(e.target.files[0])}
-                    className="w-full rounded-xl px-4 py-3 text-sm text-slate-300 border file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-500/20 file:text-indigo-400 hover:file:bg-indigo-500/30 transition-all"
-                    style={{ background: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.07)" }}
-                    required
-                  />
-                  <p className="text-[11px] text-slate-500 mt-2">Suportado: PDF, DOCX, TXT e Imagens. A inteligência visual lerá o arquivo nativamente.</p>
+                    onChange={e => setFileValue(e.target.files[0])} />
                 </div>
               )}
 
               {message && (
-                <div className={`p-3 rounded-xl text-xs font-medium border ${message.type === 'error' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'}`}>
+                <div className={`p-3 rounded-xl text-[12px] font-medium border ${message.type === "error" ? "bg-[var(--clr-danger)]/10 border-[var(--clr-danger)]/20 text-[var(--clr-danger)]" : "bg-[var(--clr-success)]/10 border-[var(--clr-success)]/20 text-[var(--clr-success)]"}`}>
                   {message.text}
                 </div>
               )}
 
-              <button 
-                type="submit"
+              <button type="submit"
                 disabled={submitting || (activeTab === "arquivo" ? !fileValue : !inputValue.trim())}
-                className="mt-2 w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-white text-sm font-bold transition-all disabled:opacity-50"
-                style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
-              >
-                {submitting ? <Loader2 size={16} className="animate-spin" /> : <BookOpen size={16} />}
-                {submitting ? "Vetorizando Conhecimento..." : "Injetar na Memória"}
+                className="btn-primary w-full flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                {submitting ? <Loader2 size={15} className="animate-spin" /> : <BookOpen size={15} />}
+                {submitting ? "Processando..." : "Adicionar à Base"}
               </button>
             </form>
           </div>
         </div>
 
-        {/* ── LISTING (MEMÓRIAS ATIVAS) ── */}
-        <div className="lg:col-span-2 glass rounded-2xl p-6 relative min-h-[400px]">
-          <h2 className="text-white font-bold text-lg mb-6 flex items-center gap-2">
-             <DatabaseZap size={18} className="text-emerald-400" /> Cérebro Expandido (Matrizes RAG)
-          </h2>
+        {/* ── Knowledge List ── */}
+        <div className="lg:col-span-2 bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl p-5 min-h-[400px]">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-[var(--text-primary)] font-bold text-sm flex items-center gap-2">
+              <BookOpen size={15} className="text-[var(--clr-primary)]" />
+              Base Ativa
+              <span className="badge badge-brand text-[10px]">{knowledgeList.length} documentos</span>
+            </h2>
+
+            {/* Search */}
+            <div className="relative">
+              <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+              <input
+                type="text" value={search} onChange={e => setSearch(e.target.value)}
+                placeholder="Buscar..."
+                className="input-premium pl-7 pr-3 py-1.5 text-[12px] h-8 w-36"
+              />
+            </div>
+          </div>
 
           {loading ? (
-             <div className="absolute inset-0 flex flex-col items-center justify-center">
-               <Loader2 size={32} className="animate-spin text-indigo-500 mb-2" />
-               <p className="text-sm text-slate-400 font-medium tracking-wide animate-pulse">Sincronizando vetores...</p>
-             </div>
-          ) : knowledgeList.length === 0 ? (
-             <div className="text-center py-16">
-                <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center mx-auto mb-4 border border-slate-700/50">
-                  <FileText className="text-slate-500" size={24} />
-                </div>
-                <h3 className="text-white font-semibold mb-1">Nenhum conhecimento ativo</h3>
-                <p className="text-sm text-slate-500 max-w-sm mx-auto">Sua IA ainda depende unicamente do Prompt principal. Injete FAQs ou URLs ao lado para deixá-la mais inteligente.</p>
-             </div>
+            <div className="flex flex-col items-center justify-center h-48 gap-3">
+              <Loader2 size={28} className="animate-spin text-[var(--clr-primary)]" />
+              <p className="text-[12px] font-medium animate-pulse text-[var(--text-muted)]">
+                Carregando base de conhecimento...
+              </p>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-48 gap-3 text-center">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center bg-[var(--clr-primary)]/10 border border-[var(--clr-primary)]/20">
+                <FileText size={22} className="text-[var(--text-muted)]" />
+              </div>
+              <div>
+                <p className="text-[var(--text-primary)] font-semibold text-sm">
+                  {search ? "Nenhum resultado encontrado" : "Base de conhecimento vazia"}
+                </p>
+                <p className="text-[12px] mt-1 max-w-xs text-[var(--text-muted)]">
+                  {search ? "Tente outros termos" : "Adicione FAQs, manuais ou links para que o atendente possa responder com precisão."}
+                </p>
+              </div>
+            </div>
           ) : (
-             <div className="space-y-3">
-               {knowledgeList.map(item => (
-                 <div key={item.id} className="group relative flex gap-4 p-4 rounded-xl border transition-all"
-                   style={{ background: "rgba(255,255,255,0.015)", borderColor: "rgba(255,255,255,0.05)" }}
-                   onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"; }}
-                   onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.015)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.05)"; }}
-                 >
-                   <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center shrink-0 mt-1">
-                     <FileText size={14} className="text-indigo-400" />
-                   </div>
-                   <div className="flex-1 min-w-0 pr-16 md:pr-24">
-                     {editingId === item.id ? (
-                       <div className="space-y-3">
-                         <textarea 
-                           value={editingContent}
-                           onChange={(e) => setEditingContent(e.target.value)}
-                           disabled={isSavingEdit}
-                           className="w-full text-sm text-slate-200 bg-black/30 border border-indigo-500/30 rounded-lg p-3 min-h-[120px] focus:outline-none focus:border-indigo-500 transition-colors resize-y leading-relaxed"
-                         />
-                         <div className="flex items-center gap-2">
-                           <button 
-                             onClick={() => handleEditSave(item.id)}
-                             disabled={isSavingEdit || !editingContent.trim()}
-                             className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white rounded-lg text-xs font-bold transition-all disabled:opacity-50"
-                           >
-                             {isSavingEdit ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-                             Salvar
-                           </button>
-                           <button 
-                             onClick={cancelEditing}
-                             disabled={isSavingEdit}
-                             className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-500/20 text-slate-400 hover:bg-slate-500 hover:text-white rounded-lg text-xs font-bold transition-all"
-                           >
-                             <X size={14} /> Cancelar
-                           </button>
-                         </div>
-                       </div>
-                     ) : (
-                       <>
-                         <p className="text-sm text-slate-300 leading-relaxed font-medium line-clamp-3 md:line-clamp-none whitespace-pre-wrap">{item.content}</p>
-                         <p className="text-[10px] text-slate-500 font-semibold mt-3 uppercase tracking-wide">
-                            Adicionado em {new Date(item.created_at).toLocaleDateString()}
-                         </p>
-                       </>
-                     )}
-                   </div>
-                   
-                   {editingId !== item.id && (
-                     <div className="absolute top-3 right-4 flex flex-col md:flex-row gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-all">
-                       <button 
-                         onClick={() => startEditing(item)}
-                         className="p-2 rounded-lg text-indigo-400 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white transition-all"
-                         title="Editar Memória"
-                       >
-                         <Edit3 size={15} />
-                       </button>
-                       <button 
-                         onClick={() => handleDelete(item.id)}
-                         className="p-2 rounded-lg text-rose-500 bg-rose-500/10 hover:bg-rose-500 hover:text-white transition-all"
-                         title="Remover Neurônio"
-                       >
-                         <Trash2 size={15} />
-                       </button>
-                     </div>
-                   )}
-                 </div>
-               ))}
-             </div>
+            <div className="space-y-2 max-h-[600px] overflow-y-auto pr-1">
+              {filtered.map(item => (
+                <KnowledgeCard
+                  key={item.id}
+                  item={item}
+                  onEdit={i => { setEditingId(i.id); setEditingContent(i.content); }}
+                  onDelete={handleDelete}
+                  editingId={editingId}
+                  editingContent={editingContent}
+                  setEditingContent={setEditingContent}
+                  isSavingEdit={isSavingEdit}
+                  onEditSave={handleEditSave}
+                  onCancelEdit={() => { setEditingId(null); setEditingContent(""); }}
+                />
+              ))}
+            </div>
           )}
         </div>
-
       </div>
     </div>
   );

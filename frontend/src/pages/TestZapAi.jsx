@@ -146,27 +146,21 @@ export default function TestZapAi() {
       <div className="flex items-center justify-between shrink-0">
         <div>
           <div className="flex items-center gap-2 mb-1.5">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[var(--clr-primary)] to-[var(--clr-info)] flex items-center justify-center shadow-lg">
               <Bot size={16} className="text-white" />
             </div>
-            <h1 className="font-display text-2xl font-black text-white">
+            <h1 className="font-display text-2xl font-black text-[var(--text-primary)]">
               Testar {displayBotName}
             </h1>
           </div>
-          <p className="text-slate-500 text-sm ml-10">
+          <p className="text-[var(--text-muted)] text-sm ml-10">
             Simulação real · {displayBotName} aguarda {DEBOUNCE_TEST_MS / 1000}s após sua última mensagem
           </p>
         </div>
         <button
           onClick={resetar}
           disabled={resetting || (mensagens.length === 0 && !countdown)}
-          className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-rose-400 rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed border"
-          style={{
-            background: "rgba(239,68,68,0.08)",
-            borderColor: "rgba(239,68,68,0.15)",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(239,68,68,0.15)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(239,68,68,0.08)"; }}
+          className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-[var(--clr-danger)] bg-[var(--clr-danger)]/5 border border-[var(--clr-danger)]/20 rounded-xl transition-all disabled:opacity-30 hover:bg-[var(--clr-danger)]/10"
         >
           <Trash2 size={14} />
           {resetting ? "Limpando..." : "Limpar conversa"}
@@ -174,25 +168,25 @@ export default function TestZapAi() {
       </div>
 
       {/* ── Chat Box ── */}
-      <div className="flex-1 glass rounded-2xl overflow-hidden flex flex-col min-h-0">
+      <div className="flex-1 bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl overflow-hidden flex flex-col min-h-0">
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           {mensagens.length === 0 && !countdown && !loading && (
             <div className="h-full flex flex-col items-center justify-center gap-4">
               <div className="relative">
-                <div className="w-20 h-20 rounded-2xl glass flex items-center justify-center">
-                  <Bot size={36} className="text-cyan-400/40" strokeWidth={1.5} />
+                <div className="w-20 h-20 rounded-2xl bg-[var(--clr-primary)]/5 border border-[var(--clr-primary)]/10 flex items-center justify-center">
+                  <Bot size={36} className="text-[var(--clr-primary)]/40" strokeWidth={1.5} />
                 </div>
                 <div className="absolute -top-2 -right-2">
-                  <span className="w-6 h-6 rounded-full bg-emerald-400 flex items-center justify-center text-[10px]">
+                  <span className="w-6 h-6 rounded-full bg-[var(--clr-success)] flex items-center justify-center text-[10px] text-white">
                     ✓
                   </span>
                 </div>
               </div>
               <div className="text-center">
-                <p className="text-white font-semibold mb-1">{displayBotName} está pronta!</p>
-                <p className="text-slate-500 text-sm max-w-xs">
+                <p className="text-[var(--text-primary)] font-semibold mb-1">{displayBotName} está pronta!</p>
+                <p className="text-[var(--text-muted)] text-sm max-w-xs">
                   Envie uma mensagem para simular o atendimento. Você pode mandar várias seguidas.
                 </p>
               </div>
@@ -206,27 +200,22 @@ export default function TestZapAi() {
               <div key={i} className={`flex gap-3 ${isUser ? "flex-row-reverse" : ""}`}>
                 <div className={`w-8 h-8 rounded-xl shrink-0 flex items-center justify-center ${
                   isUser
-                    ? "bg-indigo-500/20 text-indigo-400"
+                    ? "bg-[var(--clr-primary)]/20 text-[var(--clr-primary)]"
                     : isErro
-                    ? "bg-rose-500/20 text-rose-400"
-                    : "bg-cyan-500/20 text-cyan-400"
+                    ? "bg-[var(--clr-danger)]/20 text-[var(--clr-danger)]"
+                    : "bg-[var(--clr-info)]/20 text-[var(--clr-info)]"
                 }`}>
                   {isUser ? <User size={14} /> : <Bot size={14} />}
                 </div>
-                <div className={`max-w-[75%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
+                <div className={`max-w-[75%] px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
                   isUser
-                    ? "bg-gradient-to-br from-indigo-600 to-violet-600 text-white rounded-tr-sm shadow-lg shadow-indigo-500/20"
+                    ? "bg-gradient-to-br from-[var(--clr-primary)] to-[var(--clr-info)] text-white rounded-2xl rounded-tr-sm shadow-md"
                     : isErro
-                    ? "text-rose-300 rounded-tl-sm border"
-                    : "rounded-tl-sm border"
-                }`}
-                  style={!isUser ? {
-                    background: isErro ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.04)",
-                    borderColor: isErro ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.07)",
-                  } : {}}
-                >
+                    ? "text-[var(--clr-danger)] bg-[var(--clr-danger)]/10 border border-[var(--clr-danger)]/20 rounded-2xl rounded-tl-sm"
+                    : "bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] text-[var(--text-primary)] rounded-2xl rounded-tl-sm"
+                }`}>
                   {!isUser && !isErro && (
-                    <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wider block mb-1">
+                    <span className="text-[10px] font-bold text-[var(--clr-info)] uppercase tracking-wider block mb-1">
                       {displayBotName} {displayBotEmoji}
                     </span>
                   )}
@@ -239,12 +228,10 @@ export default function TestZapAi() {
           {/* Countdown indicator */}
           {countdown !== null && !loading && (
             <div className="flex gap-3 items-center">
-              <div className="w-8 h-8 rounded-xl shrink-0 flex items-center justify-center bg-amber-500/20 text-amber-400">
+              <div className="w-8 h-8 rounded-xl shrink-0 flex items-center justify-center bg-[var(--clr-warning)]/20 text-[var(--clr-warning)]">
                 <Clock size={14} />
               </div>
-              <div className="px-4 py-3 rounded-2xl rounded-tl-sm text-amber-300 text-sm border"
-                style={{ background: "rgba(245,158,11,0.08)", borderColor: "rgba(245,158,11,0.2)" }}
-              >
+              <div className="px-4 py-3 rounded-2xl rounded-tl-sm text-[var(--clr-warning)] bg-[var(--clr-warning)]/10 border border-[var(--clr-warning)]/20 text-sm">
                 {displayBotName} aguardando mais mensagens... responde em <strong>{countdown}s</strong>
               </div>
             </div>
@@ -253,13 +240,11 @@ export default function TestZapAi() {
           {/* Typing indicator */}
           {loading && (
             <div className="flex gap-3">
-              <div className="w-8 h-8 rounded-xl shrink-0 flex items-center justify-center bg-cyan-500/20 text-cyan-400">
+              <div className="w-8 h-8 rounded-xl shrink-0 flex items-center justify-center bg-[var(--clr-info)]/20 text-[var(--clr-info)]">
                 <Bot size={14} />
               </div>
-              <div className="px-4 py-3 rounded-2xl rounded-tl-sm text-slate-400 text-sm flex items-center gap-2 border"
-                style={{ background: "rgba(255,255,255,0.04)", borderColor: "rgba(255,255,255,0.07)" }}
-              >
-                <Loader2 size={14} className="animate-spin text-cyan-400" />
+              <div className="px-4 py-3 rounded-2xl rounded-tl-sm text-[var(--text-muted)] bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] text-sm flex items-center gap-2">
+                <Loader2 size={14} className="animate-spin text-[var(--clr-info)]" />
                 {displayBotName} está digitando...
               </div>
             </div>
@@ -269,9 +254,7 @@ export default function TestZapAi() {
         </div>
 
         {/* Input */}
-        <div className="p-4 flex gap-3 shrink-0"
-          style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
-        >
+        <div className="p-4 flex gap-3 shrink-0 border-t border-[var(--border-subtle)]">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -279,15 +262,11 @@ export default function TestZapAi() {
             onInput={handleInput}
             placeholder={loading ? `Aguardando ${displayBotName}...` : "Digite sua mensagem e pressione Enter..."}
             rows={1}
-            className="flex-1 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 focus:outline-none resize-none transition-all border"
+            className="flex-1 input-premium resize-none"
             style={{
-              background: "rgba(255,255,255,0.04)",
-              borderColor: "rgba(255,255,255,0.07)",
               minHeight: "46px",
               maxHeight: "120px",
             }}
-            onFocus={(e) => { e.target.style.borderColor = "rgba(99,102,241,0.4)"; }}
-            onBlur={(e)  => { e.target.style.borderColor = "rgba(255,255,255,0.07)"; }}
           />
           <button
             onClick={enviar}

@@ -1,5 +1,4 @@
-import { Shield, ArrowLeft } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Shield } from "lucide-react";
 
 export default function Privacy() {
   const sections = [
@@ -70,49 +69,43 @@ Para exercer qualquer desses direitos, entre em contato através do e-mail indic
   ];
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-200">
-      {/* Header */}
-      <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-4xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-cyan-500/10 rounded-xl">
-              <Shield size={22} className="text-cyan-400" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-white">Política de Privacidade</h1>
-              <p className="text-xs text-slate-500">ZapAI — Conexão e Confiança</p>
-            </div>
-          </div>
-          <Link to="/login" className="flex items-center gap-2 text-sm text-slate-400 hover:text-cyan-400 transition-colors">
-            <ArrowLeft size={16} /> Voltar
-          </Link>
+    <div className="pt-20 bg-slate-50 min-h-screen">
+      {/* ══════════════════════════════════════════════════════
+          HERO
+      ══════════════════════════════════════════════════════ */}
+      <section className="py-24 px-5 text-center bg-white border-b border-slate-200">
+        <div className="w-16 h-16 bg-cyan-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
+          <Shield size={32} className="text-cyan-700" />
         </div>
-      </header>
+        <h1 className="font-display text-4xl md:text-5xl font-black text-slate-900 mb-6">
+          Política de Privacidade
+        </h1>
+        <p className="text-slate-600 text-lg max-w-2xl mx-auto leading-relaxed">
+          O compromisso da ZapAI com a segurança e a privacidade dos seus dados.
+        </p>
+      </section>
 
-      {/* Conteúdo */}
-      <main className="max-w-4xl mx-auto px-6 py-12">
-        <div className="mb-10">
-          <p className="text-slate-400 text-sm">Última atualização: {new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}</p>
-          <p className="text-slate-300 mt-4 leading-relaxed">
-            A <strong className="text-white">ZapAI</strong> ("nós", "nosso" ou "plataforma") tem o compromisso de proteger a privacidade e os dados pessoais de seus usuários e dos contatos atendidos pela nossa inteligência artificial. Esta Política de Privacidade descreve como coletamos, utilizamos, armazenamos e protegemos suas informações ao usar nossos serviços.
+      {/* ══════════════════════════════════════════════════════
+          CONTENT
+      ══════════════════════════════════════════════════════ */}
+      <main className="max-w-4xl mx-auto px-5 py-16">
+        <div className="mb-12">
+          <p className="text-slate-500 text-sm font-semibold uppercase tracking-wider mb-4">
+            Última atualização: {new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}
+          </p>
+          <p className="text-slate-700 text-lg leading-relaxed">
+            A <strong className="text-slate-900">ZapAI</strong> ("nós", "nosso" ou "plataforma") tem o compromisso de proteger a privacidade e os dados pessoais de seus usuários e dos contatos atendidos pela nossa inteligência artificial. Esta Política de Privacidade descreve como coletamos, utilizamos, armazenamos e protegemos suas informações ao usar nossos serviços.
           </p>
         </div>
 
         <div className="space-y-8">
           {sections.map((section, i) => (
-            <section key={i} className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-6 hover:border-slate-600/50 transition-colors">
-              <h2 className="text-lg font-semibold text-white mb-3">{section.title}</h2>
-              <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-line">{section.content}</p>
+            <section key={i} className="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm">
+              <h2 className="text-xl font-bold text-slate-900 mb-4">{section.title}</h2>
+              <p className="text-slate-600 leading-relaxed whitespace-pre-line">{section.content}</p>
             </section>
           ))}
         </div>
-
-        <footer className="mt-16 pt-8 border-t border-slate-800 text-center">
-          <p className="text-slate-500 text-sm">© {new Date().getFullYear()} ZapAI. Todos os direitos reservados.</p>
-          <div className="flex justify-center mt-4">
-            <img src="/logo_icon_trans.png" alt="ZapAI" className="h-8 w-auto opacity-40" />
-          </div>
-        </footer>
       </main>
     </div>
   );

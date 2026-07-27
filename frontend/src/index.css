@@ -1,32 +1,70 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ─── Design Tokens ─────────────────────────────────────── */
+/* ─── Design Tokens (B2B SaaS - Semantic Theming) ────────── */
 :root {
-  --bg-deep:        #03080f;
-  --bg-base:        #060e1a;
-  --bg-card:        rgba(255,255,255,0.03);
-  --bg-card-hover:  rgba(255,255,255,0.06);
-  --border-subtle:  rgba(255,255,255,0.07);
-  --border-glow:    rgba(99,102,241,0.4);
-
-  --clr-primary:    #6366f1;
-  --clr-secondary:  #8b5cf6;
-  --clr-accent:     #06d6a0;
-  --clr-neon:       #22d3ee;
-  --clr-whatsapp:   #25d366;
-
-  --text-primary:   #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted:     #475569;
+  /* LIGHT MODE (Padrão/SaaS) */
+  --bg-base:        #f3f4f6; /* Gray 100 - Fundo muito claro */
+  --bg-surface:     #ffffff; /* White - Cards */
+  --bg-surface-hover: #f9fafb; /* Gray 50 */
+  --bg-surface-active: #f3f4f6;
+  
+  --border-subtle:  #f3f4f6;
+  --border-medium:  #e5e7eb; /* Gray 200 */
+  --border-strong:  #d1d5db; /* Gray 300 */
+  
+  --text-primary:   #111827; /* Gray 900 */
+  --text-secondary: #4b5563; /* Gray 600 */
+  --text-muted:     #9ca3af; /* Gray 400 */
+  
+  --sidebar-bg:     #ffffff;
+  --sidebar-border: #e5e7eb;
+  
+  --clr-primary:    #06b6d4; /* Cyan 500 */
+  --clr-primary-hover: #0891b2; /* Cyan 600 */
+  --clr-primary-fg: #ffffff;
+  --clr-graphite:   #111827; /* Gray 900 (Secondary buttons) */
+  --clr-graphite-fg:#ffffff;
+  --clr-success:    #22c55e;
+  --clr-warning:    #f59e0b;
+  --clr-danger:     #ef4444;
+  --clr-info:       #8b5cf6; /* Violet 500 */
 }
 
-/* ─── Base ──────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; }
+html.dark {
+  /* DARK MODE (Profundo e Refinado) */
+  --bg-base:        #020617; /* Slate 950 - Fundo profundo */
+  --bg-surface:     #0f172a; /* Slate 900 - Cards/Sidebar */
+  --bg-surface-hover: #1e293b; /* Slate 800 */
+  --bg-surface-active: #334155; /* Slate 700 */
+  
+  --border-subtle:  #1e293b; /* Slate 800 */
+  --border-medium:  #334155; /* Slate 700 */
+  --border-strong:  #475569; /* Slate 600 */
+  
+  --text-primary:   #f8fafc; /* Slate 50 */
+  --text-secondary: #94a3b8; /* Slate 400 */
+  --text-muted:     #64748b; /* Slate 500 */
+  
+  --sidebar-bg:     #0f172a; /* Slate 900 */
+  --sidebar-border: #1e293b;
+  
+  --clr-primary:    #06b6d4;
+  --clr-primary-hover: #0891b2;
+  --clr-primary-fg: #020617; /* Dark text on cyan */
+  --clr-graphite:   #f8fafc; /* Slate 50 (Invertido para botão secundário no dark) */
+  --clr-graphite-fg:#020617;
+  --clr-success:    #10b981; /* Emerald 500 */
+  --clr-warning:    #fbbf24; /* Amber 400 */
+  --clr-danger:     #f87171; /* Red 400 */
+  --clr-info:       #a78bfa; /* Violet 400 */
+}
 
+/* ─── Base Reset & Global Typography ────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 
 body {
@@ -34,200 +72,112 @@ body {
   color: var(--text-primary);
   font-family: 'Inter', sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: 'Inter', sans-serif;
   font-weight: 800;
+  letter-spacing: -0.02em;
+  color: inherit;
 }
 
-/* ─── Scrollbar ─────────────────────────────────────────── */
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: #0a1628; }
-::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: #6366f1; }
-
-/* ─── Keyframes ─────────────────────────────────────────── */
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50%       { transform: translateY(-18px); }
+/* ─── Layout Utils ──────────────────────────────────────── */
+.section-padding { padding-top: 5rem; padding-bottom: 5rem; }
+@media (min-width: 1024px) {
+  .section-padding { padding-top: 8rem; padding-bottom: 8rem; }
 }
 
-@keyframes pulse-glow {
-  0%, 100% { opacity: 0.4; transform: scale(1); }
-  50%       { opacity: 0.7; transform: scale(1.08); }
+@layer components {
+  /* ─── Components (Buttons) ──────────────────────────────── */
+  .btn-primary {
+    background-color: var(--clr-graphite);
+    color: var(--clr-graphite-fg);
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9375rem; /* 15px */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+  .btn-primary:hover {
+    background-color: var(--bg-surface-active);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+  .btn-primary:active { transform: translateY(0); box-shadow: none; }
+
+  .btn-outline {
+    background-color: transparent;
+    color: var(--text-primary);
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border-medium);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.9375rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+  .btn-outline:hover {
+    background-color: var(--bg-surface-hover);
+    border-color: var(--border-strong);
+  }
+
+  /* ─── Components (Forms) ────────────────────────────────── */
+  .input-premium {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-medium);
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    color: var(--text-primary);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9375rem;
+    transition: all 0.2s ease;
+    outline: none;
+    width: 100%;
+  }
+  .input-premium::placeholder { color: var(--text-muted); }
+  .input-premium:focus {
+    border-color: var(--clr-primary);
+    box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.15); /* Cyan */
+  }
 }
 
-@keyframes shimmer {
-  0%   { background-position: -400px 0; }
-  100% { background-position: 400px 0; }
-}
-
+/* ─── Utilities (Animations) ────────────────────────────── */
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(30px); }
+  from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+@keyframes pulseSubtle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+.animate-fade-up      { animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-pulse-subtle { animation: pulseSubtle 2s ease-in-out infinite; }
+.delay-100  { animation-delay: 0.1s; }
+.delay-200  { animation-delay: 0.2s; }
+.delay-300  { animation-delay: 0.3s; }
 
-@keyframes gradient-x {
-  0%, 100% { background-position: 0% 50%; }
-  50%       { background-position: 100% 50%; }
+/* ─── Overrides para App Antiga ─────────────────────────── */
+/* Desativa todos os efeitos "glass", "glow", neon e gradientes legados. */
+.glass, .glow-brand, .glow-cyan, .text-glow-brand, .bg-brand-gradient {
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  text-shadow: none !important;
 }
 
-@keyframes rotate-slow {
-  from { transform: rotate(0deg); }
-  to   { transform: rotate(360deg); }
-}
-
-@keyframes bounce-gentle {
-  0%, 100% { transform: translateY(0); }
-  50%       { transform: translateY(-6px); }
-}
-
-@keyframes wapp-ping {
-  0%   { transform: scale(1); opacity: 0.6; }
-  70%  { transform: scale(1.6); opacity: 0; }
-  100% { transform: scale(1.6); opacity: 0; }
-}
-
-/* ─── Utility Classes ───────────────────────────────────── */
-.animate-float       { animation: float 5s ease-in-out infinite; }
-.animate-pulse-glow  { animation: pulse-glow 3s ease-in-out infinite; }
-.animate-fade-up     { animation: fadeInUp 0.7s ease forwards; }
-.animate-gradient    { animation: gradient-x 6s ease infinite; background-size: 200% 200%; }
-.animate-rotate-slow { animation: rotate-slow 20s linear infinite; }
-.animate-bounce-soft { animation: bounce-gentle 2s ease-in-out infinite; }
-
-.font-display { font-family: 'Plus Jakarta Sans', sans-serif; }
-
-/* ─── Glass Morphism ────────────────────────────────────── */
-.glass {
-  background: var(--bg-card);
-  border: 1px solid var(--border-subtle);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-}
-
-.glass-hover:hover {
-  background: var(--bg-card-hover);
-  border-color: rgba(99,102,241,0.25);
-  box-shadow: 0 0 30px rgba(99,102,241,0.08);
-  transition: all 0.3s ease;
-}
-
-/* ─── Gradient Text ─────────────────────────────────────── */
-.gradient-text {
-  background: linear-gradient(135deg, var(--clr-primary), var(--clr-secondary), var(--clr-neon));
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.gradient-text-green {
-  background: linear-gradient(135deg, var(--clr-accent), var(--clr-neon));
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-/* ─── Grid Background Pattern ───────────────────────────── */
-.bg-grid {
-  background-image:
-    linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px);
-  background-size: 60px 60px;
-}
-
-/* ─── Glow Effects ──────────────────────────────────────── */
-.glow-indigo {
-  box-shadow: 0 0 40px rgba(99,102,241,0.25), 0 0 80px rgba(99,102,241,0.1);
-}
-
-.glow-green {
-  box-shadow: 0 0 40px rgba(6,214,160,0.3), 0 0 80px rgba(6,214,160,0.1);
-}
-
-.text-glow {
-  text-shadow: 0 0 30px rgba(99,102,241,0.5);
-}
-
-/* ─── CTA Buttons ───────────────────────────────────────── */
-.btn-primary {
-  background: linear-gradient(135deg, var(--clr-primary), var(--clr-secondary));
-  color: white;
-  font-weight: 700;
-  padding: 14px 32px;
-  border-radius: 12px;
-  border: none;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  font-size: 15px;
-  position: relative;
-  overflow: hidden;
-}
-
-.btn-primary::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, var(--clr-secondary), var(--clr-primary));
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.btn-primary:hover::before { opacity: 1; }
-.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(99,102,241,0.4); }
-.btn-primary:active { transform: translateY(0); }
-
-.btn-outline {
-  background: transparent;
-  color: var(--text-primary);
-  font-weight: 600;
-  padding: 13px 32px;
-  border-radius: 12px;
-  border: 1px solid var(--border-subtle);
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-family: 'Plus Jakarta Sans', sans-serif;
-  font-size: 15px;
-}
-
-.btn-outline:hover {
-  border-color: rgba(99,102,241,0.5);
-  background: rgba(99,102,241,0.08);
-  transform: translateY(-2px);
-}
-
-/* ─── WhatsApp Float ────────────────────────────────────── */
-.wapp-float {
-  position: fixed;
-  bottom: 28px;
-  right: 28px;
-  z-index: 999;
-  width: 58px;
-  height: 58px;
-  border-radius: 50%;
-  background: var(--clr-whatsapp);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 24px rgba(37,211,102,0.5);
-  cursor: pointer;
-  transition: all 0.3s ease;
-  text-decoration: none;
-}
-
-.wapp-float:hover {
-  transform: scale(1.12);
-  box-shadow: 0 8px 36px rgba(37,211,102,0.65);
-}
-
-.wapp-float::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: rgba(37,211,102,0.4);
-  animation: wapp-ping 2s cubic-bezier(0,0,0.2,1) infinite;
-}
-
+/* Scrollbar sutil e corporativa */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-medium); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }

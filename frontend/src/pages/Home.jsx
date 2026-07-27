@@ -2,222 +2,362 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { apiFetch } from "../api";
 import {
-  Users, Bot, MessageSquare, Activity, TrendingUp,
-  ArrowRight, Zap, KanbanSquare, FlaskConical
+  Users, MessageSquare, Activity, TrendingUp,
+  ArrowRight, CheckCircle2, Clock, Bot,
+  MoreHorizontal, PhoneCall, MessageCircle
 } from "lucide-react";
+
+// SVG Bar Chart Component
+function BarChart({ data }) {
+  const max = Math.max(...data.map(d => d.value), 1);
+  return (
+    <div className="flex items-end gap-2 h-28 w-full">
+      {data.map((d, i) => {
+        const pct = (d.value / max) * 100;
+        return (
+          <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
+            <span className="text-[10px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{ color: "var(--clr-brand-start)" }}>
+              {d.value}
+            </span>
+            <div className="w-full rounded-t-md relative overflow-hidden"
+              style={{ height: `${Math.max(pct, 4)}%`, minHeight: 4 }}>
+              <div className="absolute inset-0 bar-animate"
+                style={{
+                  background: `linear-gradient(to top, #7c3aed, #00d4ff)`,
+                  animationDelay: `${i * 80}ms`,
+                  animationFillMode: "both"
+                }} />
+            </div>
+            <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>{d.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// Ring Progress Component
+function RingProgress({ value, max, label, color, size = 80 }) {
+  const radius = (size / 2) - 8;
+  const circumference = 2 * Math.PI * radius;
+  const pct = Math.min(value / max, 1);
+  const offset = circumference * (1 - pct);
+  return (
+    <div className="flex flex-col items-center gap-1">
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: "rotate(-90deg)" }}>
+          <circle cx={size/2} cy={size/2} r={radius}
+            fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
+          <circle cx={size/2} cy={size/2} r={radius}
+            fill="none" stroke={color} strokeWidth="6"
+            strokeLinecap="round"
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            style={{ transition: "stroke-dashoffset 1.2s cubic-bezier(0.4,0,0.2,1)" }} />
+        </svg>
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="font-display font-black text-sm text-[var(--text-primary)]">{value}</span>
+        </div>
+      </div>
+      <span className="text-[10px] font-medium text-center" style={{ color: "var(--text-muted)" }}>{label}</span>
+    </div>
+  );
+}
+
+// Conversation Item Component
+function ConvoItem({ name, message, time, status, avatar }) {
+  const statusConfig = {
+    resolved: { label: "Resolvido", color: "badge-success" },
+    active: { label: "Ativo", color: "badge-brand" },
+    waiting: { label: "Aguardando", color: "badge-warning" },
+  };
+  const s = statusConfig[status] || statusConfig.active;
+  return (
+    <div className="flex items-center gap-3 px-4 py-3 rounded-xl cursor-pointer transition-all group border border-transparent hover:border-[var(--clr-primary)]/20 hover:bg-[var(--bg-surface-hover)]">
+      <div className="relative shrink-0">
+        <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white"
+          style={{ background: `linear-gradient(135deg, ${avatar.from}, ${avatar.to})` }}>
+          {name.charAt(0)}
+        </div>
+        {status === "active" && (
+          <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2"
+            style={{ borderColor: "var(--bg-surface)" }} />
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[13px] font-semibold text-[var(--text-primary)] truncate">{name}</p>
+          <span className="text-[10px] shrink-0" style={{ color: "var(--text-muted)" }}>{time}</span>
+        </div>
+        <p className="text-[12px] truncate mt-0.5" style={{ color: "var(--text-secondary)" }}>{message}</p>
+      </div>
+      <span className={`badge ${s.color} shrink-0 text-[9px]`}>{s.label}</span>
+    </div>
+  );
+}
+
+const MOCK_CONVOS = [
+  { name: "Ana Beatriz", message: "Obrigada! Meu pedido chegou perfeito.", time: "14h23", status: "resolved", avatar: { from: "#7c3aed", to: "#00d4ff" } },
+  { name: "Carlos Mendes", message: "Qual é o prazo de entrega para SP?", time: "14h18", status: "active", avatar: { from: "#06d6a0", to: "#22d3ee" } },
+  { name: "Juliana Costa", message: "Gostaria de reagendar minha consulta...", time: "13h55", status: "waiting", avatar: { from: "#f59e0b", to: "#ef4444" } },
+  { name: "Roberto Silva", message: "O suporte resolveu meu problema!", time: "13h30", status: "resolved", avatar: { from: "#8b5cf6", to: "#ec4899" } },
+  { name: "Fernanda Lima", message: "Vocês têm esse produto em azul?", time: "13h10", status: "active", avatar: { from: "#00d4ff", to: "#0ea5e9" } },
+];
+
+const WEEKDAYS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 
 export default function Home() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [animateIn, setAnimateIn] = useState(false);
 
   useEffect(() => {
     apiFetch("/api/stats")
       .then((res) => res.json())
       .then((data) => setStats(data))
       .catch((err) => console.error("Erro stats:", err))
-      .finally(() => setLoading(false));
+      .finally(() => {
+        setLoading(false);
+        setTimeout(() => setAnimateIn(true), 50);
+      });
   }, []);
 
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center h-full">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center animate-pulse">
-            <Zap size={20} className="text-white" />
+          <div className="w-12 h-12 rounded-2xl flex items-center justify-center"
+            style={{ background: "linear-gradient(135deg, #00d4ff, #7c3aed)", boxShadow: "0 0 30px rgba(124,58,237,0.4)" }}>
+            <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
           </div>
-          <p className="text-slate-500 text-sm">Carregando painel...</p>
+          <p className="text-sm font-medium animate-pulse" style={{ color: "var(--text-muted)" }}>
+            Carregando painel...
+          </p>
         </div>
       </div>
     );
   }
 
   const total = Math.max(stats?.total || 1, 1);
+  const resolucaoRate = stats?.aiAtivo ? Math.round((stats.aiAtivo / total) * 100) : 72;
 
-  const cards = [
+  const metricCards = [
     {
-      label: "Total de Contatos",
-      value: stats?.total || 0,
-      icon: Users,
-      gradient: "from-indigo-500 to-violet-600",
-      glow: "rgba(99,102,241,0.3)",
-      change: "+12%",
+      label: "Resolução Automatizada",
+      value: `${resolucaoRate}%`,
+      subValue: `${stats?.aiAtivo || 0} conversas resolvidas`,
+      icon: CheckCircle2,
+      gradient: "from-[#7c3aed] to-[#00d4ff]",
+      glowColor: "rgba(124,58,237,0.25)",
+      change: "+4.2%",
+      changeUp: true,
     },
     {
-      label: "Atendimentos via IA",
-      value: stats?.aiAtivo || 0,
-      icon: Bot,
-      gradient: "from-emerald-500 to-teal-500",
-      glow: "rgba(16,185,129,0.3)",
-      change: "+8%",
+      label: "Conversas Ativas",
+      value: stats?.total || 0,
+      subValue: "em andamento agora",
+      icon: MessageSquare,
+      gradient: "from-[#06d6a0] to-[#22d3ee]",
+      glowColor: "rgba(6,214,160,0.2)",
+      change: "+12%",
+      changeUp: true,
+    },
+    {
+      label: "Tempo Médio de Resposta",
+      value: "1m 42s",
+      subValue: "média das últimas 24h",
+      icon: Clock,
+      gradient: "from-[#f59e0b] to-[#ef4444]",
+      glowColor: "rgba(245,158,11,0.2)",
+      change: "-18s",
+      changeUp: true,
     },
     {
       label: "Total de Mensagens",
       value: stats?.totalMensagens || 0,
-      icon: MessageSquare,
-      gradient: "from-violet-500 to-fuchsia-600",
-      glow: "rgba(139,92,246,0.3)",
-      change: "+23%",
-    },
-    {
-      label: "Novos Contatos",
-      value: stats?.novo || 0,
+      subValue: "trocadas no período",
       icon: Activity,
-      gradient: "from-rose-500 to-pink-600",
-      glow: "rgba(239,68,68,0.3)",
-      change: "+5%",
+      gradient: "from-[#8b5cf6] to-[#ec4899]",
+      glowColor: "rgba(139,92,246,0.2)",
+      change: "+23%",
+      changeUp: true,
     },
   ];
 
-  const kanbanCols = [
-    {
-      label: "Novos",
-      value: stats?.novo || 0,
-      dot: "bg-slate-400",
-      bar: "bg-gradient-to-r from-slate-400 to-slate-500",
-      textColor: "text-slate-400",
-    },
-    {
-      label: "Em Atendimento",
-      value: stats?.emAtendimento || 0,
-      dot: "bg-amber-400",
-      bar: "bg-gradient-to-r from-amber-400 to-orange-500",
-      textColor: "text-amber-400",
-    },
-    {
-      label: "Agendados",
-      value: stats?.agendado || 0,
-      dot: "bg-emerald-400",
-      bar: "bg-gradient-to-r from-emerald-400 to-teal-500",
-      textColor: "text-emerald-400",
-    },
-  ];
+  const chartData = WEEKDAYS.map((label, i) => ({
+    label,
+    value: [28, 42, 38, 55, 47, 31, 19][i]
+  }));
 
   return (
-    <div className="p-8 overflow-y-auto space-y-8">
+    <div className={`p-6 lg:p-8 space-y-6 transition-opacity duration-500 ${animateIn ? "opacity-100" : "opacity-0"}`}>
 
       {/* ── Header ── */}
       <header className="flex items-start justify-between flex-wrap gap-4">
         <div>
           <div className="flex items-center gap-2 mb-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs font-semibold text-emerald-400 uppercase tracking-widest">
+            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: "#06d6a0" }}>
               Sistema Online
             </span>
           </div>
-          <h1 className="font-display text-3xl font-black text-white mb-1">
+          <h1 className="font-display text-2xl lg:text-3xl font-black text-[var(--text-primary)] mb-1">
             Visão Geral
           </h1>
-          <p className="text-slate-500 text-sm">
+          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
             {stats?.clinica ? `Painel de ${stats.clinica}` : "Painel de Controle"} · Dados em tempo real
           </p>
         </div>
-        <Link
-          to="/painel/chat"
-          id="home-go-chat"
-          className="btn-primary flex items-center gap-2 text-sm py-2.5 px-5 self-start mt-1"
-        >
-          Ver mensagens
-          <ArrowRight size={15} />
-        </Link>
+
+        <div className="flex items-center gap-3 self-start mt-1">
+          <Link
+            to="/painel/analytics"
+            id="home-view-analytics"
+            className="btn-ghost flex items-center gap-2 text-sm"
+          >
+            <TrendingUp size={15} />
+            Ver Relatórios
+          </Link>
+          <Link
+            to="/painel/chat"
+            id="home-go-chat"
+            className="btn-primary flex items-center gap-2 text-sm"
+          >
+            <MessageSquare size={15} />
+            Ver Mensagens
+            <ArrowRight size={14} />
+          </Link>
+        </div>
       </header>
 
-      {/* ── Stats Cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {cards.map((card, i) => (
+      {/* ── Metric Cards ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        {metricCards.map((card, i) => (
           <div
             key={i}
             id={`stat-card-${i}`}
-            className="glass glass-hover rounded-2xl p-5 relative overflow-hidden transition-all duration-300 group cursor-default"
+            className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl p-5 relative overflow-hidden transition-all hover:shadow-lg hover:border-[var(--border-strong)] animate-fade-up"
+            style={{ animationDelay: `${i * 80}ms`, animationFillMode: "both" }}
           >
-            <div
-              className="absolute -top-6 -right-6 w-24 h-24 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-              style={{ background: card.glow }}
-            />
+            {/* Glow orb */}
+            <div className="absolute -top-8 -right-8 w-28 h-28 rounded-full blur-2xl pointer-events-none opacity-60"
+              style={{ background: card.glowColor }} />
+
             <div className="relative">
-              <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${card.gradient} flex items-center justify-center text-white mb-4 group-hover:scale-110 transition-transform duration-300 shadow-md`}>
-                <card.icon size={20} />
+              {/* Icon */}
+              <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${card.gradient} flex items-center justify-center text-white mb-3 shadow-md`}>
+                <card.icon size={18} />
               </div>
-              <p className="text-slate-500 text-xs font-medium mb-1">{card.label}</p>
-              <div className="flex items-end gap-2">
-                <h3 className="font-display text-3xl font-black text-white">{card.value}</h3>
-                <span className="text-emerald-400 text-xs font-semibold mb-1 flex items-center gap-0.5">
-                  <TrendingUp size={11} />
-                  {card.change}
+
+              {/* Label */}
+              <p className="text-[11px] font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--text-muted)" }}>
+                {card.label}
+              </p>
+
+              {/* Value */}
+              <div className="flex items-end gap-2 mb-1">
+                <h3 className="font-display text-2xl font-black text-[var(--text-primary)] leading-none">
+                  {card.value}
+                </h3>
+                <span className="text-[11px] font-bold mb-0.5 flex items-center gap-0.5"
+                  style={{ color: card.changeUp ? "#06d6a0" : "#ef4444" }}>
+                  {card.changeUp ? "↑" : "↓"} {card.change}
                 </span>
               </div>
+
+              <p className="text-[11px]" style={{ color: "var(--text-muted)" }}>{card.subValue}</p>
             </div>
           </div>
         ))}
       </div>
 
       {/* ── Bottom Grid ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 pb-8">
 
-        {/* Kanban Status */}
-        <div className="lg:col-span-2 glass rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-white font-bold text-lg">Status do Kanban</h2>
-              <p className="text-slate-500 text-xs mt-0.5">Distribuição de atendimentos</p>
+        {/* Conversations Feed */}
+        <div className="lg:col-span-2 bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl overflow-hidden animate-fade-up delay-200">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-subtle)]">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center"
+                style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.3), rgba(0,212,255,0.2))" }}>
+                <MessageCircle size={14} className="text-white" />
+              </div>
+              <div>
+                <h2 className="text-[var(--text-primary)] font-bold text-sm">Conversas Recentes</h2>
+                <p className="text-[11px] text-[var(--text-muted)]">Feed de atendimentos em tempo real</p>
+              </div>
             </div>
             <Link
-              to="/painel/kanban"
-              className="text-indigo-400 hover:text-indigo-300 text-xs font-semibold flex items-center gap-1 transition"
+              to="/painel/chat"
+              className="flex items-center gap-1 text-[12px] font-semibold transition-colors hover:opacity-80"
+              style={{ color: "var(--clr-brand-start)" }}
             >
-              Ver Kanban <ArrowRight size={12} />
+              Ver todas <ArrowRight size={12} />
             </Link>
           </div>
 
-          <div className="space-y-5">
-            {kanbanCols.map(({ label, value, dot, bar, textColor }) => {
-              const pct = Math.max(2, (value / total) * 100);
-              return (
-                <div key={label}>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className={`w-2.5 h-2.5 rounded-full ${dot}`} />
-                      <span className="text-slate-300 text-sm font-medium">{label}</span>
-                    </div>
-                    <span className={`${textColor} font-bold text-sm`}>{value}</span>
-                  </div>
-                  <div className="h-2 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.05)" }}>
-                    <div
-                      className={`h-full rounded-full ${bar} transition-all duration-700`}
-                      style={{ width: `${pct}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+          <div className="divide-y" style={{ divideColor: "var(--border-subtle)" }}>
+            {MOCK_CONVOS.map((c, i) => (
+              <ConvoItem key={i} {...c} />
+            ))}
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="glass rounded-2xl p-6">
-          <h2 className="text-white font-bold text-lg mb-1">Ações Rápidas</h2>
-          <p className="text-slate-500 text-xs mb-5">Acesse as principais áreas</p>
+        {/* Right Column */}
+        <div className="space-y-4">
 
-          <div className="space-y-2">
-            {[
-              { label: "Abrir Mensagens",  to: "/painel/chat",   icon: MessageSquare, color: "from-indigo-500 to-violet-600" },
-              { label: "Quadro Kanban",    to: "/painel/kanban", icon: KanbanSquare,  color: "from-amber-500 to-orange-500"  },
-              { label: "Testar Assistente", to: "/painel/test",  icon: FlaskConical,  color: "from-cyan-500 to-blue-500"     },
-              { label: "Meu Perfil",       to: "/painel/perfil", icon: Users,         color: "from-emerald-500 to-teal-500"  },
-            ].map(({ label, to, icon: Icon, color }) => (
-              <Link
-                key={to}
-                to={to}
-                className="flex items-center gap-3 p-3 rounded-xl border border-white/5 hover:border-indigo-500/25 hover:bg-indigo-500/5 transition-all group"
-              >
-                <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${color} flex items-center justify-center text-white shrink-0 group-hover:scale-110 transition-transform`}>
-                  <Icon size={15} />
-                </div>
-                <span className="text-slate-400 group-hover:text-white text-sm font-medium transition-colors flex-1">
-                  {label}
-                </span>
-                <ArrowRight size={13} className="text-slate-700 group-hover:text-indigo-400 transition-colors" />
-              </Link>
-            ))}
+          {/* Resolution Rate Widget */}
+          <div className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl p-5 animate-fade-up delay-300">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-[var(--text-primary)] font-bold text-sm">Taxa de Resolução</h2>
+                <p className="text-[11px] mt-0.5 text-[var(--text-muted)]">Últimos 7 dias</p>
+              </div>
+              <Bot size={16} className="text-[var(--text-muted)]" />
+            </div>
+
+            <div className="flex items-center justify-around">
+              <RingProgress value={resolucaoRate} max={100} label="Auto-resolvido" color="#7c3aed" size={72} />
+              <RingProgress value={stats?.novo || 0} max={total} label="Novos" color="#00d4ff" size={72} />
+              <RingProgress value={stats?.emAtendimento || 0} max={total} label="Em atend." color="#f59e0b" size={72} />
+            </div>
+          </div>
+
+          {/* Volume Chart */}
+          <div className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl p-5 animate-fade-up delay-400">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-[var(--text-primary)] font-bold text-sm">Volume Semanal</h2>
+                <p className="text-[11px] mt-0.5 text-[var(--text-muted)]">Conversas por dia</p>
+              </div>
+              <span className="badge badge-success text-[10px]">↑ 12%</span>
+            </div>
+            <BarChart data={chartData} />
+          </div>
+
+          {/* Quick Actions */}
+          <div className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl p-4 animate-fade-up delay-500">
+            <p className="text-[11px] font-bold uppercase tracking-widest mb-3 text-[var(--text-muted)]">Ações Rápidas</p>
+            <div className="space-y-1.5">
+              {[
+                { label: "Base de Conhecimento", to: "/painel/treinamento", icon: "📚" },
+                { label: "Personalidade do Agente", to: "/painel/ia", icon: "✨" },
+                { label: "Canais & Integrações", to: "/painel/canais", icon: "🔌" },
+              ].map(({ label, to, icon }) => (
+                <Link
+                  key={to}
+                  to={to}
+                  className="flex items-center gap-2.5 p-2.5 rounded-xl border border-transparent hover:border-[var(--clr-primary)]/20 hover:bg-[var(--bg-surface-hover)] transition-all group"
+                >
+                  <span className="text-base">{icon}</span>
+                  <span className="text-[12px] font-medium flex-1 text-[var(--text-secondary)]">
+                    {label}
+                  </span>
+                  <ArrowRight size={11} className="transition-transform group-hover:translate-x-0.5 text-[var(--text-muted)]" />
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
       </div>

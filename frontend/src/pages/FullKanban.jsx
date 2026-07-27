@@ -121,10 +121,10 @@ export default function FullKanban() {
 
       {/* ── Header ── */}
       <header className="mb-6 shrink-0">
-        <h1 className="font-display text-3xl font-black text-white mb-1">Quadro Kanban</h1>
-        <p className="text-slate-500 text-sm">
+        <h1 className="font-display text-3xl font-black text-[var(--text-primary)] mb-1">Quadro Kanban</h1>
+        <p className="text-[var(--text-secondary)] text-sm">
           Visão completa do fluxo de atendimento ·{" "}
-          <span className="text-slate-600">Arraste para mover · Duplo clique para abrir conversa</span>
+          <span className="text-[var(--text-muted)]">Arraste para mover · Duplo clique para abrir conversa</span>
         </p>
       </header>
 
@@ -132,10 +132,10 @@ export default function FullKanban() {
       <div className="flex-1 min-h-0 overflow-x-auto">
         {loading ? (
           <div className="h-full flex flex-col items-center justify-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-violet-600/20 flex items-center justify-center animate-pulse">
-              <Zap size={22} className="text-indigo-400" />
+            <div className="w-12 h-12 rounded-2xl bg-[var(--clr-primary)]/10 border border-[var(--clr-primary)]/20 flex items-center justify-center animate-pulse">
+              <Zap size={22} className="text-[var(--clr-primary)]" />
             </div>
-            <p className="text-slate-500 text-sm">Carregando quadro...</p>
+            <p className="text-[var(--text-secondary)] text-sm">Carregando quadro...</p>
           </div>
         ) : (
           <div className="grid grid-cols-3 gap-5 h-full min-w-[800px]">
@@ -217,7 +217,7 @@ export default function FullKanban() {
                             }}
                           >
                             <div className="flex justify-between items-start mb-2">
-                              <h4 className="text-slate-100 font-semibold text-sm truncate pr-2 group-hover:text-white transition-colors">
+                              <h4 className="text-[var(--text-primary)] font-semibold text-sm truncate pr-2 group-hover:text-[var(--clr-primary)] transition-colors">
                                 {p.nome}
                               </h4>
                               <div className="flex items-center gap-1.5 shrink-0">
@@ -230,19 +230,19 @@ export default function FullKanban() {
                                 </span>
                               </div>
                             </div>
-                            <p className="text-slate-500 text-xs font-mono">
+                            <p className="text-[var(--text-muted)] text-xs font-mono">
                               {p.telefone.replace("@c.us", "")}
                             </p>
                             <div className="flex items-center justify-between mt-2.5 pt-2"
                               style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
                             >
-                              <p className="text-slate-600 text-[10px]">
+                              <p className="text-[var(--text-muted)] text-[10px] opacity-70">
                                 {new Date(p.created_at).toLocaleString("pt-BR", {
                                   hour: "2-digit", minute: "2-digit",
                                   day: "2-digit",  month: "2-digit",
                                 })}
                               </p>
-                              <MessageSquare size={11} className="text-slate-700 group-hover:text-indigo-400 transition-colors" />
+                              <MessageSquare size={11} className="text-[var(--text-muted)] opacity-50 group-hover:text-[var(--clr-primary)] group-hover:opacity-100 transition-colors" />
                             </div>
                           </div>
                         );

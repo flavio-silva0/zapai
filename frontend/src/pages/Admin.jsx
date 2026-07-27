@@ -130,7 +130,7 @@ function TenantCard({ tenant, onUpdate }) {
         </div>
 
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-white text-sm truncate">{tenant.nome}</p>
+          <p className="font-bold text-[var(--text-primary)] text-sm truncate">{tenant.nome}</p>
           <p className="text-slate-500 text-xs truncate">
             {tenant.nicho} · {tenant.totalContatos ?? 0} contatos
           </p>
@@ -248,7 +248,7 @@ function TenantCard({ tenant, onUpdate }) {
                 <button
                   onClick={salvar}
                   disabled={saving}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm text-white transition-all disabled:opacity-50 btn-primary"
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl font-bold text-sm text-[var(--text-primary)] transition-all disabled:opacity-50 btn-primary"
                 >
                   <Save size={14} />
                   {saving ? "Salvando..." : "Salvar alterações"}
@@ -295,10 +295,14 @@ export default function Admin() {
     setLoading(false);
   };
 
-  useEffect(() => { carregar(); }, []);
+  useEffect(() => { 
+    carregar(); 
+     
+  }, []);
 
-  const atualizar = (updated) =>
+  const atualizar = (updated) => {
     setTenants((prev) => prev.map((t) => (t.id === updated.id ? { ...t, ...updated } : t)));
+  };
 
   const filtrados = tenants.filter((t) => {
     const matchSearch = t.nome.toLowerCase().includes(search.toLowerCase()) ||
@@ -341,9 +345,9 @@ export default function Admin() {
           <div>
             <div className="flex items-center gap-2 mb-0.5">
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
-                <ShieldAlert size={16} className="text-white" />
+                <ShieldAlert size={16} className="text-[var(--text-primary)]" />
               </div>
-              <h1 className="font-display text-2xl font-black text-white">Painel Admin</h1>
+              <h1 className="font-display text-2xl font-black text-[var(--text-primary)]">Painel Admin</h1>
             </div>
             <p className="text-slate-500 text-sm ml-10">Gerencie todos os clientes da plataforma</p>
           </div>
@@ -364,12 +368,12 @@ export default function Admin() {
       {/* ── Stats ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {statCards.map(({ label, value, icon: Icon, gradient }) => (
-          <div key={label} className="glass rounded-2xl p-4 relative overflow-hidden group">
+          <div key={label} className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl p-4 relative overflow-hidden group">
             <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center text-white mb-3 group-hover:scale-110 transition-transform shadow-md`}>
               <Icon size={16} />
             </div>
-            <p className="text-slate-500 text-xs font-medium mb-1">{label}</p>
-            <p className="font-display text-2xl font-black text-white">{value}</p>
+            <p className="text-[var(--text-muted)] text-xs font-medium mb-1">{label}</p>
+            <p className="font-display text-2xl font-black text-[var(--text-primary)]">{value}</p>
           </div>
         ))}
       </div>

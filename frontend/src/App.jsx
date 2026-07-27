@@ -6,6 +6,10 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import PublicLayout from "./components/PublicLayout";
 
+import ScrollToTop from "./components/ScrollToTop";
+
+import { ThemeProvider } from "./context/ThemeProvider";
+
 // ── Páginas Públicas ──────────────────────────────────────
 import LandingHome   from "./pages/LandingHome";
 import LandingSobre  from "./pages/LandingSobre";
@@ -17,14 +21,17 @@ import Register from "./pages/Register";
 import Privacy  from "./pages/Privacy";
 
 // ── Painel (protegido) ────────────────────────────────────
-import Home      from "./pages/Home";
-import Chat      from "./pages/Chat";
-import FullKanban from "./pages/FullKanban";
-import TestSofia  from "./pages/TestZapAi";
-import Admin      from "./pages/Admin";
-import Profile    from "./pages/Profile";
-import AiSetup    from "./pages/AiSetup";
+import Home         from "./pages/Home";
+import Chat         from "./pages/Chat";
+import FullKanban   from "./pages/FullKanban";
+import TestSofia    from "./pages/TestZapAi";
+import Admin        from "./pages/Admin";
+import Profile      from "./pages/Profile";
+import AiSetup      from "./pages/AiSetup";
 import KnowledgeBase from "./pages/KnowledgeBase";
+import Channels     from "./pages/Channels";
+import Analytics    from "./pages/Analytics";
+import Settings     from "./pages/Settings";
 
 // ── Admin guard ───────────────────────────────────────────
 function AdminRoute({ children }) {
@@ -36,9 +43,11 @@ function AdminRoute({ children }) {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <ConfigProvider>
-        <BrowserRouter>
+    <ThemeProvider>
+      <AuthProvider>
+        <ConfigProvider>
+          <BrowserRouter>
+          <ScrollToTop />
           <Routes>
 
             {/* ── Rotas Públicas (com Navbar + Footer) ── */}
@@ -64,13 +73,17 @@ export default function App() {
                 <Layout />
               </ProtectedRoute>
             }>
-              <Route index          element={<Home />} />
-              <Route path="chat"    element={<Chat />} />
-              <Route path="kanban"  element={<FullKanban />} />
-              <Route path="test"    element={<TestSofia />} />
-              <Route path="perfil"  element={<Profile />} />
-              <Route path="ia"      element={<AiSetup />} />
-              <Route path="treinamento" element={<KnowledgeBase />} />
+              <Route index                  element={<Home />} />
+              <Route path="chat"            element={<Chat />} />
+              <Route path="kanban"          element={<FullKanban />} />
+              <Route path="test"            element={<TestSofia />} />
+              <Route path="perfil"          element={<Profile />} />
+              <Route path="ia"              element={<AiSetup />} />
+              <Route path="treinamento"     element={<KnowledgeBase />} />
+              {/* ── Novas Rotas ── */}
+              <Route path="canais"          element={<Channels />} />
+              <Route path="analytics"       element={<Analytics />} />
+              <Route path="configuracoes"   element={<Settings />} />
             </Route>
 
             {/* ── Fallback ── */}
@@ -79,6 +92,7 @@ export default function App() {
           </Routes>
         </BrowserRouter>
       </ConfigProvider>
-    </AuthProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
