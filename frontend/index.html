@@ -1,25 +1,17 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/logo_icon.png" />
+    <link rel="icon" type="image/png" href="/zapai-favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ZapAI | Atendimento Inteligente</title>
-    <!-- Previne FOUC (Flash of Unstyled Content) de Temas -->
-    <script>
-      (function() {
-        try {
-          var theme = localStorage.getItem('zapai-theme');
-          var isDark = theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
-          if (isDark) document.documentElement.classList.add('dark');
-          else document.documentElement.classList.remove('dark');
-        } catch (e) {}
-      })();
-    </script>
+    <meta name="description" content="ZapAI — Sua atendente digital no WhatsApp. Ela aprende seu negócio, responde clientes e te chama quando precisa. Para barbearias, clínicas, lojas, restaurantes e qualquer pequeno negócio." />
+    <meta name="keywords" content="zapai, whatsapp, atendente digital, atendimento, pequenos negócios, barbearia, clínica, restaurante" />
+    <meta name="author" content="ZapAI" />
+    <meta name="theme-color" content="#FAFAF8" />
+    <title>ZapAI — Sua atendente digital no WhatsApp</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
-    <script src="https://static.claydar.com/init.v1.js?id=cvsA5ysR1Q"></script>
   </body>
 </html>

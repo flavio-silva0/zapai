@@ -5,7 +5,7 @@ import WhatsAppButton from "./WhatsAppButton";
 
 export default function PublicLayout() {
   return (
-    <div className="public-theme min-h-screen flex flex-col bg-slate-50 text-slate-900 font-body selection:bg-cyan-500/30 selection:text-cyan-900 overflow-x-hidden">
+    <div className="landing min-h-screen flex flex-col bg-[#FAFAF8] text-[#1a1a1a] font-body selection:bg-teal-100 selection:text-teal-900 overflow-x-hidden">
       <PublicNavbar />
       <main className="flex-1 w-full relative">
         <Outlet />

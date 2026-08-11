@@ -7,60 +7,59 @@
 /* ─── Design Tokens (B2B SaaS - Semantic Theming) ────────── */
 :root {
   /* LIGHT MODE (Padrão/SaaS) */
-  --bg-base:        #f3f4f6; /* Gray 100 - Fundo muito claro */
-  --bg-surface:     #ffffff; /* White - Cards */
-  --bg-surface-hover: #f9fafb; /* Gray 50 */
+  --bg-base:        #f3f4f6;
+  --bg-surface:     #ffffff;
+  --bg-surface-hover: #f9fafb;
   --bg-surface-active: #f3f4f6;
   
   --border-subtle:  #f3f4f6;
-  --border-medium:  #e5e7eb; /* Gray 200 */
-  --border-strong:  #d1d5db; /* Gray 300 */
+  --border-medium:  #e5e7eb;
+  --border-strong:  #d1d5db;
   
-  --text-primary:   #111827; /* Gray 900 */
-  --text-secondary: #4b5563; /* Gray 600 */
-  --text-muted:     #9ca3af; /* Gray 400 */
+  --text-primary:   #111827;
+  --text-secondary: #4b5563;
+  --text-muted:     #9ca3af;
   
   --sidebar-bg:     #ffffff;
   --sidebar-border: #e5e7eb;
   
-  --clr-primary:    #06b6d4; /* Cyan 500 */
-  --clr-primary-hover: #0891b2; /* Cyan 600 */
+  --clr-primary:    #06b6d4;
+  --clr-primary-hover: #0891b2;
   --clr-primary-fg: #ffffff;
-  --clr-graphite:   #111827; /* Gray 900 (Secondary buttons) */
+  --clr-graphite:   #111827;
   --clr-graphite-fg:#ffffff;
   --clr-success:    #22c55e;
   --clr-warning:    #f59e0b;
   --clr-danger:     #ef4444;
-  --clr-info:       #8b5cf6; /* Violet 500 */
+  --clr-info:       #8b5cf6;
 }
 
 html.dark {
-  /* DARK MODE (Profundo e Refinado) */
-  --bg-base:        #020617; /* Slate 950 - Fundo profundo */
-  --bg-surface:     #0f172a; /* Slate 900 - Cards/Sidebar */
-  --bg-surface-hover: #1e293b; /* Slate 800 */
-  --bg-surface-active: #334155; /* Slate 700 */
+  --bg-base:        #020617;
+  --bg-surface:     #0f172a;
+  --bg-surface-hover: #1e293b;
+  --bg-surface-active: #334155;
   
-  --border-subtle:  #1e293b; /* Slate 800 */
-  --border-medium:  #334155; /* Slate 700 */
-  --border-strong:  #475569; /* Slate 600 */
+  --border-subtle:  #1e293b;
+  --border-medium:  #334155;
+  --border-strong:  #475569;
   
-  --text-primary:   #f8fafc; /* Slate 50 */
-  --text-secondary: #94a3b8; /* Slate 400 */
-  --text-muted:     #64748b; /* Slate 500 */
+  --text-primary:   #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted:     #64748b;
   
-  --sidebar-bg:     #0f172a; /* Slate 900 */
+  --sidebar-bg:     #0f172a;
   --sidebar-border: #1e293b;
   
   --clr-primary:    #06b6d4;
   --clr-primary-hover: #0891b2;
-  --clr-primary-fg: #020617; /* Dark text on cyan */
-  --clr-graphite:   #f8fafc; /* Slate 50 (Invertido para botão secundário no dark) */
+  --clr-primary-fg: #020617;
+  --clr-graphite:   #f8fafc;
   --clr-graphite-fg:#020617;
-  --clr-success:    #10b981; /* Emerald 500 */
-  --clr-warning:    #fbbf24; /* Amber 400 */
-  --clr-danger:     #f87171; /* Red 400 */
-  --clr-info:       #a78bfa; /* Violet 400 */
+  --clr-success:    #10b981;
+  --clr-warning:    #fbbf24;
+  --clr-danger:     #f87171;
+  --clr-info:       #a78bfa;
 }
 
 /* ─── Base Reset & Global Typography ────────────────────── */
@@ -89,7 +88,6 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 @layer components {
-  /* ─── Components (Buttons) ──────────────────────────────── */
   .btn-primary {
     background-color: var(--clr-graphite);
     color: var(--clr-graphite-fg);
@@ -99,7 +97,7 @@ h1, h2, h3, h4, h5, h6 {
     border: 1px solid transparent;
     cursor: pointer;
     transition: all 0.2s ease;
-    font-size: 0.9375rem; /* 15px */
+    font-size: 0.9375rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -132,7 +130,6 @@ h1, h2, h3, h4, h5, h6 {
     border-color: var(--border-strong);
   }
 
-  /* ─── Components (Forms) ────────────────────────────────── */
   .input-premium {
     background-color: var(--bg-surface);
     border: 1px solid var(--border-medium);
@@ -148,7 +145,7 @@ h1, h2, h3, h4, h5, h6 {
   .input-premium::placeholder { color: var(--text-muted); }
   .input-premium:focus {
     border-color: var(--clr-primary);
-    box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.15); /* Cyan */
+    box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.15);
   }
 }
 
@@ -168,7 +165,6 @@ h1, h2, h3, h4, h5, h6 {
 .delay-300  { animation-delay: 0.3s; }
 
 /* ─── Overrides para App Antiga ─────────────────────────── */
-/* Desativa todos os efeitos "glass", "glow", neon e gradientes legados. */
 .glass, .glow-brand, .glow-cyan, .text-glow-brand, .bg-brand-gradient {
   background: transparent !important;
   box-shadow: none !important;
@@ -181,3 +177,224 @@ h1, h2, h3, h4, h5, h6 {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-medium); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+/* ─── LANDING PAGE SPECIFIC STYLES ──────────────────────── */
+.landing {
+  /* Landing Specific Variables */
+  --land-bg: #FAFAF8;
+  --land-text: #1a1a1a;
+  --land-text-muted: #525252;
+  --land-accent: #0d9488; /* Teal 600 */
+  --land-accent-hover: #0f766e; /* Teal 700 */
+  --land-border: #e8e5e0;
+  
+  --wapp-green: #25D366;
+  --wapp-dark: #075E54;
+  --wapp-light: #dcf8c6;
+  --wapp-bg: #e5ddd5;
+
+  background-color: var(--land-bg);
+  color: var(--land-text);
+  font-family: 'Inter', sans-serif;
+}
+
+/* Landing Typography */
+.landing h1, .landing h2, .landing h3, .landing h4 {
+  color: var(--land-text);
+  letter-spacing: -0.03em;
+  font-weight: 700;
+}
+.landing .text-muted {
+  color: var(--land-text-muted);
+}
+
+/* Landing Buttons */
+.landing .btn-cta {
+  background-color: var(--land-accent);
+  color: white;
+  font-weight: 600;
+  padding: 1rem 2rem;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1.125rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  box-shadow: 0 4px 14px 0 rgba(13, 148, 136, 0.39);
+}
+.landing .btn-cta:hover {
+  background-color: var(--land-accent-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(13, 148, 136, 0.23);
+}
+
+.landing .btn-secondary {
+  background-color: white;
+  color: var(--land-text);
+  font-weight: 600;
+  padding: 1rem 2rem;
+  border-radius: 12px;
+  border: 1px solid var(--land-border);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1.125rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+}
+.landing .btn-secondary:hover {
+  border-color: #d4d4d4;
+  background-color: #f5f5f5;
+  transform: translateY(-2px);
+}
+
+/* WhatsApp Chat Bubbles */
+.landing .wapp-chat-container {
+  background-color: var(--wapp-bg);
+  background-image: url('data:image/svg+xml;utf8,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="none"/><path d="M0 0h100v100H0z" fill="none"/><path opacity=".05" d="M10 10l10-10m20 20L50 10m-20 40l10-10"/></svg>');
+  border-radius: 16px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.landing .wapp-bubble {
+  max-width: 80%;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  position: relative;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+  word-wrap: break-word;
+}
+
+.landing .wapp-bubble.received {
+  background-color: white;
+  color: #111;
+  align-self: flex-start;
+  border-top-left-radius: 0;
+}
+.landing .wapp-bubble.received::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -10px;
+  width: 0;
+  height: 0;
+  border: 10px solid transparent;
+  border-top-color: white;
+  border-left: 0;
+  margin-top: 0;
+}
+
+.landing .wapp-bubble.sent {
+  background-color: var(--wapp-light);
+  color: #111;
+  align-self: flex-end;
+  border-top-right-radius: 0;
+}
+.landing .wapp-bubble.sent::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: -10px;
+  width: 0;
+  height: 0;
+  border: 10px solid transparent;
+  border-top-color: var(--wapp-light);
+  border-right: 0;
+  margin-top: 0;
+}
+
+.landing .wapp-time {
+  font-size: 0.65rem;
+  color: #667781;
+  float: right;
+  margin-top: 5px;
+  margin-left: 10px;
+}
+
+/* Personality Slider Styles */
+.landing .personality-slider {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--land-border);
+  outline: none;
+}
+.landing .personality-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--land-accent);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(13, 148, 136, 0.4);
+  transition: transform 0.1s;
+}
+.landing .personality-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+
+/* Animations */
+@keyframes slideUpFade {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.landing .reveal {
+  opacity: 0;
+  animation: slideUpFade 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Floating WhatsApp Button */
+@keyframes wappPulse {
+  0% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0.5); }
+  70% { box-shadow: 0 0 0 15px rgba(37, 211, 102, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0); }
+}
+.landing .wapp-float {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  width: 56px;
+  height: 56px;
+  background-color: var(--wapp-green);
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  z-index: 1000;
+  cursor: pointer;
+  transition: transform 0.3s ease;
+  animation: wappPulse 2s infinite;
+}
+.landing .wapp-float:hover {
+  transform: scale(1.1);
+}
+
+/* Accessibility & Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.landing *:focus-visible {
+  outline: 2px solid var(--land-accent);
+  outline-offset: 2px;
+}
