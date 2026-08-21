@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext } from "react";
 import {
   BookOpen, Link as LinkIcon, FileText, Trash2, Plus, Loader2, Globe,
-  Edit3, Check, X, Upload, File, FileImage, FileCode, Search, Camera
+  Edit3, Check, X, Upload, File as FileIcon, FileImage, FileCode, Search, Camera
 } from "lucide-react";
 import { apiFetch } from "../api";
 import { AuthContext } from "../context/AuthContext";
@@ -115,7 +115,10 @@ export default function KnowledgeBase() {
   // Listener para Ctrl+V (colar prints direto da área de transferência)
   useEffect(() => {
     const handlePaste = (e) => {
-      const items = e.clipboardData?.items;
+      const clipboardData = e.clipboardData || window.clipboardData;
+      if (!clipboardData) return;
+
+      const items = clipboardData.items;
       if (!items) return;
 
       for (let i = 0; i < items.length; i++) {
@@ -126,12 +129,12 @@ export default function KnowledgeBase() {
           if (blob) {
             const now = new Date();
             const timeStr = `${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
-            const file = new File([blob], `print_colado_${timeStr}.png`, { type: blob.type || "image/png" });
-            setFileValue(file);
-            setActiveTab("arquivo");
+            const pastedFile = new window.File([blob], `print_colado_${timeStr}.png`, { type: blob.type || "image/png" });
+            setFileValue(pastedFile);
+            setActiveTab("print");
             setMessage({
               type: "success",
-              text: "📸 Print colado com sucesso! Clique em 'Adicionar à Base' para a IA ler e memorizar.",
+              text: "📸 Print colado com sucesso! Clique em 'Processar Print com IA'.",
             });
             return;
           }
@@ -427,7 +430,7 @@ export default function KnowledgeBase() {
                             </button>
                           </div>
                         ) : (
-                          <File size={24} className="text-[var(--clr-primary)]" />
+                          <FileIcon size={24} className="text-[var(--clr-primary)]" />
                         )}
                         <p className="text-[12px] font-semibold text-[var(--text-primary)] truncate max-w-[220px]">{fileValue.name}</p>
                         <p className="text-[10px] text-[var(--text-muted)]">
