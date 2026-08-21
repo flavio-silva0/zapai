@@ -741,7 +741,7 @@ Não mencione que você possui uma memória interna.`;
 
     if (!rpcError && matches && matches.length > 0) {
       ragContext = matches
-        .map((m, index) => `[Fonte ${index + 1}]\n${m.content}`)
+        .map((m) => m.content)
         .filter(Boolean)
         .join("\n\n");
 
@@ -752,21 +752,21 @@ Não mencione que você possui uma memória interna.`;
 Você possui as informações abaixo recuperadas da base de conhecimento da empresa.
 Esses dados podem ter vindo do site oficial, documentos internos ou materiais cadastrados.
 
-Use esses dados como fonte factual quando forem relevantes para a pergunta do cliente.
+Use esses dados como base factual quando forem relevantes para a pergunta do cliente.
 
 <conhecimento>
 ${ragContext}
 </conhecimento>
 
 REGRAS PARA USAR A BASE:
+- Fale com total naturalidade como se as informações fossem de seu conhecimento próprio.
+- NUNCA inclua referências ou fontes entre colchetes na sua resposta (como "[Fonte 1]", "[Fonte 1, 4]", "[FONTE: ...]", "[Doc 1]" ou similares).
 - Se o cliente perguntar sobre parceiros, clientes, empresas, cases ou transportadoras, você PODE citar nomes que apareçam claramente no conhecimento acima.
 - Nunca invente nomes que não estejam no conhecimento.
 - Se houver nomes no conhecimento, responda com eles de forma objetiva.
 - Se não houver nomes suficientes no conhecimento, diga que pode confirmar com o time.
-- Não responda só "temos grandes parceiros"; cite exemplos quando eles estiverem na base.
 - Não copie blocos inteiros do RAG.
 - Use o RAG para responder de forma curta, clara e útil.
-- Quando usar informações da base e citar nomes, dados ou fatos, inclua a fonte entre colchetes no final da frase, por exemplo: [FONTE: Site da Empresa X].
 - Se o cliente enviar mais de uma mensagem antes de você responder, considere todas como parte do mesmo contexto e responda ao pedido mais recente usando todas as informações relevantes.
 - Não divida ideias sem necessidade; responda com mensagens completas e contextualizadas.`;
 

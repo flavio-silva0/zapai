@@ -135,6 +135,14 @@ function stripTechnicalPrefixes(text) {
   return clean;
 }
 
+function stripSourceCitations(text) {
+  return text
+    .replace(/\[\s*(?:fonte|fontes|doc|documento|source|ref|refer[eê]ncia)\s*[^\]]*\]/gi, "")
+    .replace(/\[\s*\d+(?:\s*,\s*\d+)*\s*\]/g, "")
+    .replace(/\s+([.,;:!?])/g, "$1")
+    .replace(/[ \t]{2,}/g, " ");
+}
+
 function stripBrokenMarkdown(text) {
   return text
     .replace(/^\s*#{1,6}\s+/gm, "")
@@ -251,6 +259,7 @@ function sanitizeAiMessageWithReport(value, options = {}) {
 
   clean = removeTechnicalLines(clean);
   clean = stripTechnicalPrefixes(clean);
+  clean = stripSourceCitations(clean);
   clean = stripBrokenMarkdown(clean);
   clean = stripLooseWrappers(clean);
   clean = collapseRepeatedSentences(clean);

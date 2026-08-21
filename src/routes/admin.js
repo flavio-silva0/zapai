@@ -438,6 +438,9 @@ function cleanAssistantReply(text) {
     .replace(/^assistente:\s*/i, "")
     .replace(/\bcomo uma ia\b/gi, "")
     .replace(/\bcomo assistente virtual\b/gi, "")
+    .replace(/\[\s*(?:fonte|fontes|doc|documento|source|ref|refer[eê]ncia)\s*[^\]]*\]/gi, "")
+    .replace(/\[\s*\d+(?:\s*,\s*\d+)*\s*\]/g, "")
+    .replace(/\s+([.,;:!?])/g, "$1")
     .replace(/\n?\s*#{1,6}\s+/g, "\n")
     .trim();
 }
