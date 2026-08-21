@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext } from "react";
 import {
   BookOpen, Link as LinkIcon, FileText, Trash2, Plus, Loader2, Globe,
-  Edit3, Check, X, Upload, File, FileImage, FileCode, Search
+  Edit3, Check, X, Upload, File, FileImage, FileCode, Search, Camera
 } from "lucide-react";
 import { apiFetch } from "../api";
 import { AuthContext } from "../context/AuthContext";
@@ -156,18 +156,19 @@ export default function KnowledgeBase() {
 
   const handleAdd = async (e) => {
     e.preventDefault();
-    if (activeTab !== "arquivo" && !inputValue.trim()) return;
-    if (activeTab === "arquivo" && !fileValue) return;
+    const isFileOrPrint = activeTab === "arquivo" || activeTab === "print";
+    if (!isFileOrPrint && !inputValue.trim()) return;
+    if (isFileOrPrint && !fileValue) return;
 
     setSubmitting(true);
     setMessage(null);
-    const payload = { tipo: activeTab };
+    const payload = { tipo: isFileOrPrint ? "file" : activeTab };
 
     if (activeTab === "url") {
       payload.url = inputValue.trim();
     } else if (activeTab === "texto") {
       payload.texto = inputValue.trim();
-    } else if (activeTab === "arquivo") {
+    } else if (isFileOrPrint) {
       if (fileValue.name.endsWith(".txt")) {
         payload.tipo = "texto";
         payload.texto = await fileValue.text();
@@ -251,7 +252,8 @@ export default function KnowledgeBase() {
   const tabConfig = [
     { id: "texto", label: "Texto", icon: FileText },
     { id: "url", label: "URL", icon: Globe },
-    { id: "arquivo", label: "Arquivo", icon: Upload },
+    { id: "print", label: "Colar Print", icon: Camera },
+    { id: "arquivo", label: "Subir Arquivo", icon: Upload },
   ];
 
   return (
@@ -303,14 +305,11 @@ export default function KnowledgeBase() {
             {/* Tabs */}
             <div className="flex gap-1 p-1 rounded-xl mb-4 bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)]">
               {tabConfig.map(({ id, label, icon: Icon }) => (
-                <button key={id} onClick={() => setActiveTab(id)}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-[11px] font-bold rounded-lg transition-all ${activeTab === id ? "bg-gradient-to-br from-[var(--clr-primary)] to-[var(--clr-info)] text-white shadow-sm" : "text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}
+                <button key={id} onClick={() => { setActiveTab(id); setMessage(null); }}
+                  className={`flex-1 flex items-center justify-center gap-1 py-2 text-[10px] sm:text-[11px] font-bold rounded-lg transition-all ${activeTab === id ? "bg-gradient-to-br from-[var(--clr-primary)] to-[var(--clr-info)] text-white shadow-sm" : "text-[var(--text-muted)] hover:bg-[var(--bg-surface)]"}`}
                 >
                   <Icon size={12} />
-                  {label}
-                  {id === "arquivo" && (
-                    <span className="text-[9px] px-1 py-0.5 rounded bg-white/20 font-mono">Ctrl+V</span>
-                  )}
+                  <span>{label}</span>
                 </button>
               ))}
             </div>
@@ -349,6 +348,54 @@ export default function KnowledgeBase() {
                 </div>
               )}
 
+              {activeTab === "print" && (
+                <div>
+                  <div
+                    tabIndex={0}
+                    className={`rounded-xl border-2 border-dashed p-6 text-center transition-all outline-none focus:border-[var(--clr-primary)] focus:bg-[var(--clr-primary)]/5 ${fileValue ? "border-[var(--clr-success)] bg-[var(--clr-success)]/5" : "border-[var(--border-medium)] bg-[var(--bg-surface-hover)] hover:border-[var(--clr-primary)]"}`}
+                  >
+                    {fileValue && previewUrl ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="relative group/preview my-1">
+                          <img
+                            src={previewUrl}
+                            alt="Print Preview"
+                            className="max-h-36 rounded-lg object-contain border border-[var(--border-subtle)] shadow-md bg-black/30"
+                          />
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setFileValue(null);
+                            }}
+                            className="absolute -top-2 -right-2 bg-rose-500 hover:bg-rose-600 text-white rounded-full p-1 shadow-md transition-colors"
+                            title="Remover print"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                        <p className="text-[12px] font-semibold text-[var(--text-primary)] truncate max-w-[220px]">{fileValue.name}</p>
+                        <p className="text-[10px] text-[var(--clr-success)] font-bold">
+                          ✓ Print colado! ({(fileValue.size / 1024).toFixed(0)} KB)
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2.5 py-2">
+                        <div className="w-12 h-12 rounded-full bg-[var(--clr-primary)]/10 flex items-center justify-center border border-[var(--clr-primary)]/20 text-[var(--clr-primary)]">
+                          <Camera size={22} />
+                        </div>
+                        <p className="text-[13px] font-bold text-[var(--text-primary)]">
+                          Clique aqui e aperte <kbd className="px-1.5 py-0.5 rounded bg-[var(--bg-surface)] border border-[var(--border-medium)] text-[var(--clr-primary)] font-mono text-xs shadow-sm">Ctrl + V</kbd>
+                        </p>
+                        <p className="text-[11px] text-[var(--text-muted)] max-w-xs leading-relaxed">
+                          Tire print de qualquer tela ou conversa e cole diretamente aqui sem precisar salvar arquivo!
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {activeTab === "arquivo" && (
                 <div>
                   <div
@@ -364,7 +411,7 @@ export default function KnowledgeBase() {
                           <div className="relative group/preview my-1">
                             <img
                               src={previewUrl}
-                              alt="Print Preview"
+                              alt="File Preview"
                               className="max-h-28 rounded-lg object-contain border border-[var(--border-subtle)] shadow-sm bg-black/20"
                             />
                             <button
@@ -374,7 +421,7 @@ export default function KnowledgeBase() {
                                 setFileValue(null);
                               }}
                               className="absolute -top-2 -right-2 bg-rose-500 hover:bg-rose-600 text-white rounded-full p-1 shadow-md transition-colors"
-                              title="Remover print"
+                              title="Remover arquivo"
                             >
                               <X size={12} />
                             </button>
@@ -391,10 +438,10 @@ export default function KnowledgeBase() {
                       <div className="flex flex-col items-center gap-2">
                         <Upload size={22} className="text-[var(--text-muted)]" />
                         <p className="text-[12px] font-semibold text-[var(--text-primary)]">
-                          Arraste, clique ou cole com <span className="text-[var(--clr-primary)] font-bold">Ctrl+V</span>
+                          Arraste ou clique para selecionar
                         </p>
                         <p className="text-[10px] text-[var(--text-muted)]">
-                          Prints de tela, PDF, DOCX, TXT, Imagens · Máx. 10MB
+                          PDF, DOCX, TXT, Imagens · Máx. 10MB
                         </p>
                       </div>
                     )}
@@ -412,10 +459,10 @@ export default function KnowledgeBase() {
               )}
 
               <button type="submit"
-                disabled={submitting || (activeTab === "arquivo" ? !fileValue : !inputValue.trim())}
+                disabled={submitting || ((activeTab === "arquivo" || activeTab === "print") ? !fileValue : !inputValue.trim())}
                 className="btn-primary w-full flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
                 {submitting ? <Loader2 size={15} className="animate-spin" /> : <BookOpen size={15} />}
-                {submitting ? "Processando..." : "Adicionar à Base"}
+                {submitting ? "Processando..." : (activeTab === "print" ? "Processar Print com IA" : "Adicionar à Base")}
               </button>
             </form>
           </div>
