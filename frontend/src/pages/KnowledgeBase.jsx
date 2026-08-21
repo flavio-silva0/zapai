@@ -90,6 +90,7 @@ export default function KnowledgeBase() {
   const [activeTab, setActiveTab] = useState("texto");
   const [inputValue, setInputValue] = useState("");
   const [fileValue, setFileValue] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -99,6 +100,48 @@ export default function KnowledgeBase() {
   const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => { fetchKnowledge(); }, []);
+
+  // Thumbnail preview para imagens ou prints colados
+  useEffect(() => {
+    if (fileValue && (fileValue.type?.startsWith("image/") || fileValue.name?.match(/\.(jpg|jpeg|png|webp|gif)$/i))) {
+      const url = URL.createObjectURL(fileValue);
+      setPreviewUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setPreviewUrl(null);
+    }
+  }, [fileValue]);
+
+  // Listener para Ctrl+V (colar prints direto da área de transferência)
+  useEffect(() => {
+    const handlePaste = (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type && item.type.indexOf("image") !== -1) {
+          e.preventDefault();
+          const blob = item.getAsFile();
+          if (blob) {
+            const now = new Date();
+            const timeStr = `${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
+            const file = new File([blob], `print_colado_${timeStr}.png`, { type: blob.type || "image/png" });
+            setFileValue(file);
+            setActiveTab("arquivo");
+            setMessage({
+              type: "success",
+              text: "📸 Print colado com sucesso! Clique em 'Adicionar à Base' para a IA ler e memorizar.",
+            });
+            return;
+          }
+        }
+      }
+    };
+
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, []);
 
   const fetchKnowledge = async () => {
     try {
@@ -265,6 +308,9 @@ export default function KnowledgeBase() {
                 >
                   <Icon size={12} />
                   {label}
+                  {id === "arquivo" && (
+                    <span className="text-[9px] px-1 py-0.5 rounded bg-white/20 font-mono">Ctrl+V</span>
+                  )}
                 </button>
               ))}
             </div>
@@ -306,7 +352,7 @@ export default function KnowledgeBase() {
               {activeTab === "arquivo" && (
                 <div>
                   <div
-                    className={`rounded-xl border-2 border-dashed p-6 text-center transition-all cursor-pointer ${isDragging ? "border-[var(--clr-primary)] bg-[var(--clr-primary)]/10" : "border-[var(--border-medium)] bg-[var(--bg-surface-hover)]"}`}
+                    className={`rounded-xl border-2 border-dashed p-5 text-center transition-all cursor-pointer relative ${isDragging ? "border-[var(--clr-primary)] bg-[var(--clr-primary)]/10" : "border-[var(--border-medium)] bg-[var(--bg-surface-hover)]"}`}
                     onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
                     onDragLeave={() => setIsDragging(false)}
                     onDrop={handleDrop}
@@ -314,8 +360,29 @@ export default function KnowledgeBase() {
                   >
                     {fileValue ? (
                       <div className="flex flex-col items-center gap-2">
-                        <File size={24} className="text-[var(--clr-primary)]" />
-                        <p className="text-[12px] font-semibold text-[var(--text-primary)]">{fileValue.name}</p>
+                        {previewUrl ? (
+                          <div className="relative group/preview my-1">
+                            <img
+                              src={previewUrl}
+                              alt="Print Preview"
+                              className="max-h-28 rounded-lg object-contain border border-[var(--border-subtle)] shadow-sm bg-black/20"
+                            />
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setFileValue(null);
+                              }}
+                              className="absolute -top-2 -right-2 bg-rose-500 hover:bg-rose-600 text-white rounded-full p-1 shadow-md transition-colors"
+                              title="Remover print"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        ) : (
+                          <File size={24} className="text-[var(--clr-primary)]" />
+                        )}
+                        <p className="text-[12px] font-semibold text-[var(--text-primary)] truncate max-w-[220px]">{fileValue.name}</p>
                         <p className="text-[10px] text-[var(--text-muted)]">
                           {(fileValue.size / 1024).toFixed(0)} KB
                         </p>
@@ -323,13 +390,17 @@ export default function KnowledgeBase() {
                     ) : (
                       <div className="flex flex-col items-center gap-2">
                         <Upload size={22} className="text-[var(--text-muted)]" />
-                        <p className="text-[12px] font-semibold text-[var(--text-primary)]">Arraste ou clique para enviar</p>
-                        <p className="text-[10px] text-[var(--text-muted)]">PDF, DOCX, TXT, Imagens · Máx. 10MB</p>
+                        <p className="text-[12px] font-semibold text-[var(--text-primary)]">
+                          Arraste, clique ou cole com <span className="text-[var(--clr-primary)] font-bold">Ctrl+V</span>
+                        </p>
+                        <p className="text-[10px] text-[var(--text-muted)]">
+                          Prints de tela, PDF, DOCX, TXT, Imagens · Máx. 10MB
+                        </p>
                       </div>
                     )}
                   </div>
                   <input id="file-upload" type="file" className="hidden"
-                    accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+                    accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.webp"
                     onChange={e => setFileValue(e.target.files[0])} />
                 </div>
               )}

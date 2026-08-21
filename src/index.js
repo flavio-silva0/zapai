@@ -487,9 +487,8 @@ function shouldSkipRecentTurn(patientId, text) {
 // ── 5. FUNÇÕES SUPABASE ──────────────────────────────────────
 async function getOrCreatePatient(telefone, nome = "Contato", tenantId = null) {
   // Busca pela combinação de telefone + tenant_id (se houver isolamento por número)
-  // No momento, pacientes são ligados a um telefone.
-  const query = supabase.from("users_whatsapp").select("*").eq("telefone", telefone);
-  if (tenantId) query.eq("tenant_id", tenantId);
+  let query = supabase.from("users_whatsapp").select("*").eq("telefone", telefone);
+  if (tenantId) query = query.eq("tenant_id", tenantId);
 
   const { data } = await query.limit(1).maybeSingle();
   if (data) return data;
@@ -500,7 +499,30 @@ async function getOrCreatePatient(telefone, nome = "Contato", tenantId = null) {
     .select()
     .single();
 
-  if (error) throw new Error(`Erro ao criar lead: ${error.message}`);
+  if (error) {
+    // Se deu erro de duplicidade (concorrência ou constraint de telefone global no banco),
+    // tenta recuperar o registro existente
+    let fallbackQuery = supabase.from("users_whatsapp").select("*").eq("telefone", telefone);
+    if (tenantId) fallbackQuery = fallbackQuery.eq("tenant_id", tenantId);
+    let { data: fallback } = await fallbackQuery.limit(1).maybeSingle();
+
+    if (!fallback) {
+      // Se não encontrou com tenant_id, busca qualquer um com esse telefone
+      const { data: anyLead } = await supabase.from("users_whatsapp").select("*").eq("telefone", telefone).limit(1).maybeSingle();
+      if (anyLead) {
+        if (tenantId && (!anyLead.tenant_id || anyLead.tenant_id !== tenantId)) {
+          await supabase.from("users_whatsapp").update({ tenant_id: tenantId, ...(nome && nome !== "Contato" ? { nome } : {}) }).eq("id", anyLead.id);
+          anyLead.tenant_id = tenantId;
+          if (nome && nome !== "Contato") anyLead.nome = nome;
+        }
+        return anyLead;
+      }
+    } else {
+      return fallback;
+    }
+
+    throw new Error(`Erro ao criar lead: ${error.message}`);
+  }
   return novo;
 }
 
@@ -895,6 +917,17 @@ app.use(express.json({ limit: "10mb" }));
 // Now require routers (after possible TEST_MODE injection)
 const authRouter = require("./routes/auth");
 const adminRouter = require("./routes/admin");
+const { requireAuth } = require("./middleware/authMiddleware");
+
+function getReqTenantId(req) {
+  if (req.user) {
+    if (req.user.role === "super_admin") {
+      return req.query?.tenantId || req.headers?.["x-tenant-id"] || req.user.tenantId || null;
+    }
+    return req.user.tenantId || null;
+  }
+  return req.query?.tenantId || req.headers?.["x-tenant-id"] || null;
+}
 
 app.get("/health", (_req, res) => {
   res.json({
@@ -918,12 +951,27 @@ app.get("/api/config", (req, res) => {
   });
 });
 
-app.get("/api/stats", async (_req, res) => {
-  const { data: patients = [] } = await supabase.from("users_whatsapp").select("status_kanban, is_ai_active");
-  const { count: totalMensagens } = await supabase.from("messages").select("*", { count: "exact", head: true });
+app.get("/api/stats", requireAuth, async (req, res) => {
+  const tenantId = getReqTenantId(req);
 
-  // Busca o número ativo conectado na API Meta para mostrar na sidebar
-  const { data: tenantInfo } = await supabase.from("tenants").select("clinic_phone").not("clinic_phone", "is", null).limit(1).maybeSingle();
+  let patientsQuery = supabase.from("users_whatsapp").select("status_kanban, is_ai_active");
+  let messagesQuery = supabase.from("messages").select("*", { count: "exact", head: true });
+  let tenantInfoQuery = supabase.from("tenants").select("clinic_phone");
+
+  if (tenantId) {
+    patientsQuery = patientsQuery.eq("tenant_id", tenantId);
+    messagesQuery = messagesQuery.eq("tenant_id", tenantId);
+    tenantInfoQuery = tenantInfoQuery.eq("id", tenantId);
+  } else {
+    tenantInfoQuery = tenantInfoQuery.not("clinic_phone", "is", null).limit(1);
+  }
+
+  const [{ data: patients = [] }, { count: totalMensagens }, { data: tenantInfo }] = await Promise.all([
+    patientsQuery,
+    messagesQuery,
+    tenantInfoQuery.maybeSingle(),
+  ]);
+
   const numeroConectado = tenantInfo?.clinic_phone || "Cloud API";
 
   res.json({
@@ -953,29 +1001,41 @@ app.get("/api/events", (req, res) => {
   req.on("close", () => { clearInterval(heartbeat); sseClients.delete(res); });
 });
 
-app.get("/api/patients", async (_req, res) => {
-  const { data, error } = await supabase.from("users_whatsapp").select("*").order("created_at", { ascending: false });
+app.get("/api/patients", requireAuth, async (req, res) => {
+  const tenantId = getReqTenantId(req);
+  let query = supabase.from("users_whatsapp").select("*");
+  if (tenantId) query = query.eq("tenant_id", tenantId);
+  const { data, error } = await query.order("created_at", { ascending: false });
   if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+  res.json(data || []);
 });
 
-app.get("/api/patients/:id/messages", async (req, res) => {
-  const { data, error } = await supabase.from("messages").select("*").eq("patient_id", req.params.id).order("created_at", { ascending: true });
+app.get("/api/patients/:id/messages", requireAuth, async (req, res) => {
+  const tenantId = getReqTenantId(req);
+  let query = supabase.from("messages").select("*").eq("patient_id", req.params.id);
+  if (tenantId) query = query.eq("tenant_id", tenantId);
+  const { data, error } = await query.order("created_at", { ascending: true });
   if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+  res.json(data || []);
 });
 
-app.put("/api/patients/:id/status", async (req, res) => {
+app.put("/api/patients/:id/status", requireAuth, async (req, res) => {
   const { status_kanban } = req.body;
-  const { data, error } = await supabase.from("users_whatsapp").update({ status_kanban }).eq("id", req.params.id).select().single();
+  const tenantId = getReqTenantId(req);
+  let query = supabase.from("users_whatsapp").update({ status_kanban }).eq("id", req.params.id);
+  if (tenantId) query = query.eq("tenant_id", tenantId);
+  const { data, error } = await query.select().single();
   if (error) return res.status(500).json({ error: error.message });
   emitirEvento("patient_updated", data);
   res.json(data);
 });
 
-app.put("/api/patients/:id/ai-status", async (req, res) => {
+app.put("/api/patients/:id/ai-status", requireAuth, async (req, res) => {
   const { is_ai_active } = req.body;
-  const { data, error } = await supabase.from("users_whatsapp").update({ is_ai_active }).eq("id", req.params.id).select().single();
+  const tenantId = getReqTenantId(req);
+  let query = supabase.from("users_whatsapp").update({ is_ai_active }).eq("id", req.params.id);
+  if (tenantId) query = query.eq("tenant_id", tenantId);
+  const { data, error } = await query.select().single();
   if (error) return res.status(500).json({ error: error.message });
   emitirEvento("patient_updated", data);
   res.json(data);
@@ -1188,15 +1248,18 @@ async function sendAndSaveBotMessage({ patient, telefoneUsuario, text, tenant, c
   return msgBot;
 }
 
-app.post("/api/patients/:id/send", async (req, res) => {
+app.post("/api/patients/:id/send", requireAuth, async (req, res) => {
   const { texto } = req.body;
   if (!texto?.trim()) return res.status(400).json({ error: "texto obrigatório" });
 
-  const { data: patient, error: pErr } = await supabase
+  const tenantId = getReqTenantId(req);
+  let query = supabase
     .from("users_whatsapp")
     .select("*, tenants(id, phone_number_id, wa_access_token)")
-    .eq("id", req.params.id).single();
+    .eq("id", req.params.id);
+  if (tenantId) query = query.eq("tenant_id", tenantId);
 
+  const { data: patient, error: pErr } = await query.single();
   if (pErr || !patient) return res.status(404).json({ error: "Contato não encontrado" });
 
   try {
@@ -1440,8 +1503,7 @@ app.post("/webhook/whatsapp", async (req, res) => {
             respostaObj = await consultarGeminiDinamicamente(historico, payloadModel, tenant, patient.ai_memory);
           } catch (e) {
             console.error(`❌ [GEMINI ERROR] Falha ao processar IA: ${e.message}`);
-            // Appending error message for debugging
-            const fallback = "Tive uma instabilidade aqui (Erro Interno: " + e.message + ")";
+            const fallback = getSafeFallback(combinedTexto);
             try {
               await sendAndSaveBotMessage({
                 patient,
