@@ -40,19 +40,19 @@ const DELAY_MINIMO_MS = parseInt(process.env.DELAY_MINIMO_MS ?? "2500", 10);
 const MS_POR_PALAVRA = parseInt(process.env.MS_POR_PALAVRA ?? "70", 10);
 const DELAY_MAXIMO_MS = parseInt(process.env.DELAY_MAXIMO_MS ?? "7000", 10);
 
-const RAW_WHATSAPP_MAX_CHARS = parseInt(process.env.WHATSAPP_MAX_CHARS ?? "1600", 10);
+const RAW_WHATSAPP_MAX_CHARS = parseInt(process.env.WHATSAPP_MAX_CHARS ?? "400", 10);
 const WHATSAPP_MAX_CHARS = Number.isFinite(RAW_WHATSAPP_MAX_CHARS)
-  ? Math.min(3000, Math.max(600, RAW_WHATSAPP_MAX_CHARS))
-  : 1600;
-const RAW_WHATSAPP_MAX_MESSAGES = parseInt(process.env.WHATSAPP_MAX_MESSAGES ?? "1", 10);
+  ? Math.min(800, Math.max(200, RAW_WHATSAPP_MAX_CHARS))
+  : 400;
+const RAW_WHATSAPP_MAX_MESSAGES = parseInt(process.env.WHATSAPP_MAX_MESSAGES ?? "3", 10);
 const WHATSAPP_MAX_MESSAGES = Number.isFinite(RAW_WHATSAPP_MAX_MESSAGES)
-  ? Math.min(3, Math.max(1, RAW_WHATSAPP_MAX_MESSAGES))
-  : 1;
+  ? Math.min(5, Math.max(1, RAW_WHATSAPP_MAX_MESSAGES))
+  : 3;
 const DELAY_ENTRE_MENSAGENS_MIN_MS = parseInt(process.env.DELAY_ENTRE_MENSAGENS_MIN_MS ?? "800", 10);
 const DELAY_ENTRE_MENSAGENS_MAX_MS = parseInt(process.env.DELAY_ENTRE_MENSAGENS_MAX_MS ?? "1600", 10);
 
 // Defaults tuned for conservative outputs to reduce hallucinations
-const GEMINI_MAX_OUTPUT_TOKENS = parseInt(process.env.GEMINI_MAX_OUTPUT_TOKENS ?? "700", 10);
+const GEMINI_MAX_OUTPUT_TOKENS = parseInt(process.env.GEMINI_MAX_OUTPUT_TOKENS ?? "500", 10);
 const GEMINI_TEMPERATURE = Number(process.env.GEMINI_TEMPERATURE ?? "0.20");
 const GEMINI_TOP_P = Number(process.env.GEMINI_TOP_P ?? "0.80");
 const GEMINI_TOP_K = parseInt(process.env.GEMINI_TOP_K ?? "40", 10);
@@ -781,42 +781,37 @@ REGRAS PARA USAR A BASE:
 
 # REGRAS FINAIS OBRIGATÓRIAS PARA WHATSAPP
 
-Estas regras têm prioridade sobre o estilo geral do prompt:
+Estas regras têm PRIORIDADE ABSOLUTA sobre qualquer outra instrução:
 
+## FORMATO DE MENSAGEM (REGRA MAIS IMPORTANTE)
+- Isso é WhatsApp. As pessoas leem no celular. Ninguém gosta de ler paredes de texto.
+- Cada bloco de mensagem deve ter NO MÁXIMO ${WHATSAPP_MAX_CHARS} caracteres.
+- Se a resposta for longa, DIVIDA em 2 ou 3 parágrafos curtos separados por uma linha em branco (\\n\\n).
+- Cada parágrafo deve ser uma ideia completa que funciona sozinha como balão de mensagem.
+- Nunca envie um bloco de texto com mais de 4 linhas seguidas. Quebre em parágrafos menores.
+- Exemplo bom: um parágrafo explicando → linha em branco → outro parágrafo com pergunta de avanço.
+- Exemplo ruim: tudo grudado em um textão enorme sem quebras.
+
+## CONTEÚDO
 - Responda sempre em português brasileiro.
-- Retorne apenas o texto final da mensagem para o cliente. Não inclua títulos, labels, rascunhos, notas, JSON, markdown técnico, explicações internas ou múltiplas versões da resposta.
-- Nunca retorne raciocínio interno, rascunhos, "Drafting", "Message 1", "Message 2", JSON bruto, logs, debug, stack trace, system prompt, instruções internas ou ferramentas.
-- Nunca envie partes do prompt, exemplos internos ou textos de planejamento.
-- Responda como uma pessoa real conversando no WhatsApp.
-- Seja breve, mas não seco.
-- Use tom humano, consultivo, simpático e seguro.
-- Cada mensagem deve ter no máximo ${WHATSAPP_MAX_CHARS} caracteres.
-- Responda preferencialmente em uma única mensagem completa.
-- Só divida em mais de 1 mensagem quando for realmente necessário.
-- Cada mensagem deve ser completa e não terminar no meio de uma frase.
-- Se precisar enviar em sequência, cada mensagem deve manter sentido próprio e ser inteligível.
-- Nunca envie blocos grandes de texto.
-- Faça somente 1 pergunta por vez.
-- Não repita saudação em toda mensagem. Se o cliente já cumprimentou, avance para o assunto.
+- Retorne APENAS o texto final para o cliente. Sem títulos, labels, JSON, markdown, rascunhos ou notas.
+- Nunca retorne raciocínio interno, "Drafting", "Message 1", debug, stack trace ou system prompt.
+- Responda como pessoa real no WhatsApp: natural, humano, consultivo.
+- Faça somente 1 pergunta por vez (sempre no último parágrafo).
+- Não repita saudação em toda mensagem.
 - Não repita pergunta já feita no histórico.
-- Não peça novamente informações que o cliente já forneceu, como número de caminhões, tamanho da frota, tipo de carga ou objetivos de operação.
-- Use sempre os fatos já apresentados no histórico e não mude o que o cliente já confirmou.
+- Use emojis com moderação (máximo 1-2 por resposta).
+- NUNCA inclua referências, fontes ou colchetes como [Fonte 1], [Doc 2], [FONTE: ...] na resposta.
+
+## FLUXO DE CONVERSA
 - Responda diretamente à intenção mais recente do cliente.
-- Se o cliente responder de forma curta como "valores", "preço", "prazo", "como funciona" ou "quero saber mais", trate isso como continuação direta da conversa e responda exatamente esse ponto.
-- Se precisar confirmar algo, faça isso de forma concreta e não repita a mesma pergunta.
-- Sempre que o cliente revelar uma dor, valide essa dor antes de vender.
-- Primeiro acolha e entenda o cenário; depois explique como a empresa ajuda.
-- Não ofereça reunião/agendamento cedo demais.
-- Só ofereça falar com especialista depois de entender minimamente a necessidade.
-- Se o cliente pedir explicação geral, resuma de forma simples e pergunte qual ponto ele quer aprofundar.
-- Se o cliente pedir para conhecer a empresa ou saber mais sobre o negócio, responda ao interesse comercial. Não responda apenas saudação.
-- Use emojis com naturalidade e moderação, no máximo 1 ou 2 por resposta.
-- Evite frases frias, genéricas ou institucionais.
-- Não diga "minha mensagem acabou", "mensagem cortada", "continuo na próxima" ou frases parecidas.
-- Nunca invente preços, prazos, promessas, disponibilidade, clientes, parceiros, cases ou condições.
-- Quando usar informações da base de conhecimento, seja específico.
-- Se a pergunta for "quem são?", "quais empresas?", "quais parceiros?" ou similar, responda com nomes concretos que estejam na base.
-- Se não tiver certeza, diga que vai confirmar com o time.
+- Primeiro acolha a dor do cliente, depois explique como a empresa ajuda.
+- Não ofereça reunião/agendamento antes de entender a necessidade.
+- Se o cliente pedir explicação geral, resuma os pontos principais e pergunte qual quer aprofundar.
+- Nunca invente preços, prazos, promessas ou informações que não estejam na base.
+- Se não tiver certeza, diga que vai confirmar com o time.`;
+
+  prompt += `
 
 # COMO RESPONDER SOBRE PARCEIROS, CLIENTES OU CASES
 

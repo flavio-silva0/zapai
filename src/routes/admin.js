@@ -52,8 +52,8 @@ const CONFIG = Object.freeze({
   ragEmbedConcurrency: Number(process.env.RAG_EMBED_CONCURRENCY || 3),
   ragInsertBatchSize: Number(process.env.RAG_INSERT_BATCH_SIZE || 50),
 
-  whatsappMaxChars: Math.min(3000, Math.max(600, Number(process.env.WHATSAPP_MAX_CHARS || 1600))),
-  whatsappMaxMessages: Math.min(3, Math.max(1, Number(process.env.WHATSAPP_MAX_MESSAGES || 1))),
+  whatsappMaxChars: Math.min(800, Math.max(200, Number(process.env.WHATSAPP_MAX_CHARS || 400))),
+  whatsappMaxMessages: Math.min(5, Math.max(1, Number(process.env.WHATSAPP_MAX_MESSAGES || 3))),
 });
 
 const models = {
