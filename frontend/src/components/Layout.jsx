@@ -88,7 +88,7 @@ export default function Layout() {
         {/* ── Logo ── */}
         <div className="px-5 pt-5 pb-4 border-b border-[var(--border-medium)]">
           <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center gap-3 group w-fit">
+            <Link to="/painel" className="flex items-center gap-3 group w-fit" aria-label="ZapAI Painel Principal">
               <div className="relative">
                 <div className="w-9 h-9 rounded-xl bg-brand-gradient flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform duration-200"
                   style={{ background: "linear-gradient(135deg, var(--clr-primary), var(--clr-info))" }}>

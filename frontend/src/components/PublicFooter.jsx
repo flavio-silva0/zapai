@@ -46,6 +46,8 @@ export default function PublicFooter() {
           <div className="flex flex-col gap-3">
             <Link
               to="/login"
+              target="_blank"
+              rel="noopener noreferrer"
               className="px-4 py-2.5 text-center rounded-lg border border-[#444] text-white text-sm font-medium hover:bg-[#333] transition"
             >
               Entrar

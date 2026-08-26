@@ -69,6 +69,8 @@ export default function PublicNavbar() {
         <div className="hidden md:flex items-center gap-4">
           <Link
             to="/login"
+            target="_blank"
+            rel="noopener noreferrer"
             className="text-sm font-semibold text-[#555] hover:text-[#1a1a1a] transition-colors"
           >
             Entrar
@@ -108,6 +110,8 @@ export default function PublicNavbar() {
             <div className="mt-4 pt-6 border-t border-[#e8e5e0] flex flex-col gap-3">
               <Link
                 to="/login"
+                target="_blank"
+                rel="noopener noreferrer"
                 onClick={() => setMobileOpen(false)}
                 className="px-4 py-3 text-center rounded-xl border border-[#e8e5e0] text-[#1a1a1a] font-semibold hover:bg-[#f0eeeb] transition"
               >
