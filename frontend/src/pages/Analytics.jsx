@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   TrendingUp, MessageSquare, Clock, Star, Download,
-  BarChart2, ArrowUp, ArrowDown, Users, Zap, RefreshCw
+  BarChart2, ArrowUp, ArrowDown, Users, Zap, RefreshCw, Activity
 } from "lucide-react";
 import { apiFetch } from "../api";
 
