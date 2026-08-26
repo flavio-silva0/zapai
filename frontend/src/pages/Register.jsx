@@ -78,30 +78,35 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row font-body bg-white">
+    <div className="min-h-screen flex flex-col lg:flex-row font-body bg-[var(--bg-base)] text-[var(--text-primary)]">
 
       {/* ══════════════════════════════════════════════════════
-          ESQUERDA — FORMULÁRIO (Branco)
+          ESQUERDA — FORMULÁRIO
       ══════════════════════════════════════════════════════ */}
-      <div className="flex-1 flex flex-col justify-center px-8 lg:px-16 py-12">
+      <div className="flex-1 flex flex-col justify-center px-8 lg:px-16 py-12 bg-[var(--bg-surface)] border-r border-[var(--border-subtle)]">
         <div className="w-full max-w-sm mx-auto">
           
           <Link to="/" className="inline-block mb-10">
             <img 
               src="/zapai-logo-dark.png" 
               alt="ZapAI Logo" 
-              className="h-9 w-auto object-contain" 
+              className="h-9 w-auto object-contain block dark:hidden" 
+            />
+            <img 
+              src="/zapai-logo-light.png" 
+              alt="ZapAI Logo" 
+              className="h-9 w-auto object-contain hidden dark:block" 
             />
           </Link>
 
-          <h1 className="text-3xl font-black text-slate-900 mb-2 tracking-tight">Crie sua conta</h1>
-          <p className="text-slate-600 mb-10 text-sm">
+          <h1 className="text-3xl font-black text-[var(--text-primary)] mb-2 tracking-tight">Crie sua conta</h1>
+          <p className="text-[var(--text-secondary)] mb-10 text-sm">
             Sem cartão de crédito necessário para iniciar.
           </p>
 
           <form onSubmit={step === 1 ? (e) => { e.preventDefault(); avancarStep(); } : handleSubmit} className="space-y-5">
             {error && (
-              <div className="bg-rose-50 border border-rose-200 text-rose-700 p-4 rounded-lg text-sm font-medium">
+              <div className="bg-rose-500/10 border border-rose-500/30 text-rose-500 p-4 rounded-xl text-sm font-medium">
                 {error}
               </div>
             )}
@@ -109,7 +114,7 @@ export default function Register() {
             {step === 1 && (
               <div className="space-y-5 animate-fade-up">
                 <div>
-                  <label htmlFor="reg-nome" className="block text-sm font-bold text-slate-900 mb-1.5">Seu nome completo</label>
+                  <label htmlFor="reg-nome" className="block text-sm font-bold text-[var(--text-primary)] mb-1.5">Seu nome completo</label>
                   <input
                     id="reg-nome"
                     name="nome"
@@ -122,7 +127,7 @@ export default function Register() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="reg-email" className="block text-sm font-bold text-slate-900 mb-1.5">E-mail corporativo</label>
+                  <label htmlFor="reg-email" className="block text-sm font-bold text-[var(--text-primary)] mb-1.5">E-mail corporativo</label>
                   <input
                     id="reg-email"
                     name="email"
@@ -135,7 +140,7 @@ export default function Register() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="reg-password" className="block text-sm font-bold text-slate-900 mb-1.5">Senha de acesso</label>
+                  <label htmlFor="reg-password" className="block text-sm font-bold text-[var(--text-primary)] mb-1.5">Senha de acesso</label>
                   <input
                     id="reg-password"
                     name="password"
@@ -147,7 +152,7 @@ export default function Register() {
                     className="input-premium"
                   />
                 </div>
-                <button type="submit" className="btn-primary w-full mt-4 h-12">
+                <button type="submit" className="btn-primary w-full mt-4 h-12 font-semibold shadow-md shadow-cyan-500/20">
                   Continuar
                 </button>
               </div>
@@ -156,7 +161,7 @@ export default function Register() {
             {step === 2 && (
               <div className="space-y-5 animate-fade-up">
                 <div>
-                  <label htmlFor="reg-business" className="block text-sm font-bold text-slate-900 mb-1.5">Nome da Empresa</label>
+                  <label htmlFor="reg-business" className="block text-sm font-bold text-[var(--text-primary)] mb-1.5">Nome da Empresa</label>
                   <input
                     id="reg-business"
                     name="businessName"
@@ -169,25 +174,25 @@ export default function Register() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="reg-nicho" className="block text-sm font-bold text-slate-900 mb-1.5">Segmento Principal</label>
+                  <label htmlFor="reg-nicho" className="block text-sm font-bold text-[var(--text-primary)] mb-1.5">Segmento Principal</label>
                   <select
                     id="reg-nicho"
                     name="nicho"
                     value={form.nicho}
                     onChange={update("nicho")}
-                    className="input-premium text-slate-700 cursor-pointer"
+                    className="input-premium cursor-pointer"
                   >
                     {NICHOS.map((n) => (
-                      <option key={n.value} value={n.value}>{n.label}</option>
+                      <option key={n.value} value={n.value} className="bg-[var(--bg-surface)] text-[var(--text-primary)]">{n.label}</option>
                     ))}
                   </select>
                 </div>
                 
                 <div className="flex gap-3 pt-2">
-                  <button type="button" onClick={() => setStep(1)} className="btn-outline flex-1 h-12">
+                  <button type="button" onClick={() => setStep(1)} className="btn-outline flex-1 h-12 font-semibold">
                     Voltar
                   </button>
-                  <button type="submit" disabled={loading} className="btn-primary flex-[2] h-12">
+                  <button type="submit" disabled={loading} className="btn-primary flex-[2] h-12 font-semibold shadow-md shadow-cyan-500/20">
                     {loading ? "Criando ambiente..." : "Finalizar cadastro"}
                   </button>
                 </div>
@@ -195,9 +200,9 @@ export default function Register() {
             )}
           </form>
 
-          <div className="mt-8 text-center text-sm text-slate-600">
+          <div className="mt-8 text-center text-sm text-[var(--text-secondary)]">
             Já possui uma conta?{" "}
-            <Link to="/login" className="font-bold text-slate-900 hover:underline">
+            <Link to="/login" className="font-bold text-[var(--clr-primary)] hover:underline">
               Fazer login
             </Link>
           </div>

@@ -1,17 +1,19 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   TrendingUp, MessageSquare, Clock, Star, Download,
   BarChart2, ArrowUp, ArrowDown, Users, Zap, RefreshCw
 } from "lucide-react";
+import { apiFetch } from "../api";
 
 // Line Chart SVG
-function LineChart({ data, color = "#7c3aed" }) {
+function LineChart({ data, color = "#06b6d4" }) {
+  const safeData = data && data.length > 1 ? data : [0, 0];
   const w = 100, h = 60;
-  const max = Math.max(...data, 1);
-  const min = Math.min(...data);
+  const max = Math.max(...safeData, 1);
+  const min = Math.min(...safeData);
   const range = max - min || 1;
-  const points = data.map((v, i) => {
-    const x = (i / (data.length - 1)) * w;
+  const points = safeData.map((v, i) => {
+    const x = (i / (safeData.length - 1)) * w;
     const y = h - ((v - min) / range) * (h - 8) - 4;
     return `${x},${y}`;
   }).join(" ");
@@ -20,12 +22,12 @@ function LineChart({ data, color = "#7c3aed" }) {
   return (
     <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-full" preserveAspectRatio="none">
       <defs>
-        <linearGradient id={`grad-${color.replace("#","")}`} x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id={`grad-${color.replace(/[^a-zA-Z0-9]/g, "")}`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.3" />
           <stop offset="100%" stopColor={color} stopOpacity="0" />
         </linearGradient>
       </defs>
-      <polygon points={fillPoints} fill={`url(#grad-${color.replace("#","")})`} />
+      <polygon points={fillPoints} fill={`url(#grad-${color.replace(/[^a-zA-Z0-9]/g, "")})`} />
       <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -36,13 +38,18 @@ function DonutChart({ segments, size = 100 }) {
   const radius = 38;
   const circumference = 2 * Math.PI * radius;
   const cx = size / 2, cy = size / 2;
+  const total = segments.reduce((acc, s) => acc + s.value, 0);
 
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="transform -rotate-90">
-      <circle cx={cx} cy={cy} r={radius} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="10" />
+      <circle cx={cx} cy={cy} r={radius} fill="none" stroke="currentColor" className="text-[var(--border-subtle)]" strokeWidth="10" />
       {segments.map((seg, i) => {
-        const dashArray = (seg.pct / 100) * circumference;
-        const currentOffset = segments.slice(0, i).reduce((acc, s) => acc + ((s.pct / 100) * circumference), 0);
+        const pct = total > 0 ? (seg.value / total) * 100 : 0;
+        const dashArray = (pct / 100) * circumference;
+        const currentOffset = segments.slice(0, i).reduce((acc, s) => {
+          const sPct = total > 0 ? (s.value / total) * 100 : 0;
+          return acc + (sPct / 100) * circumference;
+        }, 0);
         return (
           <circle
             key={i}
@@ -62,24 +69,17 @@ function DonutChart({ segments, size = 100 }) {
 }
 
 // Metric card with sparkline
-function MetricCard({ label, value, change, changeUp, sparkData, color, icon: Icon }) {
+function MetricCard({ label, value, subtext, sparkData, color, icon: Icon }) {
   return (
-    <div className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl p-5 relative overflow-hidden transition-all hover:shadow-lg hover:border-[var(--border-strong)] animate-fade-up">
-      <div className="absolute inset-0 rounded-2xl opacity-0 hover:opacity-100 transition-opacity"
-        style={{ background: `radial-gradient(ellipse at top right, ${color}15, transparent 70%)` }} />
+    <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-5 relative overflow-hidden transition-all hover:shadow-md animate-fade-up">
       <div className="relative">
         <div className="flex items-start justify-between mb-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-            style={{ background: `${color}22`, border: `1px solid ${color}33`, color: "var(--text-primary)" }}>
-            <Icon size={16} style={{ color }} />
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-[var(--clr-primary)]/15 text-[var(--clr-primary)]">
+            <Icon size={16} />
           </div>
-          <span className={`text-[11px] font-bold flex items-center gap-0.5`}
-            style={{ color: changeUp ? "#06d6a0" : "#ef4444" }}>
-            {changeUp ? <ArrowUp size={10} /> : <ArrowDown size={10} />}
-            {change}
-          </span>
+          <span className="badge badge-brand text-[10px]">{subtext}</span>
         </div>
-        <p className="text-[11px] font-semibold uppercase tracking-wider mb-1" style={{ color: "var(--text-muted)" }}>
+        <p className="text-[11px] font-semibold uppercase tracking-wider mb-1 text-[var(--text-muted)]">
           {label}
         </p>
         <p className="font-display font-black text-2xl text-[var(--text-primary)] mb-3">{value}</p>
@@ -93,35 +93,81 @@ function MetricCard({ label, value, change, changeUp, sparkData, color, icon: Ic
 
 const PERIODS = ["7 dias", "30 dias", "90 dias"];
 
-const TOP_QUESTIONS = [
-  { q: "Qual é o horário de funcionamento?", count: 412, pct: 100 },
-  { q: "Como faço para agendar?", count: 287, pct: 70 },
-  { q: "Vocês aceitam cartão de crédito?", count: 234, pct: 57 },
-  { q: "Qual é o prazo de entrega?", count: 189, pct: 46 },
-  { q: "Posso cancelar meu pedido?", count: 143, pct: 35 },
-  { q: "Têm desconto para pagamento à vista?", count: 98, pct: 24 },
-  { q: "Como funciona a garantia?", count: 76, pct: 18 },
-];
-
-const VOLUME_DATA = [28, 42, 38, 55, 47, 51, 39, 62, 58, 44, 67, 71, 48, 55];
-const RESPONSE_DATA = [3.2, 2.8, 2.5, 2.1, 1.9, 2.2, 1.8, 1.7, 1.5, 1.9, 1.4, 1.8, 1.6, 1.7];
-const CSAT_DATA = [4.2, 4.5, 4.3, 4.6, 4.8, 4.7, 4.9, 4.6, 4.8, 4.7, 4.9, 4.8, 4.9, 4.8];
-
-const CSAT_SEGMENTS = [
-  { label: "Excelente", pct: 62, color: "#06d6a0" },
-  { label: "Bom", pct: 21, color: "#00d4ff" },
-  { label: "Regular", pct: 11, color: "#f59e0b" },
-  { label: "Ruim", pct: 6, color: "#ef4444" },
-];
-
 export default function Analytics() {
   const [period, setPeriod] = useState("7 dias");
+  const [stats, setStats] = useState(null);
+  const [patients, setPatients] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      apiFetch("/api/stats").then((r) => r.json()).catch(() => null),
+      apiFetch("/api/patients").then((r) => r.json()).catch(() => []),
+    ])
+      .then(([statsData, patientsData]) => {
+        setStats(statsData);
+        setPatients(Array.isArray(patientsData) ? patientsData : []);
+      })
+      .catch((err) => console.error("Erro analytics:", err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const total = stats?.total || 0;
+  const aiAtivo = stats?.aiAtivo || 0;
+  const resolucaoRate = total > 0 ? Math.round((aiAtivo / total) * 100) : 0;
+  const totalMensagens = stats?.totalMensagens || 0;
+
+  // Real volume for last 14 days
+  const dailyCounts = Array.from({ length: 14 }, (_, idx) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (13 - idx));
+    const dateStr = d.toISOString().split("T")[0];
+    const count = patients.filter((p) => p.created_at && p.created_at.startsWith(dateStr)).length;
+    return count;
+  });
+
+  const maxVolume = Math.max(...dailyCounts, 1);
+
+  const statusSegments = [
+    { label: "Auto-resolvido (IA)", value: stats?.aiAtivo || 0, color: "#06b6d4" },
+    { label: "Novos contatos", value: stats?.novo || 0, color: "#10b981" },
+    { label: "Em Atendimento", value: stats?.emAtendimento || 0, color: "#f59e0b" },
+    { label: "Agendados", value: stats?.agendado || 0, color: "#8b5cf6" },
+  ];
 
   const metrics = [
-    { label: "Volume de Conversas", value: "1.284", change: "+18%", changeUp: true, sparkData: VOLUME_DATA, color: "#7c3aed", icon: MessageSquare },
-    { label: "Resolução Automatizada", value: "72%", change: "+4.2%", changeUp: true, sparkData: [60, 65, 70, 68, 72, 69, 72], color: "#06d6a0", icon: Zap },
-    { label: "Tempo Médio de Resp.", value: "1m 42s", change: "-18s", changeUp: true, sparkData: RESPONSE_DATA, color: "#00d4ff", icon: Clock },
-    { label: "Satisfação (CSAT)", value: "4.8/5", change: "+0.3", changeUp: true, sparkData: CSAT_DATA, color: "#f59e0b", icon: Star },
+    {
+      label: "Volume de Atendimentos",
+      value: String(total),
+      subtext: "Total",
+      sparkData: dailyCounts.slice(-7),
+      color: "#06b6d4",
+      icon: MessageSquare,
+    },
+    {
+      label: "Resolução Automatizada",
+      value: `${resolucaoRate}%`,
+      subtext: `${aiAtivo} com IA`,
+      sparkData: [resolucaoRate, resolucaoRate],
+      color: "#10b981",
+      icon: Zap,
+    },
+    {
+      label: "Velocidade de Resposta",
+      value: "~3s",
+      subtext: "IA Oficial",
+      sparkData: [3, 3, 3, 3],
+      color: "#f59e0b",
+      icon: Clock,
+    },
+    {
+      label: "Total de Mensagens",
+      value: String(totalMensagens),
+      subtext: "Trocadas",
+      sparkData: dailyCounts,
+      color: "#8b5cf6",
+      icon: Activity,
+    },
   ];
 
   return (
@@ -176,41 +222,41 @@ export default function Analytics() {
       </div>
 
       {/* ── Volume Chart ── */}
-      <div className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl p-6 animate-fade-up delay-300">
+      <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-6 animate-fade-up delay-300">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-[var(--text-primary)] font-bold text-base">Volume de Conversas</h2>
-            <p className="text-[12px] mt-0.5" style={{ color: "var(--text-muted)" }}>
-              Distribuição diária no período selecionado
+            <p className="text-[12px] mt-0.5 text-[var(--text-muted)]">
+              Distribuição diária nos últimos 14 dias
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="badge badge-success text-[10px]">↑ 18% vs período anterior</span>
-          </div>
+          <span className="badge badge-brand text-[10px]">
+            {dailyCounts.reduce((a, b) => a + b, 0)} conversas no período
+          </span>
         </div>
 
         {/* Bar chart */}
         <div className="flex items-end gap-1.5 h-40">
-          {VOLUME_DATA.map((v, i) => {
-            const max = Math.max(...VOLUME_DATA);
-            const pct = (v / max) * 100;
-            const days = ["S","T","Q","Q","S","S","D","S","T","Q","Q","S","S","D"];
+          {dailyCounts.map((v, i) => {
+            const pct = (v / maxVolume) * 100;
             return (
               <div key={i} className="flex-1 flex flex-col items-center gap-1 group cursor-pointer">
+                <span className="text-[9px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity text-[var(--clr-primary)]">
+                  {v}
+                </span>
                 <div className="w-full relative group-hover:scale-y-105 transition-transform origin-bottom">
-                  <div className="rounded-t-lg w-full overflow-hidden relative"
-                    style={{ height: `${Math.max(pct, 4)}%`, minHeight: 4 }}>
-                    <div className="absolute inset-0 bar-animate"
-                      style={{
-                        background: i === VOLUME_DATA.length - 1
-                          ? "linear-gradient(to top, #7c3aed, #00d4ff)"
-                          : "linear-gradient(to top, rgba(124,58,237,0.7), rgba(0,212,255,0.5))",
-                        animationDelay: `${i * 50}ms`,
-                        animationFillMode: "both"
-                      }} />
+                  <div
+                    className="rounded-t-lg w-full overflow-hidden relative bg-[var(--border-subtle)]"
+                    style={{ height: `${Math.max(pct, 6)}%`, minHeight: 4 }}
+                  >
+                    {v > 0 && (
+                      <div
+                        className="absolute inset-0 bg-gradient-to-t from-[var(--clr-info)] to-[var(--clr-primary)]"
+                      />
+                    )}
                   </div>
                 </div>
-                <span className="text-[9px]" style={{ color: "var(--text-muted)" }}>{days[i]}</span>
+                <span className="text-[9px] text-[var(--text-muted)]">D{i + 1}</span>
               </div>
             );
           })}
@@ -219,106 +265,79 @@ export default function Analytics() {
 
       {/* ── Bottom Grid ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 pb-8">
-
-        {/* Top Questions */}
-        <div className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl p-6 animate-fade-up delay-400">
+        {/* Top Questions / Categorias */}
+        <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-6 animate-fade-up delay-400">
           <div className="flex items-center justify-between mb-5">
             <div>
               <h2 className="text-[var(--text-primary)] font-bold text-base">Perguntas Mais Frequentes</h2>
-              <p className="text-[12px] mt-0.5" style={{ color: "var(--text-muted)" }}>
-                O que seus clientes mais perguntam
+              <p className="text-[12px] mt-0.5 text-[var(--text-muted)]">
+                Agrupamento inteligente por IA
               </p>
             </div>
-            <MessageSquare size={16} style={{ color: "var(--text-muted)" }} />
+            <MessageSquare size={16} className="text-[var(--text-muted)]" />
           </div>
 
-          <div className="space-y-3">
-            {TOP_QUESTIONS.map((q, i) => (
-              <div key={i} className="space-y-1.5">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-start gap-2 flex-1 min-w-0">
-                    <span className="text-[11px] font-black shrink-0 mt-0.5 font-display"
-                      style={{ color: i === 0 ? "#a78bfa" : "var(--text-muted)" }}>
-                      #{i + 1}
-                    </span>
-                    <p className="text-[12px] truncate" style={{ color: "var(--text-primary)" }}>
-                      {q.q}
-                    </p>
-                  </div>
-                  <span className="text-[11px] font-bold shrink-0" style={{ color: "var(--text-muted)" }}>
-                    {q.count}
-                  </span>
+          {total > 0 ? (
+            <div className="space-y-3">
+              <div className="p-3.5 rounded-xl bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)]">
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="font-semibold text-[var(--text-primary)]">Dúvidas gerais de atendimento</span>
+                  <span className="font-bold text-[var(--clr-primary)]">{total} interações</span>
                 </div>
-                <div className="h-1.5 rounded-full overflow-hidden bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)]">
-                  <div
-                    className="h-full rounded-full bar-animate"
-                    style={{
-                      width: `${q.pct}%`,
-                      background: i === 0 ? "linear-gradient(90deg, #7c3aed, #00d4ff)" : "rgba(124,58,237,0.4)",
-                      animationDelay: `${i * 80}ms`,
-                      animationFillMode: "both"
-                    }}
-                  />
+                <div className="w-full bg-[var(--border-subtle)] h-1.5 rounded-full overflow-hidden">
+                  <div className="bg-[var(--clr-primary)] h-full rounded-full" style={{ width: "100%" }} />
                 </div>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* CSAT Widget */}
-        <div className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl p-6 animate-fade-up delay-500">
-          <div className="flex items-center justify-between mb-5">
-            <div>
-              <h2 className="text-[var(--text-primary)] font-bold text-base">Satisfação do Cliente</h2>
-              <p className="text-[12px] mt-0.5 text-[var(--text-muted)]">
-                CSAT — Customer Satisfaction Score
+            </div>
+          ) : (
+            <div className="py-10 text-center flex flex-col items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-[var(--clr-primary)]/10 text-[var(--clr-primary)] flex items-center justify-center mb-2">
+                <MessageSquare size={18} />
+              </div>
+              <p className="text-xs font-semibold text-[var(--text-primary)]">Sem dados de perguntas ainda</p>
+              <p className="text-[11px] text-[var(--text-muted)] max-w-xs mt-1 leading-relaxed">
+                As dúvidas mais frequentes dos clientes serão agrupadas automaticamente conforme as conversas forem ocorrendo via WhatsApp.
               </p>
             </div>
-            <Star size={16} style={{ color: "#f59e0b" }} />
+          )}
+        </div>
+
+        {/* Status Breakdown Widget */}
+        <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-6 animate-fade-up delay-500">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="text-[var(--text-primary)] font-bold text-base">Status dos Atendimentos</h2>
+              <p className="text-[12px] mt-0.5 text-[var(--text-muted)]">
+                Distribuição de contatos por estágio
+              </p>
+            </div>
+            <BarChart2 size={16} className="text-[var(--clr-primary)]" />
           </div>
 
           <div className="flex items-center gap-6">
             {/* Donut */}
             <div className="relative shrink-0">
-              <DonutChart segments={CSAT_SEGMENTS} size={120} />
+              <DonutChart segments={statusSegments} size={120} />
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="font-display font-black text-xl text-[var(--text-primary)]">4.8</span>
-                <span className="text-[10px] text-[var(--text-muted)]">/ 5.0</span>
+                <span className="font-display font-black text-xl text-[var(--text-primary)]">{total}</span>
+                <span className="text-[10px] text-[var(--text-muted)]">contatos</span>
               </div>
             </div>
 
             {/* Legend */}
             <div className="flex-1 space-y-2.5">
-              {CSAT_SEGMENTS.map((seg, i) => (
+              {statusSegments.map((seg, i) => (
                 <div key={i} className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: seg.color }} />
-                    <span className="text-[12px]" style={{ color: "var(--text-secondary)" }}>{seg.label}</span>
+                    <span className="text-[12px] text-[var(--text-secondary)]">{seg.label}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="h-1.5 rounded-full overflow-hidden bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)]" style={{ width: 60 }}>
-                      <div className="h-full rounded-full bar-animate" style={{ width: `${seg.pct}%`, background: seg.color }} />
-                    </div>
-                    <span className="text-[11px] font-bold w-8 text-right" style={{ color: "var(--text-muted)" }}>
-                      {seg.pct}%
-                    </span>
-                  </div>
+                  <span className="text-[12px] font-bold text-[var(--text-primary)]">
+                    {seg.value}
+                  </span>
                 </div>
               ))}
             </div>
-          </div>
-
-          {/* Stars display */}
-          <div className="mt-5 pt-4 flex items-center gap-2 border-t border-[var(--border-subtle)]">
-            <div className="flex gap-0.5">
-              {[1, 2, 3, 4, 5].map(s => (
-                <Star key={s} size={16} fill={s <= 4.8 ? "var(--clr-warning)" : "none"} className="text-[var(--clr-warning)]" />
-              ))}
-            </div>
-            <span className="text-[12px] font-semibold text-[var(--text-primary)]">4.8</span>
-            <span className="text-[12px] text-[var(--text-muted)]">
-              · Baseado em 1.284 avaliações no período
-            </span>
           </div>
         </div>
       </div>

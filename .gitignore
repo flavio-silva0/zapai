@@ -18,3 +18,7 @@ logs/
 # Sistema operacional
 .DS_Store
 Thumbs.db
+
+# Screenshots temporários
+screenshot_*.png
+

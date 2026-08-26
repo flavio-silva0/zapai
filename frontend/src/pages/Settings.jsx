@@ -77,14 +77,19 @@ export default function Settings() {
 
         {/* ── Sidebar Nav ── */}
         <div className="lg:w-52 shrink-0">
-          <div className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl p-2 lg:sticky lg:top-6">
+          <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-2 lg:sticky lg:top-6">
             {SECTIONS.map(({ id, label, icon: Icon }) => (
-              <button key={id} onClick={() => setActiveSection(id)}
-                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all mb-0.5 ${activeSection === id ? "bg-[var(--clr-primary)]/10 text-[var(--clr-primary)] border border-[var(--clr-primary)]/20" : "text-[var(--text-muted)] border border-transparent hover:bg-[var(--bg-surface-hover)]"}`}
+              <button
+                key={id}
+                onClick={() => setActiveSection(id)}
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] transition-all mb-0.5 ${
+                  activeSection === id
+                    ? "bg-[var(--clr-primary)]/12 text-[var(--clr-primary)] font-semibold shadow-xs"
+                    : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] font-medium"
+                }`}
               >
                 <Icon size={15} />
                 {label}
-                {activeSection === id && <ChevronRight size={12} className="ml-auto" />}
               </button>
             ))}
           </div>

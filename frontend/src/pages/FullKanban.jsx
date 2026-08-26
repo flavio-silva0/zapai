@@ -196,46 +196,28 @@ export default function FullKanban() {
                             onDragEnd={handleDragEnd}
                             onDoubleClick={() => handleDoubleClick(p.id)}
                             title="Arraste para mover · Duplo clique para abrir conversa"
-                            className="group rounded-xl p-4 cursor-grab active:cursor-grabbing select-none transition-all duration-150"
-                            style={{
-                              background: isDragging ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.04)",
-                              border: "1px solid rgba(255,255,255,0.07)",
-                              opacity: isDragging ? 0.4 : 1,
-                              transform: isDragging ? "scale(0.97)" : "scale(1)",
-                            }}
-                            onMouseEnter={(e) => {
-                              if (!isDragging) {
-                                e.currentTarget.style.background = "rgba(255,255,255,0.07)";
-                                e.currentTarget.style.borderColor = "rgba(99,102,241,0.3)";
-                                e.currentTarget.style.transform = "translateY(-2px)";
-                              }
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-                              e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)";
-                              e.currentTarget.style.transform = "scale(1)";
-                            }}
+                            className={`group rounded-xl p-4 cursor-grab active:cursor-grabbing select-none transition-all duration-150 bg-[var(--bg-surface)] border border-[var(--border-subtle)] hover:bg-[var(--bg-surface-hover)] hover:border-[var(--clr-primary)]/30 hover:-translate-y-0.5 ${
+                              isDragging ? "opacity-40 scale-95" : "opacity-100"
+                            }`}
                           >
                             <div className="flex justify-between items-start mb-2">
                               <h4 className="text-[var(--text-primary)] font-semibold text-sm truncate pr-2 group-hover:text-[var(--clr-primary)] transition-colors">
-                                {p.nome}
+                                {p.nome || (p.telefone ? `+${p.telefone.replace("@c.us", "")}` : "Contato")}
                               </h4>
                               <div className="flex items-center gap-1.5 shrink-0">
                                 <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${
                                   isAiOff
-                                    ? "bg-rose-500/15 text-rose-300 border border-rose-500/20"
-                                    : "bg-emerald-500/15 text-emerald-300 border border-emerald-500/20"
+                                    ? "bg-rose-500/15 text-rose-500 border border-rose-500/20"
+                                    : "bg-emerald-500/15 text-emerald-500 border border-emerald-500/20"
                                 }`}>
                                   {isAiOff ? "PAUSA" : "IA"}
                                 </span>
                               </div>
                             </div>
                             <p className="text-[var(--text-muted)] text-xs font-mono">
-                              {p.telefone.replace("@c.us", "")}
+                              {p.telefone ? `+${p.telefone.replace("@c.us", "")}` : ""}
                             </p>
-                            <div className="flex items-center justify-between mt-2.5 pt-2"
-                              style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}
-                            >
+                            <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-[var(--border-subtle)]">
                               <p className="text-[var(--text-muted)] text-[10px] opacity-70">
                                 {new Date(p.created_at).toLocaleString("pt-BR", {
                                   hour: "2-digit", minute: "2-digit",

@@ -34,36 +34,41 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row font-body bg-white">
+    <div className="min-h-screen flex flex-col lg:flex-row font-body bg-[var(--bg-base)] text-[var(--text-primary)]">
       
       {/* ══════════════════════════════════════════════════════
-          ESQUERDA — FORMULÁRIO (Branco)
+          ESQUERDA — FORMULÁRIO
       ══════════════════════════════════════════════════════ */}
-      <div className="flex-1 flex flex-col justify-center px-8 lg:px-16 py-12">
+      <div className="flex-1 flex flex-col justify-center px-8 lg:px-16 py-12 bg-[var(--bg-surface)] border-r border-[var(--border-subtle)]">
         <div className="w-full max-w-sm mx-auto">
           <Link to="/" className="inline-block mb-10">
             <img 
               src="/zapai-logo-dark.png" 
               alt="ZapAI Logo" 
-              className="h-9 w-auto object-contain" 
+              className="h-9 w-auto object-contain block dark:hidden" 
+            />
+            <img 
+              src="/zapai-logo-light.png" 
+              alt="ZapAI Logo" 
+              className="h-9 w-auto object-contain hidden dark:block" 
             />
           </Link>
 
-          <h1 className="text-3xl font-black text-slate-900 mb-2 tracking-tight">Entrar</h1>
-          <p className="text-slate-600 mb-8 text-sm">
+          <h1 className="text-3xl font-black text-[var(--text-primary)] mb-2 tracking-tight">Entrar</h1>
+          <p className="text-[var(--text-secondary)] mb-8 text-sm">
             Bem-vindo de volta ao painel de atendimento.
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {erro && (
-              <div className="bg-rose-50 border border-rose-200 text-rose-700 p-4 rounded-lg text-sm font-medium flex gap-2 items-center">
+              <div className="bg-rose-500/10 border border-rose-500/30 text-rose-500 p-4 rounded-xl text-sm font-medium flex gap-2 items-center">
                 <Lock size={16} />
                 {erro}
               </div>
             )}
 
             <div>
-              <label htmlFor="login-email" className="block text-sm font-bold text-slate-900 mb-1.5">E-mail de acesso</label>
+              <label htmlFor="login-email" className="block text-sm font-bold text-[var(--text-primary)] mb-1.5">E-mail de acesso</label>
               <input
                 id="login-email"
                 name="email"
@@ -79,8 +84,8 @@ export default function Login() {
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label htmlFor="login-password" className="block text-sm font-bold text-slate-900">Senha</label>
-                <button type="button" className="text-xs font-semibold text-slate-500 hover:text-slate-900 transition">
+                <label htmlFor="login-password" className="block text-sm font-bold text-[var(--text-primary)]">Senha</label>
+                <button type="button" className="text-xs font-semibold text-[var(--clr-primary)] hover:underline transition">
                   Esqueci a senha
                 </button>
               </div>
@@ -99,7 +104,7 @@ export default function Login() {
                 <button
                   type="button"
                   onClick={() => setShowPwd(!showPwd)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition"
                   aria-label={showPwd ? "Ocultar senha" : "Mostrar senha"}
                 >
                   {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -110,15 +115,15 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full mt-4 h-12"
+              className="btn-primary w-full mt-4 h-12 font-semibold shadow-md shadow-cyan-500/20"
             >
               {loading ? "Autenticando..." : "Acessar Plataforma"}
             </button>
           </form>
 
-          <div className="mt-8 text-center text-sm text-slate-600">
+          <div className="mt-8 text-center text-sm text-[var(--text-secondary)]">
             Não tem uma conta?{" "}
-            <Link to="/cadastro" className="font-bold text-slate-900 hover:underline">
+            <Link to="/cadastro" className="font-bold text-[var(--clr-primary)] hover:underline">
               Crie agora
             </Link>
           </div>

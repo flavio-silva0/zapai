@@ -110,8 +110,8 @@ export default function Layout() {
           </div>
 
           {/* Tenant pill */}
-          <div className="mt-4 rounded-xl px-3 py-2.5 flex items-center gap-2.5 bg-[var(--bg-surface-active)]/50 border border-[var(--border-medium)]">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm flex-shrink-0 bg-[var(--clr-primary)]/10 text-[var(--clr-primary)] border border-[var(--clr-primary)]/20">
+          <div className="mt-4 rounded-xl px-3 py-2.5 flex items-center gap-2.5 bg-[var(--bg-surface-active)]/40 border border-[var(--border-subtle)]">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm flex-shrink-0 bg-[var(--clr-primary)]/15 text-[var(--clr-primary)]">
               {isSuperAdmin ? "⚙️" : botEmoji}
             </div>
             <div className="min-w-0 flex-1">
@@ -131,17 +131,17 @@ export default function Layout() {
               <p className="text-[10px] font-bold uppercase tracking-widest px-3 mb-1.5 text-[var(--text-muted)]">
                 {label}
               </p>
-              <div className="space-y-0.5">
+              <div className="space-y-1">
                 {items.map(({ to, icon: Icon, label: itemLabel }) => (
                   <NavLink
                     key={to}
                     to={to}
                     end={to === "/painel"}
                     className={({ isActive }) =>
-                      `flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-[13px] transition-all duration-200 group border ${
+                      `flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] transition-all duration-150 group ${
                         isActive
-                          ? "bg-[var(--clr-primary)]/10 text-[var(--clr-primary)] border-[var(--clr-primary)]/20 font-bold"
-                          : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] border-transparent"
+                          ? "bg-[var(--clr-primary)]/12 text-[var(--clr-primary)] font-semibold shadow-xs"
+                          : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] font-medium"
                       }`
                     }
                   >
@@ -152,7 +152,6 @@ export default function Layout() {
                           className={`shrink-0 transition-colors ${isActive ? "text-[var(--clr-primary)]" : "text-[var(--text-muted)] group-hover:text-[var(--text-secondary)]"}`}
                         />
                         <span className="flex-1 truncate">{itemLabel}</span>
-                        {isActive && <ChevronRight size={12} className="text-[var(--clr-primary)] shrink-0" />}
                       </>
                     )}
                   </NavLink>
@@ -169,10 +168,10 @@ export default function Layout() {
               <NavLink
                 to="/admin"
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-xl font-medium text-[13px] transition-all duration-200 border ${
+                  `flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] transition-all duration-150 ${
                     isActive
-                      ? "bg-[var(--clr-danger)]/15 text-[var(--clr-danger)] border-[var(--clr-danger)]/25 font-bold"
-                      : "text-[var(--text-secondary)] hover:text-[var(--clr-danger)] hover:bg-[var(--clr-danger)]/10 border-transparent"
+                      ? "bg-[var(--clr-danger)]/15 text-[var(--clr-danger)] font-semibold"
+                      : "text-[var(--text-secondary)] hover:text-[var(--clr-danger)] hover:bg-[var(--clr-danger)]/10 font-medium"
                   }`
                 }
               >
@@ -187,7 +186,7 @@ export default function Layout() {
         <div className="px-3 pb-4 space-y-2 border-t border-[var(--sidebar-border)] pt-4">
           {/* WhatsApp status */}
           {!isSuperAdmin && (
-            <div className={`rounded-xl px-3 py-2.5 flex items-center gap-2.5 border transition-colors ${isConnected ? "bg-[var(--clr-success)]/10 border-[var(--clr-success)]/20" : "bg-[var(--bg-surface-hover)] border-[var(--border-subtle)]"}`}>
+            <div className={`rounded-xl px-3 py-2.5 flex items-center gap-2.5 transition-colors ${isConnected ? "bg-[var(--clr-success)]/10" : "bg-[var(--bg-surface-hover)]"}`}>
               <div className="relative shrink-0">
                 <Smartphone size={13} className={isConnected ? "text-[var(--clr-success)]" : "text-[var(--text-muted)]"} />
               </div>
@@ -197,7 +196,7 @@ export default function Layout() {
                   {phoneDisplay}
                 </p>
               </div>
-              <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase ${isConnected ? "bg-[var(--clr-success)] text-white" : "bg-[var(--border-subtle)] text-[var(--text-muted)]"}`}>
+              <span className={`text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase ${isConnected ? "bg-[var(--clr-success)] text-white" : "bg-[var(--border-medium)] text-[var(--text-muted)]"}`}>
                 {isConnected ? "Ativo" : "Offline"}
               </span>
             </div>
@@ -206,7 +205,7 @@ export default function Layout() {
           {/* Logout */}
           <button
             onClick={logout}
-            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[13px] rounded-xl transition-all border border-transparent hover:border-[var(--clr-danger)]/15 hover:bg-[var(--clr-danger)]/10 group mt-1 text-[var(--text-secondary)]"
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-[13px] rounded-xl transition-all hover:bg-[var(--clr-danger)]/10 group mt-1 text-[var(--text-secondary)]"
           >
             <LogOut size={14} className="group-hover:text-[var(--clr-danger)] transition-colors" />
             <span className="group-hover:text-[var(--clr-danger)] transition-colors">Sair do Painel</span>
@@ -251,7 +250,7 @@ export default function Layout() {
                 <input 
                   type="text" 
                   placeholder="Buscar atendimentos..." 
-                  className="w-full bg-[var(--bg-base)] border border-[var(--border-medium)] rounded-lg pl-9 pr-4 py-1.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--clr-primary)] transition-colors"
+                  className="w-full bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded-lg pl-9 pr-4 py-1.5 text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--clr-primary)]/60 transition-colors"
                 />
               </div>
             </div>
@@ -266,7 +265,7 @@ export default function Layout() {
               <div className="w-px h-6 bg-[var(--border-medium)] mx-1" />
               
               <div className="flex items-center gap-3 cursor-pointer group">
-                <div className="w-8 h-8 rounded-full bg-[var(--clr-primary)]/10 text-[var(--clr-primary)] border border-[var(--clr-primary)]/20 flex items-center justify-center font-bold text-sm">
+                <div className="w-8 h-8 rounded-full bg-[var(--clr-primary)]/15 text-[var(--clr-primary)] flex items-center justify-center font-bold text-sm">
                   {user?.nome?.charAt(0) || "U"}
                 </div>
               </div>
