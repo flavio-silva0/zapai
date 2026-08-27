@@ -31,13 +31,13 @@ export default function PublicFooter() {
               </Link>
             </li>
             <li>
-              <Link to="/#como-funciona" className="hover:text-white transition-colors">
-                Como funciona
+              <Link to="/#recursos" className="hover:text-white transition-colors">
+                Recursos
               </Link>
             </li>
             <li>
-              <Link to="/#recursos" className="hover:text-white transition-colors">
-                Recursos
+              <Link to="/#como-funciona" className="hover:text-white transition-colors">
+                Como funciona
               </Link>
             </li>
             <li>

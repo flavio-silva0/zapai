@@ -5,8 +5,8 @@ import PublicLoginLink from "./PublicLoginLink";
 
 const NAV_ITEMS = [
   { id: "home",          label: "Home",          href: "/" },
-  { id: "como-funciona", label: "Como funciona", href: "/#como-funciona" },
   { id: "recursos",      label: "Recursos",      href: "/#recursos" },
+  { id: "como-funciona", label: "Como funciona", href: "/#como-funciona" },
   { id: "segmentos",     label: "Para quem é",   href: "/#segmentos" },
   { id: "planos",        label: "Planos",        href: "/planos" },
 ];
@@ -66,7 +66,7 @@ export default function PublicNavbar() {
   useEffect(() => {
     if (pathname !== "/") return;
 
-    const sectionIds = ["hero", "como-funciona", "recursos", "segmentos"];
+    const sectionIds = ["hero", "recursos", "como-funciona", "segmentos"];
     const sectionElements = sectionIds
       .map((id) => document.getElementById(id))
       .filter(Boolean);
