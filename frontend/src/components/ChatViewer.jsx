@@ -1,24 +1,27 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useContext } from "react";
 import { apiFetch } from "../api";
+import { AuthContext } from "../context/AuthContext";
+import { useConfig } from "../context/ConfigContext";
 
 const STATUS_OPTIONS = ["Novo", "Em Atendimento", "Agendado"];
 
-// Estilos por origem da mensagem
+// Estilos por origem da mensagem com contraste ideal e estética WhatsApp/ZapAI
 const BUBBLE_STYLES = {
-  user  : "bg-slate-700 text-slate-100 self-start rounded-tl-none",
-  bot   : "bg-blue-600 text-white self-end rounded-tr-none",
-  human : "bg-emerald-700 text-white self-end rounded-tr-none",
+  user: "bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-200/90 dark:border-slate-700/80 shadow-xs self-start rounded-tl-none",
+  bot: "bg-[#dcf8c6] dark:bg-[#005c4b] text-slate-900 dark:text-slate-100 border border-[#c1e8ba] dark:border-transparent shadow-xs self-end rounded-tr-none",
+  human: "bg-teal-100 dark:bg-teal-900/60 text-teal-950 dark:text-teal-100 border border-teal-200 dark:border-teal-700/80 shadow-xs self-end rounded-tr-none",
 };
 
-const ORIGIN_LABEL = (botName, botEmoji) => ({
-  user  : null,
-  bot   : `${botName} ${botEmoji}`,
-  human : "Recepção 👤",
+const ORIGIN_LABEL = (name, emoji) => ({
+  user: null,
+  bot: `${name} ${emoji}`,
+  human: "Recepção 👤",
 });
 
 function formatarHorario(isoString) {
   return new Date(isoString).toLocaleTimeString("pt-BR", {
-    hour: "2-digit", minute: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 }
 
@@ -27,31 +30,53 @@ function MessageBubble({ msg, botName, botEmoji }) {
   const isRight = msg.origin !== "user";
 
   return (
-    <div className={`flex flex-col max-w-[75%] gap-1 ${isRight ? "self-end items-end" : "self-start items-start"}`}>
+    <div className={`flex flex-col max-w-[80%] gap-1 ${isRight ? "self-end items-end" : "self-start items-start"}`}>
       {label && (
-        <span className="text-xs text-slate-400 px-1">{label}</span>
+        <span className="text-[11px] font-semibold text-teal-800 dark:text-teal-300 px-1">
+          {label}
+        </span>
       )}
       <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words whitespace-pre-wrap ${BUBBLE_STYLES[msg.origin]}`}>
         {msg.texto}
       </div>
-      <span className="text-xs text-slate-500 px-1">
+      <span className="text-[11px] text-slate-500 dark:text-slate-400 px-1 font-medium">
         {formatarHorario(msg.created_at)}
       </span>
     </div>
   );
 }
 
-export default function ChatViewer({ patient, onPatientChange, botName = "Sofia", botEmoji = "🤖" }) {
-  const [messages, setMessages]   = useState([]);
+export default function ChatViewer({
+  patient,
+  onPatientChange,
+  botName: propBotName,
+  botEmoji: propBotEmoji,
+}) {
+  const { tenant, user } = useContext(AuthContext) || {};
+  const config = useConfig();
+  const isSuperAdmin = user?.role === "super_admin";
+
+  const resolvedBotName =
+    propBotName ||
+    (isSuperAdmin
+      ? "Admin"
+      : tenant?.bot_name || tenant?.botName || config?.botName || "Assistente");
+  const resolvedBotEmoji =
+    propBotEmoji ||
+    (isSuperAdmin
+      ? "⚙️"
+      : tenant?.bot_emoji || tenant?.botEmoji || config?.botEmoji || "🤖");
+
+  const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState("");
-  const [sending, setSending]     = useState(false);
+  const [sending, setSending] = useState(false);
   const [loadingMsgs, setLoadingMsgs] = useState(true);
   const bottomRef = useRef(null);
 
   // ── Busca mensagens do paciente ──────────────────────────────
   const fetchMessages = useCallback(async () => {
     try {
-      const res  = await apiFetch(`/api/patients/${patient.id}/messages`);
+      const res = await apiFetch(`/api/patients/${patient.id}/messages`);
       const data = await res.json();
       setMessages(data);
     } catch (err) {
@@ -65,7 +90,7 @@ export default function ChatViewer({ patient, onPatientChange, botName = "Sofia"
     setLoadingMsgs(true);
     setMessages([]);
     fetchMessages();
-  }, [patient.id]);
+  }, [patient.id, fetchMessages]);
 
   // Escuta o evento global disparado pelo App quando chega nova mensagem via SSE
   useEffect(() => {
@@ -87,9 +112,9 @@ export default function ChatViewer({ patient, onPatientChange, botName = "Sofia"
   const handleStatusChange = async (e) => {
     const status_kanban = e.target.value;
     try {
-      const res  = await apiFetch(`/api/patients/${patient.id}/status`, {
-        method : "PUT",
-        body   : JSON.stringify({ status_kanban }),
+      const res = await apiFetch(`/api/patients/${patient.id}/status`, {
+        method: "PUT",
+        body: JSON.stringify({ status_kanban }),
       });
       const data = await res.json();
       onPatientChange(data);
@@ -101,9 +126,9 @@ export default function ChatViewer({ patient, onPatientChange, botName = "Sofia"
   // ── Toggle IA ────────────────────────────────────────────────
   const handleAiToggle = async () => {
     try {
-      const res  = await apiFetch(`/api/patients/${patient.id}/ai-status`, {
-        method : "PUT",
-        body   : JSON.stringify({ is_ai_active: !patient.is_ai_active }),
+      const res = await apiFetch(`/api/patients/${patient.id}/ai-status`, {
+        method: "PUT",
+        body: JSON.stringify({ is_ai_active: !patient.is_ai_active }),
       });
       const data = await res.json();
       onPatientChange(data);
@@ -122,8 +147,8 @@ export default function ChatViewer({ patient, onPatientChange, botName = "Sofia"
 
     try {
       await apiFetch(`/api/patients/${patient.id}/send`, {
-        method : "POST",
-        body   : JSON.stringify({ texto }),
+        method: "POST",
+        body: JSON.stringify({ texto }),
       });
       await fetchMessages();
     } catch (err) {
@@ -144,19 +169,23 @@ export default function ChatViewer({ patient, onPatientChange, botName = "Sofia"
   const aiAtivo = patient.is_ai_active;
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-[var(--bg-base)]">
 
       {/* ── Cabeçalho do chat ─────────────────────────────────── */}
-      <div className="flex items-center gap-3 px-5 py-3.5 border-b border-slate-700 bg-slate-900 flex-shrink-0">
+      <div className="flex items-center gap-3 px-5 py-3.5 border-b border-[var(--border-medium)] bg-[var(--bg-surface)] flex-shrink-0">
         {/* Avatar */}
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-slate-600 to-slate-700 flex items-center justify-center text-lg flex-shrink-0">
+        <div className="w-10 h-10 rounded-full bg-teal-600 text-white font-bold flex items-center justify-center text-sm flex-shrink-0 shadow-xs">
           {patient.nome.charAt(0).toUpperCase()}
         </div>
 
         {/* Info do paciente */}
         <div className="flex-1 min-w-0">
-          <h2 className="text-white font-semibold text-sm leading-none truncate">{patient.nome}</h2>
-          <p className="text-slate-400 text-xs mt-0.5 truncate">{patient.telefone.replace("@c.us", "")}</p>
+          <h2 className="text-[var(--text-primary)] font-bold text-sm leading-none truncate">
+            {patient.nome}
+          </h2>
+          <p className="text-[var(--text-muted)] text-xs mt-1 truncate font-mono">
+            {patient.telefone.replace("@c.us", "")}
+          </p>
         </div>
 
         {/* Controles */}
@@ -166,8 +195,8 @@ export default function ChatViewer({ patient, onPatientChange, botName = "Sofia"
           <select
             value={patient.status_kanban}
             onChange={handleStatusChange}
-            className="bg-slate-800 text-slate-200 text-xs border border-slate-600 rounded-lg px-2.5 py-1.5
-                       hover:border-slate-500 focus:outline-none focus:border-cyan-500 cursor-pointer transition"
+            className="bg-[var(--bg-surface)] text-[var(--text-primary)] text-xs border border-[var(--border-medium)] rounded-lg px-2.5 py-1.5
+                       hover:border-[var(--border-strong)] focus:outline-none focus:border-teal-600 cursor-pointer transition shadow-xs font-medium"
           >
             {STATUS_OPTIONS.map((s) => (
               <option key={s} value={s}>{s}</option>
@@ -178,32 +207,37 @@ export default function ChatViewer({ patient, onPatientChange, botName = "Sofia"
           <button
             onClick={handleAiToggle}
             title={aiAtivo ? "Pausar IA" : "Ativar IA"}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer shadow-xs
               ${aiAtivo
-                ? "bg-emerald-900/40 border-emerald-600 text-emerald-300 hover:bg-emerald-900/70"
-                : "bg-red-900/40 border-red-600 text-red-300 hover:bg-red-900/70"
+                ? "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100/80"
+                : "bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 hover:bg-amber-100/80"
               }`}
           >
-            <span className={`w-1.5 h-1.5 rounded-full ${aiAtivo ? "bg-emerald-400" : "bg-red-400"}`} />
+            <span className={`w-2 h-2 rounded-full ${aiAtivo ? "bg-emerald-500 animate-pulse" : "bg-amber-500"}`} />
             {aiAtivo ? "IA Ativa" : "IA Pausada"}
           </button>
         </div>
       </div>
 
       {/* ── Área de mensagens ─────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-3">
+      <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-3.5 bg-[#f0f2f5] dark:bg-[#0b141a]">
         {loadingMsgs ? (
-          <div className="flex items-center justify-center h-full text-slate-500 text-sm">
+          <div className="flex items-center justify-center h-full text-[var(--text-muted)] text-sm">
             Carregando mensagens...
           </div>
         ) : messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-2 text-slate-600">
+          <div className="flex flex-col items-center justify-center h-full gap-2 text-[var(--text-muted)]">
             <span className="text-4xl">💬</span>
-            <p className="text-sm">Nenhuma mensagem ainda</p>
+            <p className="text-sm font-medium">Nenhuma mensagem ainda</p>
           </div>
         ) : (
           messages.map((msg) => (
-            <MessageBubble key={msg.id} msg={msg} botName={botName} botEmoji={botEmoji} />
+            <MessageBubble
+              key={msg.id}
+              msg={msg}
+              botName={resolvedBotName}
+              botEmoji={resolvedBotEmoji}
+            />
           ))
         )}
         <div ref={bottomRef} />
@@ -211,25 +245,25 @@ export default function ChatViewer({ patient, onPatientChange, botName = "Sofia"
 
       {/* ── Aviso quando IA está pausada ──────────────────────── */}
       {!aiAtivo && (
-        <div className="px-5 py-2 bg-amber-900/30 border-t border-amber-700/50 flex items-center gap-2">
-          <span className="text-amber-400 text-xs">⚠️</span>
-          <p className="text-amber-300 text-xs">
+        <div className="px-5 py-2.5 bg-amber-50 dark:bg-amber-950/40 border-t border-amber-200 dark:border-amber-800/60 flex items-center gap-2">
+          <span className="text-amber-600 text-xs">⚠️</span>
+          <p className="text-amber-800 dark:text-amber-200 text-xs font-medium">
             IA pausada — você está assumindo o atendimento. As mensagens enviadas abaixo aparecerão no WhatsApp.
           </p>
         </div>
       )}
 
       {/* ── Input de envio manual ─────────────────────────────── */}
-      <div className="px-4 py-3.5 border-t border-slate-700 bg-slate-900 flex gap-2 flex-shrink-0">
+      <div className="px-4 py-3.5 border-t border-[var(--border-medium)] bg-[var(--bg-surface)] flex gap-2 flex-shrink-0">
         <textarea
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={aiAtivo ? "Digite para enviar como recepção humana..." : "Digite sua resposta..."}
           rows={1}
-          className="flex-1 bg-slate-800 text-slate-100 text-sm border border-slate-600 rounded-xl
-                     px-4 py-2.5 resize-none focus:outline-none focus:border-cyan-500
-                     placeholder:text-slate-500 transition max-h-28"
+          className="flex-1 bg-[var(--bg-base)] text-[var(--text-primary)] text-sm border border-[var(--border-medium)] rounded-xl
+                     px-4 py-2.5 resize-none focus:outline-none focus:border-teal-600
+                     placeholder:text-[var(--text-muted)] transition max-h-28"
           style={{ height: "auto" }}
           onInput={(e) => {
             e.target.style.height = "auto";
@@ -239,9 +273,9 @@ export default function ChatViewer({ patient, onPatientChange, botName = "Sofia"
         <button
           onClick={handleSend}
           disabled={!inputText.trim() || sending}
-          className="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-700
-                     disabled:text-slate-500 text-white rounded-xl font-semibold text-sm
-                     transition-all flex-shrink-0 self-end"
+          className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 disabled:bg-slate-200 dark:disabled:bg-slate-800
+                     disabled:text-slate-400 text-white rounded-xl font-semibold text-sm
+                     transition-all flex-shrink-0 self-end shadow-xs cursor-pointer disabled:cursor-not-allowed"
         >
           {sending ? "..." : "Enviar"}
         </button>

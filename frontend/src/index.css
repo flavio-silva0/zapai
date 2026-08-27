@@ -64,7 +64,7 @@ html.dark {
 
 /* ─── Base Reset & Global Typography ────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+html { scroll-behavior: auto; }
 
 body {
   background-color: var(--bg-base);
@@ -236,6 +236,19 @@ h1, h2, h3, h4, h5, h6 {
 
 /* ─── LANDING PAGE SPECIFIC STYLES ──────────────────────── */
 .landing {
+  /* ── Marketing Design Tokens (Single Source of Truth) ── */
+  --marketing-bg: #FAFAF8;
+  --marketing-surface: #ffffff;
+  --marketing-surface-alt: #f8f7f5;
+  --marketing-text: #1a1a1a;
+  --marketing-text-muted: #555555;
+  --marketing-text-secondary: #666666;
+  --marketing-border: #e8e5e0;
+  --brand-primary: #0d9488;
+  --brand-primary-hover: #0f766e;
+  --radius-card: 1rem;
+  --public-navbar-height: 5rem;
+
   /* Landing Specific Variables */
   --land-bg: #FAFAF8;
   --land-text: #1a1a1a;

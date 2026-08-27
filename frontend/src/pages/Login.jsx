@@ -58,7 +58,7 @@ export default function Login() {
       ══════════════════════════════════════════════════════ */}
       <div className="flex-1 flex flex-col justify-center px-8 lg:px-16 py-12 bg-[var(--bg-surface)] border-r border-[var(--border-subtle)]">
         <div className="w-full max-w-sm mx-auto">
-          <Link to="/" className="inline-block mb-10">
+          <Link to="/" className="inline-block mb-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 rounded-lg">
             <img 
               src="/zapai-logo-dark.png" 
               alt="ZapAI Logo" 
@@ -85,7 +85,9 @@ export default function Login() {
             )}
 
             <div>
-              <label htmlFor="login-email" className="block text-sm font-bold text-[var(--text-primary)] mb-1.5">E-mail de acesso</label>
+              <label htmlFor="login-email" className="block text-sm font-bold text-[var(--text-primary)] mb-1.5">
+                E-mail de acesso
+              </label>
               <input
                 id="login-email"
                 name="email"
@@ -95,14 +97,16 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="voce@empresa.com.br"
-                className="input-premium"
+                className="input-premium focus:!border-teal-600 focus:!ring-teal-500/20"
               />
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label htmlFor="login-password" className="block text-sm font-bold text-[var(--text-primary)]">Senha</label>
-                <button type="button" className="text-xs font-semibold text-[var(--clr-primary)] hover:underline transition">
+                <label htmlFor="login-password" className="block text-sm font-bold text-[var(--text-primary)]">
+                  Senha
+                </label>
+                <button type="button" className="text-xs font-semibold text-teal-600 hover:text-teal-700 hover:underline transition">
                   Esqueci a senha
                 </button>
               </div>
@@ -116,12 +120,12 @@ export default function Login() {
                   value={senha}
                   onChange={(e) => setSenha(e.target.value)}
                   placeholder="••••••••"
-                  className="input-premium pr-12"
+                  className="input-premium pr-12 focus:!border-teal-600 focus:!ring-teal-500/20"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPwd(!showPwd)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition p-1"
                   aria-label={showPwd ? "Ocultar senha" : "Mostrar senha"}
                 >
                   {showPwd ? <EyeOff size={18} /> : <Eye size={18} />}
@@ -132,7 +136,7 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full mt-4 h-12 font-semibold shadow-md shadow-cyan-500/20"
+              className="w-full mt-4 h-12 rounded-xl font-medium text-sm bg-teal-600 hover:bg-teal-700 text-white shadow-md shadow-teal-600/20 transition-all flex items-center justify-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
             >
               {loading ? "Autenticando..." : "Acessar Plataforma"}
             </button>
@@ -147,7 +151,7 @@ export default function Login() {
 
           <div className="mt-8 text-center text-sm text-[var(--text-secondary)]">
             Não tem uma conta?{" "}
-            <Link to="/cadastro" className="font-bold text-[var(--clr-primary)] hover:underline">
+            <Link to="/cadastro" className="font-bold text-teal-600 hover:text-teal-700 hover:underline">
               Crie agora
             </Link>
           </div>
@@ -155,11 +159,11 @@ export default function Login() {
       </div>
 
       {/* ══════════════════════════════════════════════════════
-          DIREITA — COMUNICAÇÃO INSTITUCIONAL (Grafite)
+          DIREITA — COMUNICAÇÃO INSTITUCIONAL (Identidade ZapAI)
       ══════════════════════════════════════════════════════ */}
-      <div className="hidden lg:flex flex-1 bg-slate-900 text-white flex-col justify-center px-16 relative overflow-hidden">
+      <div className="hidden lg:flex flex-1 bg-[#1a1a1a] text-white flex-col justify-center px-16 relative overflow-hidden">
         <div className="max-w-md mx-auto relative z-10">
-          <div className="w-16 h-16 bg-slate-800 rounded-xl flex items-center justify-center text-cyan-400 mb-8 border border-slate-700">
+          <div className="w-16 h-16 bg-[#2a2a2a] rounded-2xl flex items-center justify-center text-teal-400 mb-8 border border-[#333] shadow-md">
             <UserCheck size={32} />
           </div>
           
@@ -168,13 +172,17 @@ export default function Login() {
           </h2>
           
           <div className="space-y-6">
-            <div className="border-l-2 border-slate-700 pl-4">
+            <div className="border-l-2 border-teal-600/60 pl-4">
               <p className="font-bold text-white text-sm mb-1">Métricas que importam</p>
-              <p className="text-slate-400 text-sm">Acompanhe tempo de resposta, volume de atendimentos e resolução em primeira chamada (FCR).</p>
+              <p className="text-[#aaa] text-sm leading-relaxed">
+                Acompanhe tempo de resposta, volume de atendimentos e resolução em primeira chamada (FCR).
+              </p>
             </div>
-            <div className="border-l-2 border-slate-700 pl-4">
+            <div className="border-l-2 border-teal-600/60 pl-4">
               <p className="font-bold text-white text-sm mb-1">Garantia de Qualidade</p>
-              <p className="text-slate-400 text-sm">Visualize o histórico de qualquer atendimento da sua equipe e da inteligência artificial.</p>
+              <p className="text-[#aaa] text-sm leading-relaxed">
+                Visualize o histórico de qualquer atendimento da sua equipe e da inteligência artificial.
+              </p>
             </div>
           </div>
         </div>

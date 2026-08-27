@@ -1,19 +1,38 @@
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
 import { useLocation } from "react-router-dom";
 
+/**
+ * ScrollToTop
+ * Gerencia scroll entre rotas e hashes com scrollRestoration manual,
+ * garantindo que reload (F5) em "/" sempre renderize no topo (Hero),
+ * e que hashes como #como-funciona, #recursos e #segmentos rolem suavemente.
+ */
 export default function ScrollToTop() {
   const { pathname, hash } = useLocation();
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    // 1. Caso sem hash (Ex: "/", "/planos", reload em "/")
     if (!hash) {
       window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      // Salvaguarda contra browser restoring scroll position assincronamente após o layout
+      const rafId = requestAnimationFrame(() => {
+        if (!window.location.hash) {
+          window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+        }
+      });
+      return () => cancelAnimationFrame(rafId);
+    }
+
+    // 2. Caso com hash
+    let targetId = hash.replace(/^#/, "");
+    // Alias para retrocompatibilidade
+    if (targetId === "demo") targetId = "recursos";
+
+    if (targetId === "hero") {
+      window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
       return;
     }
 
-    const targetId = hash.replace(/^#/, "");
-    if (!targetId) return;
-
-    // Tenta encontrar o elemento e rolar
     const scrollToElement = () => {
       const el = document.getElementById(targetId);
       if (el) {
@@ -23,11 +42,10 @@ export default function ScrollToTop() {
       return false;
     };
 
-    // Se já estiver no DOM, rola imediatamente
+    // Se já estiver no DOM
     if (scrollToElement()) return;
 
-    // Se o elemento ainda não montou (ex: mudança de rota com lazy loading),
-    // aguarda via MutationObserver e requestAnimationFrame
+    // Se ainda está carregando ou montando (ex: lazy loading)
     let attempts = 0;
     const maxAttempts = 30; // ~500ms
     let rafId = null;

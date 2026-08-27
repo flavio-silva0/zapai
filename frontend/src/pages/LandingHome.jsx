@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   MessageCircle, ArrowRight, Check, ChevronRight, Clock,
   Users, BookOpen, Sliders, Send, AlertCircle, Phone,
@@ -59,6 +59,7 @@ const SEGMENTS = {
 };
 
 export default function LandingHome() {
+  const navigate = useNavigate();
   const [personality, setPersonality] = useState({ tone: 50, style: 50, emoji: 50, sales: 50 });
   const [activeSegment, setActiveSegment] = useState('barbearia');
   
@@ -129,6 +130,11 @@ export default function LandingHome() {
               </Link>
               <a 
                 href="#como-funciona" 
+                onClick={(e) => {
+                  e.preventDefault();
+                  document.getElementById("como-funciona")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  navigate("/#como-funciona", { replace: true });
+                }}
                 className="inline-flex items-center gap-2 bg-white border border-[#e8e5e0] text-[#1a1a1a] px-6 py-3 rounded-full font-medium hover:bg-[#f8f7f5] transition-colors"
               >
                 Ver como funciona
@@ -179,7 +185,7 @@ export default function LandingHome() {
       </section>
 
       {/* SECTION 3: MEET YOUR ATTENDANT */}
-      <section id="demo" className="py-20 lg:py-28 bg-[#FAFAF8] scroll-mt-24">
+      <section id="recursos" className="py-20 lg:py-28 bg-[#FAFAF8] scroll-mt-24">
         <div 
           className="max-w-6xl mx-auto px-5 flex flex-col lg:flex-row items-center gap-12 lg:gap-16 opacity-0 translate-y-6 transition-all duration-700"
           data-animate

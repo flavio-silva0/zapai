@@ -1,28 +1,40 @@
-import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Menu, X } from "lucide-react";
+import PublicLoginLink from "./PublicLoginLink";
 
-const NAV_LINKS = [
-  { label: "Como funciona", href: "/#como-funciona" },
-  { label: "Recursos",      href: "/#demo" },
-  { label: "Para quem é",   href: "/#segmentos" },
-  { label: "Planos",        href: "/planos" },
+const NAV_ITEMS = [
+  { id: "home",          label: "Home",          href: "/" },
+  { id: "como-funciona", label: "Como funciona", href: "/#como-funciona" },
+  { id: "recursos",      label: "Recursos",      href: "/#recursos" },
+  { id: "segmentos",     label: "Para quem é",   href: "/#segmentos" },
+  { id: "planos",        label: "Planos",        href: "/planos" },
 ];
 
 export default function PublicNavbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { pathname } = useLocation();
+  const [activeSection, setActiveSection] = useState("home");
+  const { pathname, hash } = useLocation();
+  const navigate = useNavigate();
 
-  const isDarkHero = (pathname === "/planos" || pathname === "/sobre");
+  // Caso rota específica ainda use hero escuro (ex: /sobre)
+  const isDarkHero = pathname === "/sobre";
   const useDarkTheme = !scrolled && isDarkHero;
 
+  // Monitora scroll para efeito de fundo da navbar
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20);
+    const onScroll = () => {
+      setScrolled(window.scrollY > 20);
+      if (pathname === "/" && window.scrollY < 120) {
+        setActiveSection("home");
+      }
+    };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [pathname]);
 
+  // Tecla Escape para fechar mobile menu
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === "Escape") setMobileOpen(false);
@@ -36,33 +48,141 @@ export default function PublicNavbar() {
     setMobileOpen(false);
   }, [pathname]);
 
-  const handleNavClick = (e, href) => {
-    setMobileOpen(false);
-    if (href.startsWith("/#")) {
-      const targetId = href.replace("/#", "");
-      if (pathname === "/") {
-        e.preventDefault();
-        const el = document.getElementById(targetId);
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "start" });
-          window.history.pushState(null, "", href);
-        }
+  // Sincroniza activeSection com hash na rota raiz quando carregada com hash
+  useEffect(() => {
+    if (pathname === "/") {
+      if (!hash) {
+        setActiveSection("home");
+      } else {
+        const id = hash.replace(/^#/, "");
+        if (id === "demo") setActiveSection("recursos");
+        else if (id) setActiveSection(id);
       }
     }
+  }, [pathname, hash]);
+
+  // ScrollSpy com IntersectionObserver na rota raiz "/"
+  // Apenas altera o estado visual da navbar — NÃO manipula hash continuamente para evitar loop
+  useEffect(() => {
+    if (pathname !== "/") return;
+
+    const sectionIds = ["hero", "como-funciona", "recursos", "segmentos"];
+    const sectionElements = sectionIds
+      .map((id) => document.getElementById(id))
+      .filter(Boolean);
+
+    if (!sectionElements.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // Se estiver muito próximo do topo, hero é sempre o dominante
+        if (window.scrollY < 120) {
+          setActiveSection("home");
+          return;
+        }
+
+        // Procura a seção que está visível com maior interseção
+        const visibleEntries = entries.filter((entry) => entry.isIntersecting);
+        if (visibleEntries.length > 0) {
+          // Ordena pela maior ratio de interseção
+          visibleEntries.sort((a, b) => b.intersectionRatio - a.intersectionRatio);
+          const currentId = visibleEntries[0].target.id;
+          if (currentId === "hero") {
+            setActiveSection("home");
+          } else {
+            setActiveSection(currentId);
+          }
+        }
+      },
+      {
+        rootMargin: "-80px 0px -40% 0px",
+        threshold: [0.1, 0.25, 0.5],
+      }
+    );
+
+    sectionElements.forEach((el) => observer.observe(el));
+
+    return () => observer.disconnect();
+  }, [pathname]);
+
+  // Manipula clique na Logo (sempre Home / topo limpo)
+  const handleLogoClick = (e) => {
+    setMobileOpen(false);
+    setActiveSection("home");
+    if (pathname === "/") {
+      e.preventDefault();
+      window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+      if (window.location.hash) {
+        navigate("/", { replace: true });
+      }
+    } else {
+      navigate("/");
+    }
   };
+
+  // Manipula clique nos itens da navbar usando React Router
+  const handleNavClick = (e, item) => {
+    setMobileOpen(false);
+
+    // Caso Home
+    if (item.id === "home") {
+      e.preventDefault();
+      setActiveSection("home");
+      if (pathname === "/") {
+        window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+        if (window.location.hash) {
+          navigate("/", { replace: true });
+        }
+      } else {
+        navigate("/");
+      }
+      return;
+    }
+
+    // Caso Hash link e já está na Home ("/")
+    if (item.href.startsWith("/#") && pathname === "/") {
+      e.preventDefault();
+      const targetId = item.id;
+      const el = document.getElementById(targetId);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        // Atualiza URL via React Router navigate sem criar loops ou descompasso
+        navigate(`/#${targetId}`, { replace: true });
+      }
+      setActiveSection(targetId);
+    }
+  };
+
+  const isItemActive = useCallback(
+    (item) => {
+      if (pathname === "/planos") {
+        return item.id === "planos";
+      }
+      if (pathname === "/") {
+        return activeSection === item.id;
+      }
+      return pathname === item.href;
+    },
+    [pathname, activeSection]
+  );
 
   return (
     <header
       id="public-navbar"
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         scrolled
-          ? "bg-white/95 backdrop-blur-sm border-b border-slate-200/80 shadow-sm"
+          ? "bg-white/95 backdrop-blur-sm border-b border-[#e8e5e0] shadow-sm"
           : "bg-transparent"
       }`}
     >
       <div className="max-w-6xl mx-auto px-5 h-20 flex items-center justify-between">
-        {/* Logo */}
-        <Link to="/" className="flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 rounded-lg p-1" aria-label="ZapAI Página Inicial">
+        {/* Logo ZapAI -> Sempre Home / Topo */}
+        <Link
+          to="/"
+          onClick={handleLogoClick}
+          className="flex items-center gap-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 rounded-lg p-1"
+          aria-label="ZapAI Página Inicial"
+        >
           <img
             src={useDarkTheme ? "/zapai-logo-light.png" : "/zapai-logo-dark.png"}
             alt="ZapAI"
@@ -72,25 +192,25 @@ export default function PublicNavbar() {
 
         {/* Desktop Nav */}
         <nav className="hidden md:flex items-center gap-1.5" aria-label="Navegação Principal">
-          {NAV_LINKS.map(({ label, href }) => {
-            const isActive = pathname === href;
+          {NAV_ITEMS.map((item) => {
+            const active = isItemActive(item);
             return (
               <Link
-                key={href}
-                to={href}
-                onClick={(e) => handleNavClick(e, href)}
-                aria-current={isActive ? "page" : undefined}
+                key={item.id}
+                to={item.href}
+                onClick={(e) => handleNavClick(e, item)}
+                aria-current={active ? "page" : undefined}
                 className={`px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
                   useDarkTheme
-                    ? isActive
-                      ? "text-cyan-400 font-semibold bg-slate-800/80 border border-slate-700/60"
+                    ? active
+                      ? "text-teal-400 font-semibold bg-slate-800/80 border border-slate-700/60"
                       : "text-slate-300 hover:text-white hover:bg-slate-800/60"
-                    : isActive
-                      ? "text-slate-900 font-semibold bg-slate-100 border border-slate-200/80"
-                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/80"
+                    : active
+                      ? "text-[#1a1a1a] font-semibold bg-[#f0eeeb] border border-[#e8e5e0]"
+                      : "text-[#555] hover:text-[#1a1a1a] hover:bg-[#f8f7f5]"
                 }`}
               >
-                {label}
+                {item.label}
               </Link>
             );
           })}
@@ -98,23 +218,19 @@ export default function PublicNavbar() {
 
         {/* Desktop CTAs */}
         <div className="hidden md:flex items-center gap-4">
-          <Link
-            to="/login"
-            className={`text-sm font-semibold transition-colors px-2 py-1 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 ${
+          <PublicLoginLink
+            className={`text-sm font-semibold transition-colors px-2 py-1 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${
               useDarkTheme
                 ? "text-slate-300 hover:text-white"
-                : "text-slate-600 hover:text-slate-900"
+                : "text-[#555] hover:text-[#1a1a1a]"
             }`}
           >
             Entrar
-          </Link>
+          </PublicLoginLink>
+
           <Link
             to="/cadastro"
-            className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 ${
-              useDarkTheme
-                ? "bg-gradient-to-r from-cyan-400 to-teal-400 text-slate-950 font-bold hover:brightness-110 shadow-cyan-500/20"
-                : "bg-slate-900 text-white hover:bg-slate-800"
-            }`}
+            className="px-5 py-2.5 rounded-full text-sm font-medium transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 bg-teal-600 text-white hover:bg-teal-700"
           >
             Criar minha Zap
           </Link>
@@ -126,7 +242,7 @@ export default function PublicNavbar() {
           className={`md:hidden p-2.5 rounded-lg transition ${
             useDarkTheme
               ? "text-slate-200 hover:bg-slate-800/60"
-              : "text-slate-700 hover:bg-slate-100"
+              : "text-[#1a1a1a] hover:bg-[#f0eeeb]"
           }`}
           aria-expanded={mobileOpen}
           aria-controls="mobile-nav-menu"
@@ -142,39 +258,38 @@ export default function PublicNavbar() {
           id="mobile-nav-menu"
           role="dialog"
           aria-label="Menu de navegação mobile"
-          className="md:hidden bg-white border-b border-slate-200 shadow-xl animate-fade-up"
+          className="md:hidden bg-white border-b border-[#e8e5e0] shadow-xl animate-fade-up"
         >
           <div className="px-5 py-6 flex flex-col gap-2">
-            {NAV_LINKS.map(({ label, href }) => {
-              const isActive = pathname === href;
+            {NAV_ITEMS.map((item) => {
+              const active = isItemActive(item);
               return (
                 <Link
-                  key={href}
-                  to={href}
-                  onClick={(e) => handleNavClick(e, href)}
-                  aria-current={isActive ? "page" : undefined}
+                  key={item.id}
+                  to={item.href}
+                  onClick={(e) => handleNavClick(e, item)}
+                  aria-current={active ? "page" : undefined}
                   className={`px-4 py-3 rounded-lg text-base font-semibold transition-all ${
-                    isActive
-                      ? "bg-slate-100 text-slate-900 border border-slate-200"
-                      : "text-slate-700 hover:bg-slate-100"
+                    active
+                      ? "bg-[#f0eeeb] text-[#1a1a1a] border border-[#e8e5e0]"
+                      : "text-[#555] hover:bg-[#f8f7f5]"
                   }`}
                 >
-                  {label}
+                  {item.label}
                 </Link>
               );
             })}
-            <div className="mt-4 pt-6 border-t border-slate-200 flex flex-col gap-3">
-              <Link
-                to="/login"
+            <div className="mt-4 pt-6 border-t border-[#e8e5e0] flex flex-col gap-3">
+              <PublicLoginLink
                 onClick={() => setMobileOpen(false)}
-                className="px-4 py-3 text-center rounded-xl border border-slate-200 text-slate-900 font-semibold hover:bg-slate-50 transition"
+                className="px-4 py-3 text-center rounded-xl border border-[#e8e5e0] text-[#1a1a1a] font-semibold hover:bg-[#f8f7f5] transition block"
               >
                 Entrar
-              </Link>
+              </PublicLoginLink>
               <Link
                 to="/cadastro"
                 onClick={() => setMobileOpen(false)}
-                className="px-4 py-3 text-center rounded-xl bg-slate-900 text-white font-semibold hover:bg-slate-800 transition"
+                className="px-4 py-3 text-center rounded-full bg-teal-600 text-white font-medium hover:bg-teal-700 transition"
               >
                 Criar minha Zap
               </Link>

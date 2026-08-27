@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import PublicLoginLink from "./PublicLoginLink";
 
 export default function PublicFooter() {
   const currentYear = new Date().getFullYear();
@@ -24,9 +25,31 @@ export default function PublicFooter() {
         <div className="lg:col-span-3">
           <h4 className="text-white font-semibold text-sm mb-4">Produto</h4>
           <ul className="space-y-3 text-sm">
-            <li><Link to="/#como-funciona" className="hover:text-white transition-colors">Como funciona</Link></li>
-            <li><Link to="/#recursos" className="hover:text-white transition-colors">Recursos</Link></li>
-            <li><Link to="/planos" className="hover:text-white transition-colors">Planos</Link></li>
+            <li>
+              <Link to="/" className="hover:text-white transition-colors">
+                Home
+              </Link>
+            </li>
+            <li>
+              <Link to="/#como-funciona" className="hover:text-white transition-colors">
+                Como funciona
+              </Link>
+            </li>
+            <li>
+              <Link to="/#recursos" className="hover:text-white transition-colors">
+                Recursos
+              </Link>
+            </li>
+            <li>
+              <Link to="/#segmentos" className="hover:text-white transition-colors">
+                Para quem é
+              </Link>
+            </li>
+            <li>
+              <Link to="/planos" className="hover:text-white transition-colors">
+                Planos
+              </Link>
+            </li>
           </ul>
         </div>
 
@@ -34,9 +57,21 @@ export default function PublicFooter() {
         <div className="lg:col-span-3">
           <h4 className="text-white font-semibold text-sm mb-4">Institucional</h4>
           <ul className="space-y-3 text-sm">
-            <li><Link to="/sobre" className="hover:text-white transition-colors">Sobre a ZapAI</Link></li>
-            <li><Link to="/privacidade" className="hover:text-white transition-colors">Privacidade</Link></li>
-            <li><a href="mailto:contato@zapai.com.br" className="hover:text-white transition-colors">Contato</a></li>
+            <li>
+              <Link to="/sobre" className="hover:text-white transition-colors">
+                Sobre a ZapAI
+              </Link>
+            </li>
+            <li>
+              <Link to="/privacidade" className="hover:text-white transition-colors">
+                Privacidade
+              </Link>
+            </li>
+            <li>
+              <a href="mailto:contato@zapai.com.br" className="hover:text-white transition-colors">
+                Contato
+              </a>
+            </li>
           </ul>
         </div>
 
@@ -44,14 +79,9 @@ export default function PublicFooter() {
         <div className="lg:col-span-2">
           <h4 className="text-white font-semibold text-sm mb-4">Acesso</h4>
           <div className="flex flex-col gap-3">
-            <Link
-              to="/login"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2.5 text-center rounded-lg border border-[#444] text-white text-sm font-medium hover:bg-[#333] transition"
-            >
+            <PublicLoginLink className="px-4 py-2.5 text-center rounded-lg border border-[#444] text-white text-sm font-medium hover:bg-[#333] transition block">
               Entrar
-            </Link>
+            </PublicLoginLink>
             <Link
               to="/cadastro"
               className="px-4 py-2.5 text-center rounded-lg bg-teal-600 text-white text-sm font-medium hover:bg-teal-700 transition"
@@ -66,8 +96,12 @@ export default function PublicFooter() {
       <div className="max-w-6xl mx-auto px-5 border-t border-[#333] pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs">
         <p>© {currentYear} ZapAI. Todos os direitos reservados.</p>
         <div className="flex gap-6">
-          <Link to="/privacidade" className="hover:text-white transition-colors">Privacidade</Link>
-          <a href="mailto:contato@zapai.com.br" className="hover:text-white transition-colors">Contato</a>
+          <Link to="/privacidade" className="hover:text-white transition-colors">
+            Privacidade
+          </Link>
+          <a href="mailto:contato@zapai.com.br" className="hover:text-white transition-colors">
+            Contato
+          </a>
         </div>
       </div>
     </footer>

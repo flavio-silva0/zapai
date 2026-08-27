@@ -1,8 +1,23 @@
 // Colunas do Kanban e suas cores
 const COLUNAS = [
-  { status: "Novo",            cor: "border-slate-500",  badge: "bg-slate-700 text-slate-200",  dot: "bg-slate-400"  },
-  { status: "Em Atendimento",  cor: "border-amber-500",  badge: "bg-amber-900/50 text-amber-300", dot: "bg-amber-400" },
-  { status: "Agendado",        cor: "border-emerald-500", badge: "bg-emerald-900/50 text-emerald-300", dot: "bg-emerald-400" },
+  {
+    status: "Novo",
+    border: "border-slate-200 dark:border-slate-800",
+    badge: "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700",
+    dot: "bg-slate-400",
+  },
+  {
+    status: "Em Atendimento",
+    border: "border-amber-200 dark:border-amber-800/80",
+    badge: "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800",
+    dot: "bg-amber-500",
+  },
+  {
+    status: "Agendado",
+    border: "border-emerald-200 dark:border-emerald-800/80",
+    badge: "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800",
+    dot: "bg-emerald-500",
+  },
 ];
 
 function formatarHora(isoString) {
@@ -17,21 +32,27 @@ function PatientCard({ patient, isSelected, onSelect }) {
   return (
     <button
       onClick={() => onSelect(patient)}
-      className={`w-full text-left p-3 rounded-xl transition-all duration-150 mb-2 group ${
+      className={`w-full text-left p-3 rounded-xl transition-all duration-150 mb-2 cursor-pointer ${
         isSelected
-          ? "bg-[var(--clr-primary)]/15 text-[var(--text-primary)] font-semibold shadow-xs border border-[var(--clr-primary)]/30"
-          : "bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)]"
+          ? "bg-teal-50 dark:bg-teal-950/50 border-2 border-teal-600 dark:border-teal-500 shadow-xs"
+          : "bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-medium)] shadow-xs"
       }`}
     >
       {/* Nome + indicador IA */}
       <div className="flex items-center justify-between mb-1">
-        <span className="text-sm font-semibold text-[var(--text-primary)] truncate pr-2">
+        <span
+          className={`text-sm font-semibold truncate pr-2 ${
+            isSelected ? "text-teal-950 dark:text-teal-100" : "text-[var(--text-primary)]"
+          }`}
+        >
           {nome}
         </span>
         <span
           title={isAiOff ? "IA Pausada" : "IA Ativa"}
-          className={`text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${
-            isAiOff ? "badge-danger" : "badge-success"
+          className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${
+            isAiOff
+              ? "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+              : "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
           }`}
         >
           {isAiOff ? "⏸ Pausado" : "🤖 IA"}
@@ -40,10 +61,10 @@ function PatientCard({ patient, isSelected, onSelect }) {
 
       {/* Telefone + hora */}
       <div className="flex items-center justify-between">
-        <span className="text-xs text-[var(--text-secondary)] truncate">
+        <span className="text-xs text-[var(--text-secondary)] truncate font-mono">
           {patient.telefone ? `+${patient.telefone.replace("@c.us", "")}` : ""}
         </span>
-        <span className="text-xs text-[var(--text-muted)] flex-shrink-0 ml-1">
+        <span className="text-[11px] text-[var(--text-muted)] flex-shrink-0 ml-1">
           {formatarHora(patient.created_at)}
         </span>
       </div>
@@ -54,24 +75,26 @@ function PatientCard({ patient, isSelected, onSelect }) {
 export default function KanbanBoard({ patients, selectedId, onSelect }) {
   return (
     <div className="flex flex-col gap-4">
-      {COLUNAS.map(({ status, cor, badge, dot }) => {
+      {COLUNAS.map(({ status, border, badge, dot }) => {
         const grupo = patients.filter((p) => p.status_kanban === status);
         return (
           <div key={status}>
             {/* Cabeçalho da coluna */}
-            <div className={`flex items-center gap-2 mb-2 pb-2 border-b ${cor} border-opacity-50`}>
+            <div className={`flex items-center gap-2 mb-2 pb-2 border-b ${border}`}>
               <span className={`w-2 h-2 rounded-full ${dot}`} />
-              <span className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
+              <span className="text-[11px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">
                 {status}
               </span>
-              <span className={`ml-auto text-xs px-2 py-0.5 rounded-full font-bold ${badge}`}>
+              <span className={`ml-auto text-[11px] px-2 py-0.5 rounded-full font-bold ${badge}`}>
                 {grupo.length}
               </span>
             </div>
 
             {/* Cards */}
             {grupo.length === 0 ? (
-              <p className="text-xs text-[var(--text-muted)] text-center py-3 italic">Nenhum atendimento</p>
+              <p className="text-xs text-[var(--text-muted)] text-center py-3 italic">
+                Nenhum atendimento
+              </p>
             ) : (
               grupo.map((p) => (
                 <PatientCard
