@@ -1,26 +1,40 @@
-import { useLayoutEffect } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 
 /**
  * ScrollToTop
  * Gerencia scroll entre rotas e hashes com scrollRestoration manual,
  * garantindo que reload (F5) em "/" sempre renderize no topo (Hero),
- * e que hashes como #como-funciona, #recursos e #segmentos rolem suavemente.
+ * que hashes como #como-funciona, #recursos e #segmentos rolem suavemente,
+ * e que cliques em Home enquanto já está na página inicial realizem scroll suave.
  */
 export default function ScrollToTop() {
   const { pathname, hash } = useLocation();
+  const isFirstRender = useRef(true);
+  const prevPathname = useRef(pathname);
 
   useLayoutEffect(() => {
+    const isNewPage = prevPathname.current !== pathname;
+    const isInitial = isFirstRender.current;
+    isFirstRender.current = false;
+    prevPathname.current = pathname;
+
     // 1. Caso sem hash (Ex: "/", "/planos", reload em "/")
     if (!hash) {
-      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-      // Salvaguarda contra browser restoring scroll position assincronamente após o layout
-      const rafId = requestAnimationFrame(() => {
-        if (!window.location.hash) {
-          window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-        }
-      });
-      return () => cancelAnimationFrame(rafId);
+      // Se é reload inicial ou troca de rota completa (ex: de /planos para /)
+      if (isInitial || isNewPage) {
+        window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+        const rafId = requestAnimationFrame(() => {
+          if (!window.location.hash) {
+            window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+          }
+        });
+        return () => cancelAnimationFrame(rafId);
+      } else {
+        // Se já está na mesma página, scroll suave até o topo
+        window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+        return;
+      }
     }
 
     // 2. Caso com hash

@@ -111,9 +111,14 @@ export default function PublicNavbar() {
     setActiveSection("home");
     if (pathname === "/") {
       e.preventDefault();
-      window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+      const heroEl = document.getElementById("hero");
+      if (heroEl) {
+        heroEl.scrollIntoView({ behavior: "smooth", block: "start" });
+      } else {
+        window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+      }
       if (window.location.hash) {
-        navigate("/", { replace: true });
+        window.history.replaceState(null, "", "/");
       }
     } else {
       navigate("/");
@@ -129,9 +134,14 @@ export default function PublicNavbar() {
       e.preventDefault();
       setActiveSection("home");
       if (pathname === "/") {
-        window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+        const heroEl = document.getElementById("hero");
+        if (heroEl) {
+          heroEl.scrollIntoView({ behavior: "smooth", block: "start" });
+        } else {
+          window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
+        }
         if (window.location.hash) {
-          navigate("/", { replace: true });
+          window.history.replaceState(null, "", "/");
         }
       } else {
         navigate("/");
