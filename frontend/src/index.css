@@ -256,7 +256,7 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Landing Typography */
 .landing h1, .landing h2, .landing h3, .landing h4 {
-  color: var(--land-text);
+  color: inherit;
   letter-spacing: -0.03em;
   font-weight: 700;
 }
