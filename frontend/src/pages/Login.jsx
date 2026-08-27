@@ -12,24 +12,41 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
 
+  const [slowNotice, setSlowNotice] = useState(false);
+
   if (token) return <Navigate to="/painel" replace />;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
     setErro("");
     setLoading(true);
+    setSlowNotice(false);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
+    const slowTimer = setTimeout(() => setSlowNotice(true), 3500);
+
     try {
       const res  = await apiFetch("/api/auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password: senha }),
+        signal: controller.signal,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Credenciais inválidas.");
       login(data.token, data.user, data.tenant);
     } catch (err) {
-      setErro(err.message);
+      if (err.name === "AbortError") {
+        setErro("O servidor demorou para responder. Por favor, tente novamente em alguns instantes.");
+      } else {
+        setErro(err.message || "Erro ao conectar com o servidor.");
+      }
     } finally {
+      clearTimeout(timeoutId);
+      clearTimeout(slowTimer);
       setLoading(false);
+      setSlowNotice(false);
     }
   };
 
@@ -119,6 +136,13 @@ export default function Login() {
             >
               {loading ? "Autenticando..." : "Acessar Plataforma"}
             </button>
+
+            {slowNotice && (
+              <p className="text-xs text-amber-500 dark:text-amber-400 text-center animate-pulse pt-2 flex items-center justify-center gap-1.5 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping" />
+                Inicializando servidor seguro... Por favor, aguarde.
+              </p>
+            )}
           </form>
 
           <div className="mt-8 text-center text-sm text-[var(--text-secondary)]">

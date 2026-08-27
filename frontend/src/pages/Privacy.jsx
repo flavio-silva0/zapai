@@ -1,6 +1,10 @@
+import { useEffect } from "react";
 import { Shield } from "lucide-react";
 
 export default function Privacy() {
+  useEffect(() => {
+    document.title = "Política de Privacidade — ZapAI";
+  }, []);
   const sections = [
     {
       title: "1. Informações que Coletamos",

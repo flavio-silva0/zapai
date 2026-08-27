@@ -906,7 +906,30 @@ function emitirEvento(evento, dados) {
 
 // ── 8. EXPRESS — ROTAS API ───────────────────────────────────
 const app = express();
-app.use(cors({ origin: "*" }));
+
+const ALLOWED_ORIGINS = [
+  "https://zapai-iota.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:3000",
+  process.env.FRONTEND_URL,
+].filter(Boolean);
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Permite requisições sem origin (curl, mobile, webhooks, server-to-server)
+      if (!origin) return callback(null, true);
+      if (ALLOWED_ORIGINS.includes(origin) || origin.endsWith(".vercel.app")) {
+        return callback(null, true);
+      }
+      return callback(null, true);
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "Accept", "X-Tenant-Id"],
+    credentials: true,
+    maxAge: 86400, // 24 horas de cache de preflight no browser
+  })
+);
 app.use(express.json({ limit: "10mb" }));
 
 // Now require routers (after possible TEST_MODE injection)

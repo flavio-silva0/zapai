@@ -147,20 +147,34 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center h-full">
-        <div className="flex flex-col items-center gap-4">
-          <div
-            className="w-12 h-12 rounded-2xl flex items-center justify-center"
-            style={{
-              background: "linear-gradient(135deg, #06b6d4, #0891b2)",
-              boxShadow: "0 0 30px rgba(6,182,212,0.3)",
-            }}
-          >
-            <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+      <div className="p-6 lg:p-8 space-y-6 animate-pulse">
+        <header className="flex items-start justify-between flex-wrap gap-4">
+          <div className="space-y-2">
+            <div className="h-3.5 w-28 bg-slate-200 dark:bg-slate-800 rounded-md" />
+            <div className="h-7 w-48 bg-slate-200 dark:bg-slate-800 rounded-md" />
+            <div className="h-4 w-64 bg-slate-200 dark:bg-slate-800 rounded-md" />
           </div>
-          <p className="text-sm font-medium text-[var(--text-muted)] animate-pulse">
-            Carregando painel...
-          </p>
+        </header>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="h-32 bg-slate-200/60 dark:bg-slate-800/60 rounded-2xl border border-slate-200/50 dark:border-slate-700/50 p-5 flex flex-col justify-between"
+            >
+              <div className="flex justify-between items-center">
+                <div className="h-3 w-20 bg-slate-300/70 dark:bg-slate-700/70 rounded" />
+                <div className="w-7 h-7 rounded-lg bg-slate-300/70 dark:bg-slate-700/70" />
+              </div>
+              <div className="h-7 w-24 bg-slate-300/80 dark:bg-slate-700/80 rounded" />
+              <div className="h-2.5 w-32 bg-slate-300/60 dark:bg-slate-700/60 rounded" />
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 h-72 bg-slate-200/60 dark:bg-slate-800/60 rounded-2xl border border-slate-200/50 dark:border-slate-700/50 p-6" />
+          <div className="h-72 bg-slate-200/60 dark:bg-slate-800/60 rounded-2xl border border-slate-200/50 dark:border-slate-700/50 p-6" />
         </div>
       </div>
     );

@@ -63,6 +63,10 @@ export default function LandingHome() {
   const [activeSegment, setActiveSegment] = useState('barbearia');
   
   useEffect(() => {
+    document.title = "ZapAI — Sua atendente digital no WhatsApp";
+  }, []);
+
+  useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -175,7 +179,7 @@ export default function LandingHome() {
       </section>
 
       {/* SECTION 3: MEET YOUR ATTENDANT */}
-      <section id="recursos" className="py-20 lg:py-28 bg-[#FAFAF8]">
+      <section id="demo" className="py-20 lg:py-28 bg-[#FAFAF8] scroll-mt-24">
         <div 
           className="max-w-6xl mx-auto px-5 flex flex-col lg:flex-row items-center gap-12 lg:gap-16 opacity-0 translate-y-6 transition-all duration-700"
           data-animate
@@ -433,7 +437,7 @@ export default function LandingHome() {
       </section>
 
       {/* SECTION 8: ANY BUSINESS */}
-      <section className="py-20 lg:py-28 bg-white border-y border-[#e8e5e0]">
+      <section id="segmentos" className="py-20 lg:py-28 bg-white border-y border-[#e8e5e0] scroll-mt-24">
         <div 
           className="max-w-6xl mx-auto px-5 opacity-0 translate-y-6 transition-all duration-700"
           data-animate

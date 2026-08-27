@@ -67,7 +67,11 @@ export default function FullKanban() {
     const es = new EventSource(apiUrl("/api/events"));
     es.addEventListener("patient_updated", fetchPatients);
     es.addEventListener("new_message",     fetchPatients);
-    return () => es.close();
+    return () => {
+      es.removeEventListener("patient_updated", fetchPatients);
+      es.removeEventListener("new_message",     fetchPatients);
+      es.close();
+    };
   }, []);
 
   const handleDragStart = (e, patientId) => {

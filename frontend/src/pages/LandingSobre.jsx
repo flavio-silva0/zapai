@@ -1,7 +1,11 @@
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, Check } from "lucide-react";
 
 export default function LandingSobre() {
+  useEffect(() => {
+    document.title = "Sobre a ZapAI — Nossa Missão";
+  }, []);
   return (
     <div className="pt-20 font-body bg-white selection:bg-cyan-100 selection:text-cyan-900">
       

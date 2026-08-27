@@ -16,18 +16,19 @@ export default function Chat() {
       const res  = await apiFetch("/api/patients");
       const data = await res.json();
       setPatients(data);
-      if (selectedPatient) {
-        const atualizado = data.find((p) => p.id === selectedPatient.id);
-        if (atualizado) setSelectedPatient(atualizado);
-      }
+      setSelectedPatient((prev) => {
+        if (!prev) return null;
+        const atualizado = data.find((p) => p.id === prev.id);
+        return atualizado || prev;
+      });
     } catch (err) {
       console.error("Erro ao buscar pacientes:", err);
     } finally {
       setLoading(false);
     }
-  }, [selectedPatient]);
+  }, []);
 
-  useEffect(() => { fetchPatients(); }, []);
+  useEffect(() => { fetchPatients(); }, [fetchPatients]);
 
   useEffect(() => {
     if (loading || patients.length === 0) return;
@@ -39,14 +40,26 @@ export default function Chat() {
 
   useEffect(() => {
     const es = new EventSource(apiUrl("/api/events"));
-    es.addEventListener("patient_updated", () => fetchPatients());
-    es.addEventListener("new_message", (e) => {
-      const msg = JSON.parse(e.data);
-      fetchPatients();
-      window.dispatchEvent(new CustomEvent("dentistai:new_message", { detail: msg }));
-    });
-    es.onerror = () => console.warn("SSE desconectado. Tentando reconectar...");
-    return () => es.close();
+    const onPatientUpdated = () => fetchPatients();
+    const onNewMessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        fetchPatients();
+        window.dispatchEvent(new CustomEvent("dentistai:new_message", { detail: msg }));
+      } catch (err) {
+        console.error("Erro ao processar mensagem SSE:", err);
+      }
+    };
+
+    es.addEventListener("patient_updated", onPatientUpdated);
+    es.addEventListener("new_message", onNewMessage);
+    es.onerror = () => console.warn("SSE desconectado. Aguardando reconexão...");
+
+    return () => {
+      es.removeEventListener("patient_updated", onPatientUpdated);
+      es.removeEventListener("new_message", onNewMessage);
+      es.close();
+    };
   }, [fetchPatients]);
 
   return (

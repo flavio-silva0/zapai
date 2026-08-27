@@ -22,3 +22,5 @@ Thumbs.db
 # Screenshots temporários
 screenshot_*.png
 
+# Arquivos de diagnóstico de rede (HARs com credenciais)
+*.har
