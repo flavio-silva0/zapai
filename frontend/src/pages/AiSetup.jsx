@@ -15,31 +15,160 @@ function Field({ label, hint, children }) {
   );
 }
 
-// Slider Component with labels
+function getSliderDescriptor(label, value) {
+  if (label === "Formalidade") {
+    if (value <= 25) return "Muito Descontraído";
+    if (value <= 50) return "Casual & Amigável";
+    if (value <= 75) return "Profissional & Polido";
+    return "Altamente Formal";
+  }
+  if (label === "Empatia") {
+    if (value <= 25) return "Pragmático & Direto";
+    if (value <= 55) return "Atencioso & Educado";
+    if (value <= 85) return "Caloroso & Empático";
+    return "Altamente Acolhedor";
+  }
+  if (label === "Objetividade") {
+    if (value <= 25) return "Muito Detalhado";
+    if (value <= 55) return "Consultivo & Didático";
+    if (value <= 80) return "Direto ao Ponto";
+    return "Ultra Sucinto";
+  }
+  return `${value}%`;
+}
+
+// Slider Component with dynamic badge and labels
 function ToneSlider({ label, leftLabel, rightLabel, value, onChange, icon: Icon }) {
+  const descriptor = getSliderDescriptor(label, value);
   return (
-    <div className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-xl p-4">
-      <div className="flex items-center gap-2 mb-3">
-        <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-[var(--clr-info)]/10 text-[var(--clr-info)] border border-[var(--clr-info)]/20">
-          <Icon size={13} />
+    <div className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-xl p-4 transition-all hover:border-[var(--clr-primary)]/40">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-[var(--clr-info)]/10 text-[var(--clr-info)] border border-[var(--clr-info)]/20">
+            <Icon size={13} />
+          </div>
+          <span className="text-[12px] font-semibold text-[var(--text-primary)]">{label}</span>
         </div>
-        <span className="text-[12px] font-semibold text-[var(--text-primary)]">{label}</span>
+        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--clr-primary)]/15 text-[var(--clr-primary)] border border-[var(--clr-primary)]/25 transition-all">
+          {value}% • {descriptor}
+        </span>
       </div>
       <input
         type="range" min={0} max={100} value={value}
         onChange={e => onChange(Number(e.target.value))}
-        className="w-full h-1.5 rounded-full appearance-none cursor-pointer mb-2 bg-[var(--border-medium)]"
+        className="w-full h-2 rounded-full appearance-none cursor-pointer mb-2 bg-[var(--border-medium)] accent-[var(--clr-primary)]"
         style={{
           background: `linear-gradient(to right, var(--clr-primary) ${value}%, var(--border-medium) ${value}%)`,
           outline: "none"
         }}
       />
       <div className="flex justify-between">
-        <span className="text-[10px] font-medium transition-colors" style={{ color: value < 50 ? "var(--clr-primary)" : "var(--text-muted)" }}>{leftLabel}</span>
-        <span className="text-[10px] font-medium transition-colors" style={{ color: value >= 50 ? "var(--clr-info)" : "var(--text-muted)" }}>{rightLabel}</span>
+        <span className="text-[10px] font-semibold transition-colors" style={{ color: value < 50 ? "var(--clr-primary)" : "var(--text-muted)" }}>{leftLabel}</span>
+        <span className="text-[10px] font-semibold transition-colors" style={{ color: value >= 50 ? "var(--clr-info)" : "var(--text-muted)" }}>{rightLabel}</span>
       </div>
     </div>
   );
+}
+
+function generatePreviewMessages(sliders, magicForm) {
+  const name = magicForm?.nomeAgente?.trim() || "Beatriz";
+  const { formality = 50, empathy = 50, objectivity = 50 } = sliders;
+  const objetivo = magicForm?.objetivo || "BDR/SDR";
+
+  // 1. Mensagem de Saudação (influenciada por Formalidade e Empatia)
+  let greeting = "";
+  if (formality <= 25) {
+    if (empathy >= 75) {
+      greeting = `Opa! Tudo bem? Que bom falar com você! 😄 Sou a ${name}, assistente virtual. Em que posso te dar uma força hoje?`;
+    } else if (empathy <= 30) {
+      greeting = `E aí! Sou a ${name}. Em que posso te ajudar hoje?`;
+    } else {
+      greeting = `Oi! Tudo joia? Sou a ${name}, o que manda hoje? 😊`;
+    }
+  } else if (formality <= 50) {
+    if (empathy >= 75) {
+      greeting = `Oi! Tudo bem? Que prazer falar com você! Sou a ${name}, estou aqui para te ajudar com todo o carinho no que precisar.`;
+    } else if (empathy <= 30) {
+      greeting = `Olá! Sou a ${name}. Qual sua dúvida hoje?`;
+    } else {
+      greeting = `Oi! Tudo bem? 😊 Sou a ${name}, em que posso te ajudar hoje?`;
+    }
+  } else if (formality <= 75) {
+    if (empathy >= 75) {
+      greeting = `Olá! Tudo bem? Seja muito bem-vindo(a). Me chamo ${name} e será uma imensa satisfação auxiliá-lo(a) hoje!`;
+    } else if (empathy <= 30) {
+      greeting = `Olá. Sou ${name}, assistente virtual. Como posso auxiliá-lo?`;
+    } else {
+      greeting = `Olá! Sou ${name}, assistente virtual. Como posso auxiliá-lo hoje?`;
+    }
+  } else {
+    if (empathy >= 75) {
+      greeting = `Prezado(a), tenha um excelente dia! É uma honra recebê-lo(a). Me chamo ${name} e estou à sua inteira disposição. Como posso auxiliá-lo(a)?`;
+    } else if (empathy <= 30) {
+      greeting = `Prezado(a), saudações. Me chamo ${name}. Qual a sua demanda nesta ocasião?`;
+    } else {
+      greeting = `Prezado(a), saudações. Me chamo ${name}. Como posso auxiliá-lo(a) com excelência no dia de hoje?`;
+    }
+  }
+
+  // 2. Pergunta do Usuário
+  const userQuestion = "Quero saber o preço dos planos";
+
+  // 3. Resposta do Agente (influenciada por Objetividade, Empatia e Formalidade)
+  let response = "";
+  if (objectivity >= 75) {
+    // Ultra Direto
+    if (empathy >= 70) {
+      response = `Com certeza! Nossos planos começam em R$ 99/mês, sem taxa de adesão ou fidelidade.`;
+    } else if (formality >= 75) {
+      response = `Os planos corporativos iniciam-se em R$ 99,00 mensais, sem custos de adesão.`;
+    } else {
+      response = `Claro! Temos planos a partir de R$ 99/mês.`;
+    }
+  } else if (objectivity <= 35) {
+    // Super Detalhado & Didático
+    if (empathy >= 70) {
+      response = `Com todo o prazer! Sei o quanto essa decisão é importante para o seu negócio. Nossos planos partem de R$ 99/mês e já incluem inteligência artificial ativa 24h, agendamentos automáticos e relatórios completos.`;
+    } else if (formality >= 75) {
+      response = `Com grande satisfação apresento nossas opções. Dispomos de planos estruturados a partir de R$ 99,00 mensais, contemplando atendimento ininterrupto via IA, integração nativa ao WhatsApp e relatórios periódicos.`;
+    } else {
+      response = `Com prazer! Nossos planos começam em R$ 99/mês e já acompanham o bot inteligente no WhatsApp, triagem automatizada e suporte para a sua equipe.`;
+    }
+  } else {
+    // Equilibrado (36 a 74)
+    if (empathy >= 70) {
+      response = `Com certeza, vai ser ótimo te explicar! Nossos planos partem de R$ 99/mês e contam com atendimento inteligente 24/7 sob medida para você.`;
+    } else if (formality >= 75) {
+      response = `Com certeza. Os valores dos nossos planos iniciam-se em R$ 99,00 por mês, proporcionando automação integral e contínua para sua operação.`;
+    } else {
+      response = `Claro! Temos planos a partir de R$ 99/mês com atendimento 24/7 e integrações inclusas.`;
+    }
+  }
+
+  // Complemento adaptado ao Objetivo Principal
+  if (objetivo.includes("Agendar")) {
+    response += formality > 60 
+      ? " Deseja que eu verifique os horários disponíveis em nossa agenda?" 
+      : " Quer que eu dê uma olhada nos horários vagos para agendarmos?";
+  } else if (objetivo.includes("Vendas") || objetivo.includes("Fechar")) {
+    response += formality > 60
+      ? " Posso encaminhar a proposta com condição promocional para contratação imediata?"
+      : " Posso liberar uma condição especial exclusiva para você fechar agora?";
+  } else if (objetivo.includes("BDR") || objetivo.includes("SDR") || objetivo.includes("Leads")) {
+    response += formality > 60
+      ? " Teríamos disponibilidade para uma breve demonstração de 15 minutos com nosso especialista?"
+      : " Que tal batermos um papo rápido de 10 minutos para você ver funcionando na prática?";
+  } else if (objetivo.includes("Suporte")) {
+    response += formality > 60
+      ? " Caso necessite de apoio técnico imediato, basta me informar os detalhes."
+      : " Se precisar de alguma ajuda técnica, é só me falar!";
+  } else {
+    response += formality > 60
+      ? " Em que mais posso esclarecer suas dúvidas?"
+      : " Gostaria de ver mais detalhes sobre cada opção?";
+  }
+
+  return { greeting, userQuestion, response };
 }
 
 // Agent Avatar Card
@@ -124,6 +253,8 @@ export default function AiSetup() {
 
   const [generating, setGenerating] = useState(false);
   const [savingPrompt, setSavingPrompt] = useState(false);
+  const [savingPersonality, setSavingPersonality] = useState(false);
+  const [personalitySaved, setPersonalitySaved] = useState(false);
   const [magicSuccess, setMagicSuccess] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
   const [generatedPrompt, setGeneratedPrompt] = useState("");
@@ -131,6 +262,60 @@ export default function AiSetup() {
   const [editingPromptText, setEditingPromptText] = useState("");
   const [erro, setErro] = useState("");
   const [activeSection, setActiveSection] = useState("personality"); // personality | knowledge
+
+  const handleSavePersonality = async () => {
+    setSavingPersonality(true);
+    setErro("");
+    setPersonalitySaved(false);
+    try {
+      if (tenant?.id) {
+        try {
+          localStorage.setItem(`ai_sliders_${tenant.id}`, JSON.stringify(sliders));
+        } catch {}
+      }
+
+      const formalityDesc = getSliderDescriptor("Formalidade", sliders.formality);
+      const empathyDesc = getSliderDescriptor("Empatia", sliders.empathy);
+      const objectivityDesc = getSliderDescriptor("Objetividade", sliders.objectivity);
+
+      let basePrompt = tenant?.prompt_text || `Você é ${magicForm.nomeAgente || "Beatriz"}, atendente virtual oficial.`;
+      basePrompt = basePrompt.replace(/\n\n=== DIRETRIZES DE PERSONALIDADE & TOM ===[\s\S]*?(?=\n\n===|$)/g, "").trim();
+
+      const toneBlock = `\n\n=== DIRETRIZES DE PERSONALIDADE & TOM ===\n- Nome do Atendente: ${magicForm.nomeAgente || "Beatriz"}\n- Objetivo Principal: ${magicForm.objetivo}\n- Nível de Formalidade (${sliders.formality}%): ${formalityDesc}\n- Nível de Empatia (${sliders.empathy}%): ${empathyDesc}\n- Nível de Objetividade (${sliders.objectivity}%): ${objectivityDesc}\nInstrução: Adote com fidelidade este perfil de comunicação em todas as mensagens com os clientes.`;
+
+      const newPrompt = basePrompt + toneBlock;
+      const botName = magicForm.nomeAgente ? magicForm.nomeAgente.trim() : (tenant?.bot_name || "Beatriz");
+
+      const payload = {
+        prompt_text: newPrompt,
+        bot_name: botName
+      };
+
+      const res = await apiFetch("/api/admin/magic-setup/save", {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Falha ao salvar");
+
+      const updatedTenant = {
+        ...tenant,
+        prompt_text: newPrompt,
+        bot_name: botName
+      };
+      const token = localStorage.getItem("sofia_token");
+      login(token, user, updatedTenant);
+
+      setPersonalitySaved(true);
+      setTimeout(() => setPersonalitySaved(false), 5000);
+    } catch (err) {
+      setErro(err.message || "Erro ao salvar personalidade.");
+    } finally {
+      setSavingPersonality(false);
+    }
+  };
+
+  const previewDialogue = generatePreviewMessages(sliders, magicForm);
 
   const handleMagicSetup = async () => {
     if (!magicForm.resumo.trim()) {
@@ -351,71 +536,90 @@ export default function AiSetup() {
               </Field>
             </div>
 
-            {magicSuccess && (
-              <div className="p-3 rounded-xl flex items-center gap-2 text-sm font-semibold bg-[var(--clr-success)]/10 border border-[var(--clr-success)]/20 text-[var(--clr-success)]">
+            <div className="flex flex-col sm:flex-row gap-2 pt-3">
+              <button
+                onClick={handleSavePersonality}
+                disabled={savingPersonality}
+                className="btn-primary flex-1 flex items-center justify-center gap-2 text-sm shadow-md transition-all hover:scale-[1.01] disabled:opacity-50"
+              >
+                <Save size={15} />
+                {savingPersonality ? "Salvando..." : "Salvar Personalidade"}
+              </button>
+              <button
+                onClick={() => setActiveSection("setup")}
+                className="btn-outline flex items-center justify-center gap-2 text-sm"
+              >
+                <Sparkles size={15} />
+                Configurar com IA
+              </button>
+            </div>
+
+            {personalitySaved && (
+              <div className="p-3 rounded-xl flex items-center gap-2 text-sm font-semibold bg-[var(--clr-success)]/10 border border-[var(--clr-success)]/20 text-[var(--clr-success)] animate-fade-in">
                 <CheckCircle size={15} />
-                Personalidade salva com sucesso!
+                Personalidade e diretrizes salvas com sucesso!
               </div>
             )}
-
-            <button
-              onClick={() => setActiveSection("setup")}
-              className="btn-primary w-full flex items-center justify-center gap-2 text-sm">
-              <Sparkles size={15} />
-              Configurar com Inteligência Artificial
-            </button>
           </div>
 
           {/* Preview card */}
           <div className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl p-6 flex flex-col">
-            <h3 className="text-[var(--text-primary)] font-bold text-sm mb-4">Pré-visualização do Atendente</h3>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-[var(--text-primary)] font-bold text-sm">Pré-visualização do Atendente</h3>
+                <p className="text-[11px] text-[var(--text-muted)]">Respostas simuladas em tempo real</p>
+              </div>
+              <span className="flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/25 animate-pulse">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                Tempo Real
+              </span>
+            </div>
 
             <div className="flex-1 rounded-xl p-4 space-y-3 overflow-hidden bg-[var(--bg-surface-active)] border border-[var(--border-subtle)]">
               {/* WhatsApp preview header */}
               <div className="flex items-center gap-2 pb-3 border-b border-[var(--border-subtle)]">
                 <div className="w-8 h-8 rounded-full flex items-center justify-center text-lg bg-gradient-to-br from-[var(--clr-info)]/30 to-[var(--clr-primary)]/20">
-                  {tenant?.bot_emoji || "✨"}
+                  {tenant?.bot_emoji || "🤖"}
                 </div>
                 <div>
-                  <p className="text-[var(--text-primary)] font-semibold text-[12px]">{magicForm.nomeAgente}</p>
+                  <p className="text-[var(--text-primary)] font-semibold text-[12px]">{magicForm.nomeAgente || "Beatriz"}</p>
                   <p className="text-[10px] text-[var(--clr-success)]">● Online agora</p>
                 </div>
               </div>
 
               {/* Sample messages */}
               <div className="flex justify-start">
-                <div className="max-w-[80%] rounded-2xl rounded-tl-sm px-3 py-2 text-[12px] bg-[var(--bg-surface-hover)] border border-[var(--border-medium)] text-[var(--text-primary)]">
-                  {sliders.formality > 50
-                    ? `Olá! Sou ${magicForm.nomeAgente}, como posso auxiliá-lo hoje?`
-                    : `Oi! Tudo bem? 😊 Sou ${magicForm.nomeAgente}, em que posso ajudar?`}
+                <div className="max-w-[85%] rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-[12px] bg-[var(--bg-surface-hover)] border border-[var(--border-medium)] text-[var(--text-primary)] leading-relaxed transition-all shadow-sm">
+                  {previewDialogue.greeting}
                 </div>
               </div>
               <div className="flex justify-end">
-                <div className="max-w-[80%] rounded-2xl rounded-tr-sm px-3 py-2 text-[12px] text-white bg-[var(--clr-primary)] shadow-sm">
-                  Quero saber o preço dos planos
+                <div className="max-w-[80%] rounded-2xl rounded-tr-sm px-3.5 py-2 text-[12px] text-white bg-[var(--clr-primary)] shadow-sm font-medium">
+                  {previewDialogue.userQuestion}
                 </div>
               </div>
               <div className="flex justify-start">
-                <div className="max-w-[80%] rounded-2xl rounded-tl-sm px-3 py-2 text-[12px] bg-[var(--bg-surface-hover)] border border-[var(--border-medium)] text-[var(--text-primary)]">
-                  {sliders.objectivity > 50
-                    ? "Claro! Temos planos a partir de R$99/mês."
-                    : "Com prazer! Deixa eu te apresentar todas as opções disponíveis para você..."}
+                <div className="max-w-[85%] rounded-2xl rounded-tl-sm px-3.5 py-2.5 text-[12px] bg-[var(--bg-surface-hover)] border border-[var(--border-medium)] text-[var(--text-primary)] leading-relaxed transition-all shadow-sm">
+                  {previewDialogue.response}
                 </div>
               </div>
             </div>
 
             <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-              <div className="bg-[var(--bg-surface-hover)] rounded-xl py-2 px-1">
+              <div className="bg-[var(--bg-surface-hover)] rounded-xl py-2 px-1 border border-[var(--border-subtle)]">
                 <p className="text-[var(--text-primary)] font-black text-sm font-display">{sliders.formality}%</p>
-                <p className="text-[9px] text-[var(--text-muted)]">Formalidade</p>
+                <p className="text-[9px] font-semibold text-[var(--text-muted)]">Formalidade</p>
+                <p className="text-[8px] text-[var(--clr-primary)] font-medium truncate mt-0.5">{getSliderDescriptor("Formalidade", sliders.formality)}</p>
               </div>
-              <div className="bg-[var(--bg-surface-hover)] rounded-xl py-2 px-1">
+              <div className="bg-[var(--bg-surface-hover)] rounded-xl py-2 px-1 border border-[var(--border-subtle)]">
                 <p className="text-[var(--text-primary)] font-black text-sm font-display">{sliders.empathy}%</p>
-                <p className="text-[9px] text-[var(--text-muted)]">Empatia</p>
+                <p className="text-[9px] font-semibold text-[var(--text-muted)]">Empatia</p>
+                <p className="text-[8px] text-[var(--clr-info)] font-medium truncate mt-0.5">{getSliderDescriptor("Empatia", sliders.empathy)}</p>
               </div>
-              <div className="bg-[var(--bg-surface-hover)] rounded-xl py-2 px-1">
+              <div className="bg-[var(--bg-surface-hover)] rounded-xl py-2 px-1 border border-[var(--border-subtle)]">
                 <p className="text-[var(--text-primary)] font-black text-sm font-display">{sliders.objectivity}%</p>
-                <p className="text-[9px] text-[var(--text-muted)]">Objetividade</p>
+                <p className="text-[9px] font-semibold text-[var(--text-muted)]">Objetividade</p>
+                <p className="text-[8px] text-emerald-400 font-medium truncate mt-0.5">{getSliderDescriptor("Objetividade", sliders.objectivity)}</p>
               </div>
             </div>
           </div>
