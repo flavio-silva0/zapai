@@ -1,9 +1,11 @@
 import { useState, useContext } from "react";
 import {
   User, CreditCard, Users, Shield, Key, Bell, ChevronRight,
-  Eye, EyeOff, Copy, Check, Zap, Globe, LogOut, Trash2
+  Eye, EyeOff, Copy, Check, Zap, Globe, LogOut, Trash2,
+  Lock, AlertCircle, X, ShieldAlert
 } from "lucide-react";
 import { AuthContext } from "../context/AuthContext";
+import { apiFetch } from "../api";
 
 function SettingRow({ label, description, children }) {
   return (
@@ -17,9 +19,12 @@ function SettingRow({ label, description, children }) {
   );
 }
 
-function Toggle({ checked, onChange }) {
+function Toggle({ checked, onChange, disabled }) {
   return (
-    <div className={`toggle-track ${checked ? "on" : ""}`} onClick={() => onChange(!checked)}>
+    <div
+      className={`toggle-track ${checked ? "on" : ""} ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+      onClick={() => { if (!disabled && onChange) onChange(!checked); }}
+    >
       <div className="toggle-thumb" />
     </div>
   );
@@ -46,7 +51,57 @@ export default function Settings() {
     alerts: true,
   });
 
-  const MOCK_API_KEY = "sk-zapai-" + "x".repeat(32);
+  // Password change state
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({ senhaAtual: "", novaSenha: "", confirmaSenha: "" });
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPasswordError("");
+    setPasswordSuccess("");
+
+    if (!passwordForm.senhaAtual || !passwordForm.novaSenha) {
+      setPasswordError("Preencha a senha atual e a nova senha.");
+      return;
+    }
+    if (passwordForm.novaSenha.length < 8) {
+      setPasswordError("A nova senha deve ter pelo menos 8 caracteres.");
+      return;
+    }
+    if (passwordForm.novaSenha !== passwordForm.confirmaSenha) {
+      setPasswordError("A confirmação de senha não confere.");
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      const res = await apiFetch("/api/auth/change-password", {
+        method: "POST",
+        body: JSON.stringify({
+          senhaAtual: passwordForm.senhaAtual,
+          novaSenha: passwordForm.novaSenha
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao alterar senha.");
+
+      setPasswordSuccess("Senha alterada com sucesso!");
+      setPasswordForm({ senhaAtual: "", novaSenha: "", confirmaSenha: "" });
+      setTimeout(() => {
+        setShowPasswordModal(false);
+        setPasswordSuccess("");
+      }, 2000);
+    } catch (err) {
+      setPasswordError(err.message);
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
+  const MOCK_API_KEY = "sk-zapai-em-breve";
 
   const handleCopy = () => {
     navigator.clipboard.writeText(MOCK_API_KEY).catch(() => {});
@@ -149,51 +204,51 @@ export default function Settings() {
               <div className="bg-gradient-to-br from-[var(--clr-primary)]/10 to-[var(--clr-info)]/5 border border-[var(--clr-primary)]/20 rounded-2xl p-6">
                 <div className="flex items-start justify-between">
                   <div>
-                    <span className="badge badge-brand text-[10px] mb-2">Plano Atual</span>
-                    <h2 className="text-[var(--text-primary)] font-black text-xl font-display">Plano Pro</h2>
+                    <span className="badge badge-brand text-[10px] mb-2">Plano da Organização</span>
+                    <h2 className="text-[var(--text-primary)] font-black text-xl font-display">
+                      Plano {tenant?.plan ? tenant.plan.toUpperCase() : "PRO"}
+                    </h2>
                     <p className="text-[13px] mt-1 text-[var(--text-secondary)]">
-                      R$ 197/mês · Renovação em 15/08/2026
+                      Status: <span className="font-semibold text-emerald-400 capitalize">{tenant?.status || "ativo"}</span>
+                      {tenant?.trial_ends_at && tenant?.status === "trial" && (
+                        <span> · Período de teste até {new Date(tenant.trial_ends_at).toLocaleDateString("pt-BR")}</span>
+                      )}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="font-display font-black text-3xl text-[var(--text-primary)]">R$197</p>
-                    <p className="text-[11px] text-[var(--text-muted)]">/mês</p>
+                    <span className="badge badge-brand text-xs font-mono">
+                      {tenant?.status === "trial" ? "TRIAL ATIVO" : "CONTRATUAL"}
+                    </span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3 mt-5 pt-5 border-t border-[var(--border-subtle)]">
-                  {[
-                    { label: "Conversas/mês", used: 1284, limit: 5000 },
-                    { label: "Atendentes", used: 1, limit: 3 },
-                    { label: "Canais", used: 1, limit: 5 },
-                  ].map((u, i) => (
-                    <div key={i}>
-                      <div className="flex justify-between text-[11px] mb-1.5">
-                        <span className="text-[var(--text-muted)]">{u.label}</span>
-                        <span className="font-semibold text-[var(--text-primary)]">{u.used}/{u.limit}</span>
-                      </div>
-                      <div className="h-1.5 rounded-full bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)]">
-                        <div className="h-full rounded-full bg-gradient-to-r from-[var(--clr-primary)] to-[var(--clr-info)]"
-                          style={{ width: `${(u.used / u.limit) * 100}%` }} />
-                      </div>
-                    </div>
-                  ))}
+                <div className="mt-5 pt-5 border-t border-[var(--border-subtle)] text-xs text-[var(--text-muted)] space-y-1">
+                  <p>• Suporte dedicado e integração oficial Meta Cloud API inclusa.</p>
+                  <p>• Faturamento mensal por contrato corporativo ou ordem de serviço.</p>
                 </div>
               </div>
 
-              <div className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl p-6 space-y-1">
-                <h2 className="text-[var(--text-primary)] font-bold text-base mb-4">Forma de Pagamento</h2>
-                <SettingRow label="Cartão de crédito" description="•••• •••• •••• 4242 · Visa">
-                  <button className="btn-ghost text-[12px]">Alterar</button>
+              <div className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl p-6 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-[var(--text-primary)] font-bold text-base">Faturamento & Cobrança</h2>
+                  <span className="badge badge-warning text-[10px]">Em breve: Checkout Online</span>
+                </div>
+                <SettingRow label="Modelo de Cobrança" description="Gestão contratual de pagamentos">
+                  <span className="text-xs text-[var(--text-secondary)]">Boleto / PIX Corporativo</span>
                 </SettingRow>
-                <SettingRow label="Endereço de cobrança" description="São Paulo, SP">
-                  <button className="btn-ghost text-[12px]">Editar</button>
+                <SettingRow label="Emissão de Notas Fiscais" description="Enviadas mensalmente para o e-mail cadastrado">
+                  <span className="text-xs text-emerald-400 font-semibold">Ativo</span>
                 </SettingRow>
-                <div className="pt-4 flex justify-between items-center">
-                  <button className="text-[12px] font-semibold transition-colors hover:opacity-80" style={{ color: "#a78bfa" }}>
-                    Ver histórico de faturas
-                  </button>
-                  <button className="btn-primary text-sm">Fazer Upgrade</button>
+                <div className="pt-2 flex justify-between items-center">
+                  <p className="text-[11px] text-[var(--text-muted)]">
+                    Deseja alterar seu plano ou adicionar mais números? Fale com nosso suporte comercial.
+                  </p>
+                  <a
+                    href="mailto:contato@zapai.com.br?subject=Upgrade%20de%20Plano%20ZapAI"
+                    className="btn-primary text-xs py-2 px-4 inline-block text-center"
+                  >
+                    Solicitar Upgrade
+                  </a>
                 </div>
               </div>
             </div>
@@ -201,47 +256,46 @@ export default function Settings() {
 
           {/* Team */}
           {activeSection === "team" && (
-            <div className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl p-6 space-y-1 animate-fade-scale">
-              <div className="flex items-center justify-between mb-5">
-                <h2 className="text-[var(--text-primary)] font-bold text-base">Membros da Equipe</h2>
-                <button className="btn-primary text-sm flex items-center gap-1.5">
+            <div className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl p-6 space-y-4 animate-fade-scale">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-[var(--text-primary)] font-bold text-base">Membros da Organização</h2>
+                  <p className="text-xs text-[var(--text-muted)]">Usuários com acesso ao painel de atendimento</p>
+                </div>
+                <button
+                  disabled
+                  className="btn-primary text-xs flex items-center gap-1.5 opacity-60 cursor-not-allowed"
+                  title="Convite de múltiplos membros em breve"
+                >
                   <span>+</span>
                   Convidar Membro
+                  <span className="badge badge-warning text-[9px] ml-1">Em breve</span>
                 </button>
               </div>
 
-              {[
-                { name: user?.nome || "Você", email: user?.email || "admin@empresa.com", role: "Administrador", status: "Ativo", isYou: true },
-                { name: "Maria Silva", email: "maria@empresa.com", role: "Operador", status: "Ativo" },
-                { name: "João Souza", email: "joao@empresa.com", role: "Visualizador", status: "Pendente" },
-              ].map((member, i) => (
-                <div key={i} className="flex items-center gap-3 py-3 border-b border-[var(--border-subtle)]">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white text-sm shrink-0 bg-gradient-to-br from-[var(--clr-primary)] to-[var(--clr-info)]">
-                    {member.name.charAt(0)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="text-[13px] font-semibold text-[var(--text-primary)] truncate">{member.name}</p>
-                      {member.isYou && <span className="badge badge-brand text-[9px]">Você</span>}
-                    </div>
-                    <p className="text-[11px] truncate text-[var(--text-muted)]">{member.email}</p>
-                  </div>
-                  <span className={`badge text-[10px] ${member.status === "Ativo" ? "badge-success" : "badge-warning"}`}>
-                    {member.status}
-                  </span>
-                  <select className="input-premium text-[11px] rounded-lg px-2 py-1 appearance-none w-32"
-                    defaultValue={member.role}>
-                    <option className="bg-[var(--bg-surface)]">Administrador</option>
-                    <option className="bg-[var(--bg-surface)]">Operador</option>
-                    <option className="bg-[var(--bg-surface)]">Visualizador</option>
-                  </select>
-                  {!member.isYou && (
-                    <button className="p-1.5 rounded-lg transition-all text-[var(--text-muted)] hover:bg-[var(--clr-danger)]/10 hover:text-[var(--clr-danger)]">
-                      <Trash2 size={13} />
-                    </button>
-                  )}
+              {/* Real user row */}
+              <div className="flex items-center gap-3 py-3 border-b border-[var(--border-subtle)]">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white text-sm shrink-0 bg-gradient-to-br from-[var(--clr-primary)] to-[var(--clr-info)]">
+                  {user?.nome?.charAt(0)?.toUpperCase() || "U"}
                 </div>
-              ))}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-[13px] font-semibold text-[var(--text-primary)] truncate">{user?.nome || "Você"}</p>
+                    <span className="badge badge-brand text-[9px]">Sua Conta</span>
+                  </div>
+                  <p className="text-[11px] truncate text-[var(--text-muted)]">{user?.email}</p>
+                </div>
+                <span className="badge badge-success text-[10px]">
+                  Ativo
+                </span>
+                <span className="text-xs font-semibold text-[var(--text-secondary)] px-3 py-1 bg-[var(--bg-surface-hover)] rounded-lg">
+                  {user?.role === "owner" ? "Proprietário" : user?.role === "super_admin" ? "Super Admin" : user?.role === "agent" ? "Operador" : "Visualizador"}
+                </span>
+              </div>
+
+              <p className="text-[11px] text-[var(--text-muted)] italic pt-2">
+                * A funcionalidade de criação e delegação de papéis de operadores adicionais para sua equipe está prevista para a próxima versão.
+              </p>
             </div>
           )}
 
@@ -272,14 +326,30 @@ export default function Settings() {
               <div className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl p-6 space-y-1">
                 <h2 className="text-[var(--text-primary)] font-bold text-base mb-5">Segurança da Conta</h2>
 
-                <SettingRow label="Senha" description="Altere sua senha de acesso">
-                  <button className="btn-ghost text-[12px]">Alterar Senha</button>
+                <SettingRow label="Senha de Acesso" description="Altere a sua senha de login no sistema">
+                  <button
+                    onClick={() => setShowPasswordModal(true)}
+                    className="btn-primary text-[12px] flex items-center gap-1.5"
+                  >
+                    <Lock size={12} />
+                    Alterar Senha
+                  </button>
                 </SettingRow>
-                <SettingRow label="Autenticação em 2 Fatores" description="Adicione uma camada extra de segurança com 2FA">
-                  <Toggle checked={false} onChange={() => {}} />
+
+                <SettingRow label="Autenticação em 2 Fatores (2FA)" description="Adicione uma camada extra de segurança">
+                  <div className="flex items-center gap-2">
+                    <span className="badge badge-warning text-[10px]">Em breve</span>
+                    <Toggle checked={false} disabled onChange={() => {}} />
+                  </div>
                 </SettingRow>
-                <SettingRow label="Sessões Ativas" description="Gerencie dispositivos com acesso à sua conta">
-                  <button className="btn-ghost text-[12px]">Ver Sessões</button>
+
+                <SettingRow label="Sessões Ativas" description="Gerenciamento de múltiplos dispositivos e tokens ativos">
+                  <div className="flex items-center gap-2">
+                    <span className="badge badge-warning text-[10px]">Em breve</span>
+                    <button disabled className="btn-ghost text-[12px] opacity-50 cursor-not-allowed">
+                      Ver Sessões
+                    </button>
+                  </div>
                 </SettingRow>
               </div>
 
@@ -290,14 +360,17 @@ export default function Settings() {
                 </h3>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[13px] font-semibold text-[var(--text-primary)]">Encerrar conta</p>
+                    <p className="text-[13px] font-semibold text-[var(--text-primary)]">Encerramento de Conta</p>
                     <p className="text-[11px] mt-0.5 text-[var(--text-muted)]">
-                      Todos os dados serão excluídos permanentemente
+                      Para solicitar a exclusão de conta e remoção de dados conforme a LGPD, contate o DPO/Privacidade.
                     </p>
                   </div>
-                  <button className="px-4 py-2 rounded-xl text-[12px] font-bold transition-all hover:opacity-80 bg-[var(--clr-danger)]/10 text-[var(--clr-danger)] border border-[var(--clr-danger)]/20">
-                    Excluir Conta
-                  </button>
+                  <a
+                    href="mailto:privacidade@zapai.com.br?subject=Solicitacao%20Exclusao%20Conta%20LGPD"
+                    className="px-4 py-2 rounded-xl text-[12px] font-bold transition-all hover:opacity-80 bg-[var(--clr-danger)]/10 text-[var(--clr-danger)] border border-[var(--clr-danger)]/20"
+                  >
+                    Solicitar Exclusão
+                  </a>
                 </div>
               </div>
             </div>
@@ -307,69 +380,26 @@ export default function Settings() {
           {activeSection === "api" && (
             <div className="space-y-4 animate-fade-scale">
               <div className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl p-6">
-                <div className="flex items-center gap-3 mb-5">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[var(--clr-primary)]/10">
-                    <Key size={18} className="text-[var(--clr-primary)]" />
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-[var(--clr-primary)]/10">
+                      <Key size={18} className="text-[var(--clr-primary)]" />
+                    </div>
+                    <div>
+                      <h2 className="text-[var(--text-primary)] font-bold text-base">API Pública REST</h2>
+                      <p className="text-[11px] text-[var(--text-muted)]">
+                        Integração externa via token seguro para desenvolvedores
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="text-[var(--text-primary)] font-bold text-base">Chave de API</h2>
-                    <p className="text-[11px] text-[var(--text-muted)]">
-                      Use para integrações personalizadas e webhooks
-                    </p>
-                  </div>
+                  <span className="badge badge-warning text-[10px]">Em breve</span>
                 </div>
 
-                <div className="p-3 rounded-xl flex items-center gap-2 mb-3 bg-[var(--clr-warning)]/10 border border-[var(--clr-warning)]/20">
-                  <span className="text-[12px] text-[var(--clr-warning)]">
-                    ⚠️ Nunca compartilhe sua chave de API. Ela dá acesso total à sua conta.
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <div className={`flex-1 flex items-center px-3 py-2.5 rounded-xl font-mono text-[12px] select-all bg-[var(--bg-surface-active)] border border-[var(--border-subtle)] ${apiVisible ? 'text-[var(--clr-primary)]' : 'text-[var(--text-muted)]'}`}>
-                    {apiVisible ? MOCK_API_KEY : "sk-zapai-" + "•".repeat(32)}
-                  </div>
-                  <button onClick={() => setApiVisible(v => !v)}
-                    className="p-2.5 rounded-xl transition-all hover:bg-[var(--bg-surface-hover)] text-[var(--text-muted)]">
-                    {apiVisible ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                  <button onClick={handleCopy}
-                    className={`p-2.5 rounded-xl transition-all ${copied ? "bg-[var(--clr-success)]/10 text-[var(--clr-success)]" : "bg-[var(--clr-primary)]/10 text-[var(--clr-primary)] hover:bg-[var(--clr-primary)]/20"}`}>
-                    {copied ? <Check size={15} /> : <Copy size={15} />}
-                  </button>
-                </div>
-
-                <div className="flex items-center justify-between mt-4 pt-4 border-t border-[var(--border-subtle)]">
-                  <p className="text-[11px] text-[var(--text-muted)]">
-                    Criada em 01/01/2026 · Nunca expirada
+                <div className="p-4 rounded-xl flex items-center gap-3 bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)]">
+                  <ShieldAlert size={18} className="text-amber-400 shrink-0" />
+                  <p className="text-xs text-[var(--text-secondary)]">
+                    A API pública do ZapAI e o suporte a webhooks externos customizados estão em fase de homologação. O acesso programático será liberado em breve para contas corporativas.
                   </p>
-                  <button className="text-[12px] font-semibold transition-colors hover:opacity-80 text-[var(--clr-danger)]">
-                    Revogar e gerar nova chave
-                  </button>
-                </div>
-              </div>
-
-              {/* Webhook */}
-              <div className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl p-6 space-y-1">
-                <div className="flex items-center gap-3 mb-4">
-                  <Globe size={16} className="text-[var(--clr-info)]" />
-                  <h3 className="text-[var(--text-primary)] font-bold text-sm">Webhook URL</h3>
-                </div>
-                <SettingRow label="URL de callback" description="Receba eventos em tempo real na sua URL">
-                  <input placeholder="https://sua-api.com/webhook" className="input-premium text-[12px]" style={{ width: 240 }} />
-                </SettingRow>
-                <SettingRow label="Eventos" description="Quais eventos disparar para o webhook">
-                  <div className="flex flex-col gap-1">
-                    {["Nova mensagem", "Conversa encerrada", "Transferência humana"].map(ev => (
-                      <label key={ev} className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" defaultChecked className="accent-purple-500" />
-                        <span className="text-[12px]" style={{ color: "var(--text-secondary)" }}>{ev}</span>
-                      </label>
-                    ))}
-                  </div>
-                </SettingRow>
-                <div className="pt-4 flex justify-end">
-                  <button className="btn-primary text-sm">Salvar Webhook</button>
                 </div>
               </div>
             </div>
@@ -377,6 +407,104 @@ export default function Settings() {
 
         </div>
       </div>
+
+      {/* ── Modal Alterar Senha (AUTH-004) ── */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-fade-in">
+          <div className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl w-full max-w-md p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-[var(--clr-primary)]/15 flex items-center justify-center text-[var(--clr-primary)]">
+                  <Lock size={16} />
+                </div>
+                <h3 className="font-bold text-base text-[var(--text-primary)]">Alterar Senha</h3>
+              </div>
+              <button
+                onClick={() => { setShowPasswordModal(false); setPasswordError(""); setPasswordSuccess(""); }}
+                className="p-1 rounded-lg hover:bg-[var(--bg-surface-hover)] text-[var(--text-muted)]"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {passwordError && (
+              <div className="p-3 rounded-xl text-xs flex items-center gap-2 bg-red-500/10 border border-red-500/20 text-red-400">
+                <AlertCircle size={14} className="shrink-0" />
+                <span>{passwordError}</span>
+              </div>
+            )}
+
+            {passwordSuccess && (
+              <div className="p-3 rounded-xl text-xs flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+                <Check size={14} className="shrink-0" />
+                <span>{passwordSuccess}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleChangePassword} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
+                  Senha Atual
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={passwordForm.senhaAtual}
+                  onChange={e => setPasswordForm(p => ({ ...p, senhaAtual: e.target.value }))}
+                  placeholder="Digite sua senha atual"
+                  className="input-premium text-xs w-full"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
+                  Nova Senha (mínimo 8 caracteres)
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={passwordForm.novaSenha}
+                  onChange={e => setPasswordForm(p => ({ ...p, novaSenha: e.target.value }))}
+                  placeholder="Digite sua nova senha forte"
+                  className="input-premium text-xs w-full"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
+                  Confirmar Nova Senha
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={passwordForm.confirmaSenha}
+                  onChange={e => setPasswordForm(p => ({ ...p, confirmaSenha: e.target.value }))}
+                  placeholder="Repita a nova senha"
+                  className="input-premium text-xs w-full"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordModal(false)}
+                  className="btn-ghost text-xs py-2 px-3"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={passwordLoading}
+                  className="btn-primary text-xs py-2 px-4"
+                >
+                  {passwordLoading ? "Salvando..." : "Salvar Nova Senha"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

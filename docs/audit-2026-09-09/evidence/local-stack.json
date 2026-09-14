@@ -1,0 +1,21 @@
+{
+  "postgres": "PostgreSQL 18.4 on x86_64-windows, compiled by msvc-19.44.35226, 64-bit",
+  "ports": {
+    "postgres": 55432,
+    "postgrest": 55433,
+    "supabaseGateway": 55434,
+    "backend": 3001,
+    "frontend": 5173
+  },
+  "dataDirectory": "C:\\Users\\FlavioJuniorCarvalho\\AppData\\Local\\ZapAI-audit-runtime\\pgdata",
+  "limitations": [
+    "Schema base reconstructed for demonstration; not a verified production dump",
+    "RPC uses tenant-filtered rows without vector similarity; embeddings are mocked",
+    "Gemini and Meta are locally mocked; no real sends or charges"
+  ],
+  "pids": {
+    "launcher": 21952,
+    "postgrest": 12048,
+    "backend": 9908
+  }
+}

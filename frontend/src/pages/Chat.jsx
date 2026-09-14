@@ -5,7 +5,7 @@ import { AuthContext } from "../context/AuthContext";
 import { useConfig } from "../context/ConfigContext";
 import KanbanBoard from "../components/KanbanBoard";
 import ChatViewer from "../components/ChatViewer";
-import { MessageSquare, Zap } from "lucide-react";
+import { MessageSquare, Zap, ArrowLeft } from "lucide-react";
 
 export default function Chat() {
   const { tenant, user } = useContext(AuthContext);
@@ -52,7 +52,8 @@ export default function Chat() {
   }, [loading, patients, searchParams]);
 
   useEffect(() => {
-    const es = new EventSource(apiUrl("/api/events"));
+    const token = localStorage.getItem("sofia_token");
+    const es = new EventSource(apiUrl(`/api/events?token=${token || ""}`));
     const onPatientUpdated = () => fetchPatients();
     const onNewMessage = (e) => {
       try {
@@ -76,10 +77,10 @@ export default function Chat() {
   }, [fetchPatients]);
 
   return (
-    <div className="flex h-full overflow-hidden bg-[var(--bg-base)]">
+    <div className="flex h-full overflow-hidden bg-[var(--bg-base)] relative">
 
-      {/* ── Inner Sidebar (Contatos) ── */}
-      <aside className="w-80 flex flex-col z-10 shrink-0 bg-[var(--bg-surface)] border-r border-[var(--border-medium)]">
+      {/* ── Inner Sidebar (Contatos) — no mobile só aparece quando nenhum contato está aberto ── */}
+      <aside className={`w-full md:w-80 flex flex-col z-10 shrink-0 bg-[var(--bg-surface)] border-r border-[var(--border-medium)] ${selectedPatient ? "hidden md:flex" : "flex"}`}>
         {/* Header */}
         <div className="px-4 py-4 flex items-center justify-between border-b border-[var(--border-medium)] bg-[var(--bg-surface)]">
           <div className="flex items-center gap-2.5">
@@ -114,18 +115,30 @@ export default function Chat() {
         </div>
       </aside>
 
-      {/* ── Chat Area ── */}
-      <div className="flex-1 flex flex-col z-0 min-w-0 bg-[var(--bg-base)]">
+      {/* ── Chat Area — no mobile ocupa 100% da tela quando há contato selecionado ── */}
+      <div className={`flex-1 flex flex-col z-0 min-w-0 bg-[var(--bg-base)] ${!selectedPatient ? "hidden md:flex" : "flex"}`}>
         {selectedPatient ? (
-          <ChatViewer
-            patient={selectedPatient}
-            botName={botName}
-            botEmoji={botEmoji}
-            onPatientChange={(updated) => {
-              setSelectedPatient(updated);
-              fetchPatients();
-            }}
-          />
+          <div className="flex flex-col h-full w-full">
+            {/* Botão voltar para mobile (UX-004) */}
+            <div className="md:hidden px-3 py-2 bg-[var(--bg-surface)] border-b border-[var(--border-medium)] flex items-center">
+              <button
+                onClick={() => setSelectedPatient(null)}
+                className="flex items-center gap-1.5 text-xs font-semibold text-teal-600 dark:text-teal-400 hover:opacity-80 py-1 px-2 rounded-lg bg-teal-500/10"
+              >
+                <ArrowLeft size={14} />
+                <span>Voltar para lista</span>
+              </button>
+            </div>
+            <ChatViewer
+              patient={selectedPatient}
+              botName={botName}
+              botEmoji={botEmoji}
+              onPatientChange={(updated) => {
+                setSelectedPatient(updated);
+                fetchPatients();
+              }}
+            />
+          </div>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center gap-5">
             <div className="w-16 h-16 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-600">

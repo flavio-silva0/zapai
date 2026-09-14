@@ -1,0 +1,20 @@
+[
+  {
+    "name": "migration-multitenant.sql",
+    "result": "failed",
+    "code": "42P01",
+    "message": "relation \"users_whatsapp\" does not exist"
+  },
+  {
+    "name": "migration-whatsapp-idempotency.sql",
+    "result": "failed",
+    "code": "42P01",
+    "message": "relation \"tenants\" does not exist"
+  },
+  {
+    "name": "migration-sandbox-tables.sql",
+    "result": "failed",
+    "code": "42P01",
+    "message": "relation \"tenants\" does not exist"
+  }
+]

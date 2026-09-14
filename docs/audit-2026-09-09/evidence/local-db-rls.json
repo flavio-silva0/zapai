@@ -1,0 +1,45 @@
+{
+  "scope": "reconstructed demonstration, not production",
+  "tables": [
+    {
+      "tablename": "knowledge_base",
+      "rowsecurity": false
+    },
+    {
+      "tablename": "messages",
+      "rowsecurity": true
+    },
+    {
+      "tablename": "messages_sandbox",
+      "rowsecurity": true
+    },
+    {
+      "tablename": "patients",
+      "rowsecurity": true
+    },
+    {
+      "tablename": "tenants",
+      "rowsecurity": false
+    },
+    {
+      "tablename": "users",
+      "rowsecurity": false
+    },
+    {
+      "tablename": "users_whatsapp",
+      "rowsecurity": false
+    },
+    {
+      "tablename": "users_whatsapp_sandbox",
+      "rowsecurity": true
+    },
+    {
+      "tablename": "whatsapp_message_processing",
+      "rowsecurity": true
+    },
+    {
+      "tablename": "whatsapp_message_processing_sandbox",
+      "rowsecurity": true
+    }
+  ]
+}

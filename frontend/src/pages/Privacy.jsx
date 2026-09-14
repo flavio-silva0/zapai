@@ -24,51 +24,62 @@ export default function Privacy() {
 • Cumprir obrigações legais e regulatórias aplicáveis.`
     },
     {
-      title: "3. Compartilhamento de Dados",
-      content: `Não vendemos, alugamos ou compartilhamos suas informações pessoais com terceiros para fins de marketing. Seus dados podem ser compartilhados apenas nas seguintes circunstâncias:
-• Com a Meta Platforms, Inc. (Facebook/WhatsApp) para viabilizar o envio e recebimento de mensagens através da API oficial do WhatsApp Business.
-• Com provedores de serviços essenciais (hospedagem, banco de dados) que atuam sob nossos acordos de confidencialidade.
-• Quando exigido por lei, ordem judicial ou autoridade regulatória competente.`
+      title: "3. Subprocessadores e Compartilhamento de Dados",
+      content: `Não vendemos, alugamos ou comercializamos informações pessoais com terceiros. O compartilhamento de dados ocorre exclusivamente com subprocessadores estritamente necessários para a execução dos serviços contratados:
+• Meta Platforms, Inc.: Provedor oficial da API do WhatsApp Business Cloud para recepção e transmissão de mensagens.
+• Google LLC: Provedor da API comercial de inteligência artificial (Google Gemini) para geração dinâmica de respostas.
+• Supabase Inc.: Provedor de infraestrutura de banco de dados PostgreSQL com isolamento lógico multi-tenant.
+• Provedores de Hospedagem em Nuvem: Para execução dos servidores da aplicação e interfaces web sob conexões criptografadas.
+• Autoridades Governamentais: Apenas mediante intimação, ordem judicial ou obrigação legal estrita.`
     },
     {
       title: "4. Armazenamento e Segurança",
-      content: `Adotamos medidas técnicas e organizacionais apropriadas para proteger suas informações contra acesso não autorizado, alteração, divulgação ou destruição. Isso inclui:
-• Criptografia de dados em trânsito (HTTPS/TLS).
-• Autenticação segura com tokens JWT.
-• Armazenamento em servidores protegidos com acesso restrito.
-• Revisão periódica de práticas de segurança.`
+      content: `Adotamos medidas técnicas e organizacionais rígidas para salvaguardar as informações:
+• Criptografia de dados em trânsito com TLS 1.3 / HTTPS.
+• Autenticação reforçada via tokens JWT com assinatura criptográfica e hashing seguro de senhas com bcrypt (custo 12).
+• Isolamento lógico rigoroso entre organizações (multi-tenancy) e permissões por perfil (RBAC).
+• Validação de assinaturas criptográficas (HMAC SHA-256) em webhooks de entrada.
+• Monitoramento e mitigação contra injeções de prompt e vazamento de dados confidenciais.`
     },
     {
-      title: "5. Retenção de Dados",
-      content: `Mantemos suas informações pessoais apenas pelo tempo necessário para cumprir as finalidades descritas nesta política, salvo quando um período de retenção mais longo seja exigido ou permitido por lei. Você pode solicitar a exclusão dos seus dados a qualquer momento entrando em contato conosco.`
+      title: "5. Retenção e Descarte de Dados",
+      content: `Mantemos os dados pessoais apenas pelo tempo necessário para cumprir as finalidades do atendimento ou exigências regulatórias:
+• Mensagens e Histórico de Conversas: Retidos pelo período padrão de até 90 (noventa) dias para fins de acompanhamento operacional, ou conforme estipulado no contrato de prestação de serviços com o cliente.
+• Memória de Contexto do Atendente IA: Limitada a preferências operacionais e descartada mediante inatividade prolongada ou pedido de encerramento.
+• Logs Técnicos e Auditoria de Segurança: Armazenados por 14 a 30 dias para segurança do sistema e anonimizados subsequentemente.
+• Descarte: Os titulares podem solicitar a exclusão de seus dados a qualquer momento via canal oficial do Encarregado de Dados (DPO).`
     },
     {
       title: "6. Seus Direitos (LGPD)",
-      content: `Em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018), você tem direito a:
-• Confirmar a existência de tratamento de seus dados pessoais.
-• Acessar, corrigir ou atualizar seus dados.
-• Solicitar a anonimização, bloqueio ou eliminação de dados desnecessários.
-• Revogar o consentimento a qualquer momento.
-• Solicitar a portabilidade dos dados.
-Para exercer qualquer desses direitos, entre em contato através do e-mail indicado abaixo.`
+      content: `Em conformidade com a Lei Geral de Proteção de Dados (Lei nº 13.709/2018), os titulares de dados contam com os seguintes direitos:
+• Confirmação da existência de tratamento e acesso aos dados.
+• Correção de dados incompletos, inexatos ou desatualizados.
+• Anonimização, bloqueio ou eliminação de dados desnecessários ou tratados em desconformidade.
+• Revogação de consentimento e portabilidade dos dados.
+• Esclarecimento sobre entidades com as quais os dados foram compartilhados.
+Para exercer seus direitos, utilize o canal direto de privacidade listado na Seção 10.`
     },
     {
-      title: "7. Uso de Inteligência Artificial",
-      content: `A ZapAI utiliza modelos de inteligência artificial generativa (Google Gemini) para processar e responder mensagens automaticamente. As conversas são processadas em tempo real e podem ser armazenadas para fins de histórico e melhoria do serviço. Nenhum dado é utilizado para treinar modelos de IA de terceiros.`
+      title: "7. Uso de Inteligência Artificial e Não-Treinamento",
+      content: `A ZapAI utiliza modelos de linguagem de ponta (como o Google Gemini) para auxiliar na automação do atendimento via WhatsApp.
+• O processamento é executado por meio de interfaces de programação de aplicação (APIs) comerciais corporativas.
+• Sob os termos de proteção de dados comerciais aplicáveis às APIs empresariais dos provedores, os prompts de entrada, respostas e dados de clientes NÃO são utilizados pelos provedores de modelo para treinar ou aperfeiçoar modelos fundacionais públicos.
+• O sistema implementa filtros de segurança e salvaguardas para prevenir alucinações, vazamento de instruções internas e injeções de prompt maliciosas.`
     },
     {
-      title: "8. Cookies e Tecnologias Similares",
-      content: `Utilizamos cookies e tecnologias similares para manter sua sessão ativa, lembrar suas preferências e garantir o funcionamento adequado da plataforma. Você pode configurar seu navegador para recusar cookies, mas isso pode afetar a funcionalidade do serviço.`
+      title: "8. Cookies e Sessão",
+      content: `Utilizamos armazenamento local seguro de sessão para manter a autenticação do usuário, guardar preferências de exibição e garantir a integridade da navegação. O usuário pode gerenciar o armazenamento através das configurações do navegador.`
     },
     {
       title: "9. Alterações nesta Política",
-      content: `Podemos atualizar esta Política de Privacidade periodicamente. Quaisquer alterações significativas serão comunicadas através da plataforma ou por e-mail. A data da última atualização será sempre indicada no topo desta página.`
+      content: `Esta Política de Privacidade pode ser revisada periodicamente para refletir evoluções técnicas, legais ou operacionais. A data da versão mais recente estará sempre discriminada no cabeçalho.`
     },
     {
-      title: "10. Contato",
-      content: `Se você tiver dúvidas, preocupações ou solicitações relacionadas a esta Política de Privacidade ou ao tratamento dos seus dados pessoais, entre em contato conosco:
-• E-mail: contato@zapai.com.br
-• Plataforma: ZapAI — Conexão e Confiança`
+      title: "10. Contato e Encarregado de Dados (DPO)",
+      content: `Para exercer qualquer direito previsto na LGPD, esclarecer dúvidas de privacidade ou solicitar exclusão de registros:
+• Encarregado de Proteção de Dados (DPO): privacidade@zapai.com.br
+• Atendimento Geral: contato@zapai.com.br
+• Plataforma: ZapAI — Conexão, Inteligência e Confiança`
     },
   ];
 

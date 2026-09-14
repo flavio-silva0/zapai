@@ -1,0 +1,18 @@
+{
+  "verifiedAt": "2026-09-09T18:35:32.833Z",
+  "db": {
+    "database": "zapai_audit_utf8",
+    "health": 1
+  },
+  "http": [
+    {
+      "url": "http://127.0.0.1:5173",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:3001/health",
+      "status": 200
+    }
+  ],
+  "frontendProxyLoginStatus": 200
+}

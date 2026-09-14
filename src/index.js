@@ -8,11 +8,18 @@
 require("dotenv").config();
 
 const axios = require("axios");
+const crypto = require("crypto");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { createClient } = require("@supabase/supabase-js");
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+
+function maskPhone(phone) {
+  if (!phone || typeof phone !== "string") return "desconhecido";
+  if (phone.length <= 4) return "****";
+  return phone.slice(0, 4) + "****" + phone.slice(-2);
+}
 const {
   SAFE_ERROR_FALLBACK,
   buildGeminiHistoryFromRows,
@@ -500,24 +507,20 @@ async function getOrCreatePatient(telefone, nome = "Contato", tenantId = null) {
     .single();
 
   if (error) {
-    // Se deu erro de duplicidade (concorrência ou constraint de telefone global no banco),
-    // tenta recuperar o registro existente
+    // Se deu erro de duplicidade (concorrência ou retry), tenta recuperar o registro existente DO MESMO TENANT
     let fallbackQuery = supabase.from("users_whatsapp").select("*").eq("telefone", telefone);
-    if (tenantId) fallbackQuery = fallbackQuery.eq("tenant_id", tenantId);
-    let { data: fallback } = await fallbackQuery.limit(1).maybeSingle();
-
-    if (!fallback) {
-      // Se não encontrou com tenant_id, busca qualquer um com esse telefone
-      const { data: anyLead } = await supabase.from("users_whatsapp").select("*").eq("telefone", telefone).limit(1).maybeSingle();
-      if (anyLead) {
-        if (tenantId && (!anyLead.tenant_id || anyLead.tenant_id !== tenantId)) {
-          await supabase.from("users_whatsapp").update({ tenant_id: tenantId, ...(nome && nome !== "Contato" ? { nome } : {}) }).eq("id", anyLead.id);
-          anyLead.tenant_id = tenantId;
-          if (nome && nome !== "Contato") anyLead.nome = nome;
-        }
-        return anyLead;
-      }
+    if (tenantId) {
+      fallbackQuery = fallbackQuery.eq("tenant_id", tenantId);
     } else {
+      fallbackQuery = fallbackQuery.is("tenant_id", null);
+    }
+    const { data: fallback } = await fallbackQuery.limit(1).maybeSingle();
+
+    if (fallback) {
+      if (nome && nome !== "Contato" && fallback.nome === "Contato") {
+        await supabase.from("users_whatsapp").update({ nome }).eq("id", fallback.id);
+        fallback.nome = nome;
+      }
       return fallback;
     }
 
@@ -576,8 +579,10 @@ function sanitizeGeminiHistory(history) {
 // ── 6.5 MEMÓRIA DE LONGO PRAZO ──────────────────────────────
 async function atualizarMemoriaLongoPrazo(patient, historico, ultimaRespostaBot) {
   try {
-    let textoConversa = historico.map(h => `${h.role === 'user' ? 'Usuário' : 'IA'}: ${h.parts[0].text}`).join("\n");
-    textoConversa += `\nIA: ${ultimaRespostaBot}`;
+    let rawTexto = historico.map(h => `${h.role === 'user' ? 'Usuário' : 'IA'}: ${h.parts[0].text}`).join("\n");
+    rawTexto += `\nIA: ${ultimaRespostaBot}`;
+    // Limite rígido de caracteres na conversa para não estourar tokens
+    const textoConversa = rawTexto.slice(-3000);
 
     const promptMemoria = `Você é um analista de dados extraindo contexto vital de retenção.
 Extraia os fatos mais importantes sobre o 'Usuário' com base na conversa abaixo.
@@ -585,7 +590,7 @@ Gere um JSON (apenas o formato JSON, sem crases de markdown) com informações �
 Exemplos do que buscar: nome, preferências pessoais, intenção de compra, objeções, orçamento, dúvidas recorrentes.
 
 Memória Existente (Base atual):
-${patient.ai_memory ? JSON.stringify(patient.ai_memory) : "{}"}
+${patient.ai_memory ? JSON.stringify(patient.ai_memory).slice(0, 1500) : "{}"}
 
 Conversa Recente:
 ${textoConversa}
@@ -593,27 +598,33 @@ ${textoConversa}
 Regras:
 1. Responda APENAS com um objeto JSON válido. Nada de texto antes ou depois.
 2. Mescle os dados novos com os dados da "Memória Existente". Mantenha o que for importante.
-3. Preserve fatos numéricos e dados de operação, como número de caminhões, tamanho da frota, tipo de carga e dor do cliente.
+3. Preserve fatos numéricos, dados de operação, preferências, datas e necessidades declaradas do cliente.
 4. Se a conversa recente não tiver nenhuma informação nova ou relevante, retorne exatamente o JSON da Memória Existente.
 `;
 
-    const abstractor = genAI.getGenerativeModel({ model: "gemini-3.5-flash-lite" });
+    const abstractor = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || "gemini-3.5-flash-lite" });
     const result = await abstractor.generateContent(promptMemoria);
     let textResult = result.response.text().trim();
     // Limpeza de blocos de código se vierem acidentalmente
     textResult = textResult.replace(/^```[a-z]*\n?/, "").replace(/\n?```$/, "").trim();
 
     try {
-      const novaMemoria = JSON.parse(textResult);
-      if (Object.keys(novaMemoria).length > 0) {
-        await supabase.from("users_whatsapp").update({ ai_memory: novaMemoria }).eq("id", patient.id);
-        console.log(`🧠 [MEMÓRIA] Perfil do contato ${patient.telefone} enriquecido!`);
+      const parsed = JSON.parse(textResult);
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        // Limita o tamanho do JSON da memória a 2KB para evitar consumo excessivo
+        const jsonStr = JSON.stringify(parsed);
+        if (jsonStr.length <= 2048) {
+          await supabase.from("users_whatsapp").update({ ai_memory: parsed }).eq("id", patient.id);
+          console.log(`🧠 [MEMÓRIA] Perfil do contato ${maskPhone(patient.telefone)} enriquecido.`);
+        } else {
+          console.warn(`🧠 [MEMÓRIA] Memória excedeu o teto de 2KB para contato ${maskPhone(patient.telefone)}. Mantendo anterior.`);
+        }
       }
-    } catch (parseErr) {
-      console.log(`🧠 [MEMÓRIA] Falha ao efetuar parse do JSON de memória: ${textResult}`);
+    } catch (_) {
+      console.warn("🧠 [MEMÓRIA] Formato de resposta do modelo não pôde ser convertido em JSON de contexto.");
     }
   } catch (err) {
-    console.error(`🧠 [MEMÓRIA] Erro ao processar memória de longo prazo: ${err.message}`);
+    console.error(`🧠 [MEMÓRIA] Erro seguro ao processar memória de longo prazo: ${err.message}`);
   }
 }
 
@@ -815,34 +826,24 @@ Estas regras têm PRIORIDADE ABSOLUTA sobre qualquer outra instrução:
 
 # COMO RESPONDER SOBRE PARCEIROS, CLIENTES OU CASES
 
-Se houver nomes no RAG:
-1. Confirme de forma natural.
-2. Cite alguns exemplos encontrados na base.
-3. Não exagere dizendo que são clientes se o texto só indicar parceiro, case ou empresa citada.
-4. Faça uma pergunta simples para avançar.
+Se houver nomes no RAG ou documentos da empresa:
+1. Confirme de forma natural apenas as referências oficiais encontradas.
+2. Cite alguns exemplos reais encontrados na base de conhecimento.
+3. Não invente parceiros, clientes ou números que não constem na base.
+4. Faça uma pergunta simples para avançar o atendimento.
 
-Exemplo:
-"Sim. Na nossa base aparecem empresas do setor como Tozzo e Aceville, por exemplo."
-
-"A PX.Center atua conectando operações logísticas a profissionais qualificados sob demanda."
-
-"Você quer entender mais pela parte de motoristas, ajudantes ou tecnologia?"
-
-Se não houver nomes no RAG:
-"Temos atuação com empresas do setor logístico, sim."
-
-"Mas para te passar nomes específicos com segurança, preciso confirmar com o time."
-
-"Quer que eu te explique enquanto isso como funciona a operação?"
+Se não houver nomes específicos na base:
+"Para te passar referências com segurança e exatidão, posso confirmar com o nosso time especializado."
+"Quer que eu te explique enquanto isso os nossos diferenciais e como podemos te ajudar?"
 `;
 
   const modeloPrincipal = genAI.getGenerativeModel({
-    model: "gemini-3.5-flash-lite",
+    model: process.env.GEMINI_MODEL || "gemini-3.5-flash-lite",
     systemInstruction: prompt,
   });
 
   const modeloFallback = genAI.getGenerativeModel({
-    model: "gemini-3.5-flash-lite",
+    model: process.env.GEMINI_FALLBACK_MODEL || "gemini-2.5-flash",
     systemInstruction: prompt,
   });
 
@@ -897,10 +898,24 @@ Se não houver nomes no RAG:
 
 // ── 7. SSE (Server-Sent Events) ──────────────────────────────
 const sseClients = new Set();
-function emitirEvento(evento, dados) {
+function emitirEvento(evento, dados, explicitTenantId = null) {
+  const targetTenantId = explicitTenantId || dados?.tenant_id || dados?.tenantId || null;
   const payload = `event: ${evento}\ndata: ${JSON.stringify(dados)}\n\n`;
-  for (const res of sseClients) {
-    try { res.write(payload); } catch (_) { sseClients.delete(res); }
+
+  for (const client of sseClients) {
+    try {
+      if (client.role === "super_admin") {
+        client.res.write(payload);
+        continue;
+      }
+      if (targetTenantId && client.tenantId && String(client.tenantId) === String(targetTenantId)) {
+        client.res.write(payload);
+      } else if (!targetTenantId && !client.tenantId) {
+        client.res.write(payload);
+      }
+    } catch (_) {
+      sseClients.delete(client);
+    }
   }
 }
 
@@ -910,7 +925,9 @@ const app = express();
 const ALLOWED_ORIGINS = [
   "https://zapai-iota.vercel.app",
   "http://localhost:5173",
+  "http://127.0.0.1:5173",
   "http://localhost:3000",
+  "http://127.0.0.1:3000",
   process.env.FRONTEND_URL,
 ].filter(Boolean);
 
@@ -919,10 +936,14 @@ app.use(
     origin: (origin, callback) => {
       // Permite requisições sem origin (curl, mobile, webhooks, server-to-server)
       if (!origin) return callback(null, true);
-      if (ALLOWED_ORIGINS.includes(origin) || origin.endsWith(".vercel.app")) {
+      const isAllowed =
+        ALLOWED_ORIGINS.includes(origin) ||
+        (/^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(origin) && origin.includes("zapai"));
+
+      if (isAllowed) {
         return callback(null, true);
       }
-      return callback(null, true);
+      return callback(null, false);
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "Accept", "X-Tenant-Id"],
@@ -930,12 +951,19 @@ app.use(
     maxAge: 86400, // 24 horas de cache de preflight no browser
   })
 );
-app.use(express.json({ limit: "10mb" }));
+app.use(
+  express.json({
+    limit: "10mb",
+    verify: (req, _res, buf) => {
+      req.rawBody = buf;
+    },
+  })
+);
 
 // Now require routers (after possible TEST_MODE injection)
 const authRouter = require("./routes/auth");
 const adminRouter = require("./routes/admin");
-const { requireAuth } = require("./middleware/authMiddleware");
+const { requireAuth, requireSuperAdmin, requireRole, forbidViewer } = require("./middleware/authMiddleware");
 
 function getReqTenantId(req) {
   if (req.user) {
@@ -947,13 +975,32 @@ function getReqTenantId(req) {
   return req.query?.tenantId || req.headers?.["x-tenant-id"] || null;
 }
 
-app.get("/health", (_req, res) => {
+app.get("/health", async (_req, res) => {
+  let dbOk = false;
+  try {
+    const { error } = await supabase.from("tenants").select("id").limit(1);
+    dbOk = !error;
+  } catch {
+    dbOk = false;
+  }
+
   res.json({
-    status: "ok",
+    status: dbOk ? "ok" : "degraded",
+    database: dbOk ? "connected" : "disconnected",
     uptime: Math.floor(process.uptime()),
     whatsapp: "api_meta",
     timestamp: new Date().toISOString(),
   });
+});
+
+app.get("/health/ready", async (_req, res) => {
+  try {
+    const { error } = await supabase.from("tenants").select("id").limit(1);
+    if (error) throw error;
+    res.json({ ready: true, database: "connected" });
+  } catch (err) {
+    res.status(503).json({ ready: false, database: "disconnected", error: err.message });
+  }
 });
 
 app.use("/api/auth", authRouter);
@@ -1005,25 +1052,64 @@ app.get("/api/stats", requireAuth, async (req, res) => {
   });
 });
 
-// GET /api/events — SSE stream
+// GET /api/events — SSE stream autenticado e isolado por tenant
 app.get("/api/events", (req, res) => {
+  const authHeader = req.headers.authorization || "";
+  const token = (authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null) || req.query.token;
+
+  if (!token) {
+    return res.status(401).json({ error: "Autenticação obrigatória para acessar o stream de eventos." });
+  }
+
+  let userPayload;
+  try {
+    const jwt = require("jsonwebtoken");
+    userPayload = jwt.verify(token, process.env.JWT_SECRET);
+  } catch {
+    return res.status(401).json({ error: "Token inválido ou expirado." });
+  }
+
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
   res.flushHeaders();
   res.write(`event: connected\ndata: {"ok":true}\n\n`);
+
+  const clientInfo = {
+    res,
+    tenantId: userPayload.tenantId || null,
+    userId: userPayload.userId || null,
+    role: userPayload.role || "viewer",
+  };
+  sseClients.add(clientInfo);
+
   const heartbeat = setInterval(() => {
-    try { res.write(": heartbeat\n\n"); } catch (_) { clearInterval(heartbeat); }
+    try {
+      res.write(": heartbeat\n\n");
+    } catch (_) {
+      clearInterval(heartbeat);
+      sseClients.delete(clientInfo);
+    }
   }, 30_000);
-  sseClients.add(res);
-  req.on("close", () => { clearInterval(heartbeat); sseClients.delete(res); });
+
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    sseClients.delete(clientInfo);
+  });
 });
 
 app.get("/api/patients", requireAuth, async (req, res) => {
   const tenantId = getReqTenantId(req);
   let query = supabase.from("users_whatsapp").select("*");
   if (tenantId) query = query.eq("tenant_id", tenantId);
-  const { data, error } = await query.order("created_at", { ascending: false });
+
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 100, 1), 500);
+  const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+
+  const { data, error } = await query
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
+
   if (error) return res.status(500).json({ error: error.message });
   res.json(data || []);
 });
@@ -1032,30 +1118,37 @@ app.get("/api/patients/:id/messages", requireAuth, async (req, res) => {
   const tenantId = getReqTenantId(req);
   let query = supabase.from("messages").select("*").eq("patient_id", req.params.id);
   if (tenantId) query = query.eq("tenant_id", tenantId);
-  const { data, error } = await query.order("created_at", { ascending: true });
+
+  const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 100, 1), 500);
+  const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+
+  const { data, error } = await query
+    .order("created_at", { ascending: true })
+    .range(offset, offset + limit - 1);
+
   if (error) return res.status(500).json({ error: error.message });
   res.json(data || []);
 });
 
-app.put("/api/patients/:id/status", requireAuth, async (req, res) => {
+app.put("/api/patients/:id/status", requireAuth, forbidViewer, async (req, res) => {
   const { status_kanban } = req.body;
   const tenantId = getReqTenantId(req);
   let query = supabase.from("users_whatsapp").update({ status_kanban }).eq("id", req.params.id);
   if (tenantId) query = query.eq("tenant_id", tenantId);
   const { data, error } = await query.select().single();
   if (error) return res.status(500).json({ error: error.message });
-  emitirEvento("patient_updated", data);
+  emitirEvento("patient_updated", data, data.tenant_id);
   res.json(data);
 });
 
-app.put("/api/patients/:id/ai-status", requireAuth, async (req, res) => {
+app.put("/api/patients/:id/ai-status", requireAuth, forbidViewer, async (req, res) => {
   const { is_ai_active } = req.body;
   const tenantId = getReqTenantId(req);
   let query = supabase.from("users_whatsapp").update({ is_ai_active }).eq("id", req.params.id);
   if (tenantId) query = query.eq("tenant_id", tenantId);
   const { data, error } = await query.select().single();
   if (error) return res.status(500).json({ error: error.message });
-  emitirEvento("patient_updated", data);
+  emitirEvento("patient_updated", data, data.tenant_id);
   res.json(data);
 });
 
@@ -1266,7 +1359,7 @@ async function sendAndSaveBotMessage({ patient, telefoneUsuario, text, tenant, c
   return msgBot;
 }
 
-app.post("/api/patients/:id/send", requireAuth, async (req, res) => {
+app.post("/api/patients/:id/send", requireAuth, forbidViewer, async (req, res) => {
   const { texto } = req.body;
   if (!texto?.trim()) return res.status(400).json({ error: "texto obrigatório" });
 
@@ -1283,7 +1376,11 @@ app.post("/api/patients/:id/send", requireAuth, async (req, res) => {
   try {
     await enviarMensagemMeta(patient.telefone, texto.trim(), patient.tenants);
     const msg = await saveMessage(patient.id, texto.trim(), "human", patient.tenant_id);
-    emitirEvento("new_message", { ...msg, patient_id: patient.id });
+
+    // Pausa a IA automaticamente quando um operador humano intervém
+    await supabase.from("users_whatsapp").update({ is_ai_active: false }).eq("id", patient.id);
+
+    emitirEvento("new_message", { ...msg, patient_id: patient.id }, patient.tenant_id);
     res.json(msg);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1358,17 +1455,65 @@ app.get("/webhook/whatsapp", (req, res) => {
 app.post("/webhook/whatsapp", async (req, res) => {
   const body = req.body;
   let activeMessageId = null;
-  console.log("📩 [WEBHOOK] Chamada recebida da Meta!");
-  console.log("📦 [WEBHOOK] Payload:", JSON.stringify(body, null, 2));
 
-  if (!body.object) return res.sendStatus(404);
+  // Validação de assinatura HMAC SHA-256 da Meta (WA-001)
+  const signature = req.headers["x-hub-signature-256"];
+  const appSecret = process.env.META_APP_SECRET;
+  const isTest = process.env.TEST_MODE === "1" || process.env.TEST_MODE === "true";
+
+  if (!isTest || appSecret || signature) {
+    if (!signature) {
+      console.warn("⚠️ [WEBHOOK] Rejeitado: header x-hub-signature-256 ausente.");
+      return res.status(401).json({ error: "Assinatura ausente" });
+    }
+
+    const secret = appSecret || process.env.META_VERIFY_TOKEN || "";
+    const raw = req.rawBody || Buffer.from(JSON.stringify(req.body || {}));
+    const expected = "sha256=" + crypto.createHmac("sha256", secret).update(raw).digest("hex");
+
+    try {
+      const sigBuf = Buffer.from(signature);
+      const expBuf = Buffer.from(expected);
+      if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+        console.warn("⚠️ [WEBHOOK] Rejeitado: assinatura HMAC inválida.");
+        return res.status(403).json({ error: "Assinatura inválida" });
+      }
+    } catch (_) {
+      return res.status(403).json({ error: "Falha na validação da assinatura" });
+    }
+  }
+
+  // Logs seguros e pseudonimizados (SEC-004)
+  console.log("📩 [WEBHOOK] Notificação recebida da Meta.");
+  if (!body || !body.object) return res.sendStatus(404);
+
+  // Status handling (WA-004)
+  for (const entry of (body.entry || [])) {
+    for (const change of (entry.changes || [])) {
+      const val = change.value;
+      if (val?.statuses && Array.isArray(val.statuses)) {
+        for (const st of val.statuses) {
+          if (st.id && st.status) {
+            console.log(`ℹ️ [WEBHOOK] Status update: mensagem ${st.id} -> ${st.status}`);
+            supabase
+              .from("whatsapp_message_processing")
+              .update({ status: st.status })
+              .eq("whatsapp_message_id", st.id)
+              .then(() => {})
+              .catch(() => {});
+          }
+        }
+      }
+    }
+  }
+
   res.sendStatus(200); // 200 OK imediato exigido pela Meta
 
   try {
     const entry = body.entry?.[0];
     const change = entry?.changes?.[0]?.value;
     if (!change || !change.messages || change.messages.length === 0) {
-      console.log("ℹ️ [WEBHOOK] Notificação recebida (status/read), mas sem novas mensagens.");
+      console.log("ℹ️ [WEBHOOK] Notificação processada sem mensagens de texto.");
       return;
     }
 
@@ -1438,7 +1583,23 @@ app.post("/webhook/whatsapp", async (req, res) => {
     }
 
     const msgUser = await saveMessage(patient.id, textoLogSupabase, "user", tenant.id);
-    emitirEvento("new_message", msgUser);
+    emitirEvento("new_message", msgUser, tenant.id);
+
+    // Detecção de Opt-out ou Handoff Humano (WA-005)
+    const lowerBody = (paramMsg.text?.body || "").toLowerCase().trim();
+    const isHumanRequest = /\b(humano|atendente|pessoa|suporte|falar com alguém|falar com atendente)\b/i.test(lowerBody);
+    const isOptOut = /\b(sair|parar|cancelar|descadastrar|stop)\b/i.test(lowerBody);
+
+    if (isHumanRequest || isOptOut) {
+      await supabase.from("users_whatsapp").update({
+        is_ai_active: false,
+        status_kanban: isHumanRequest ? "Em Atendimento" : "Resolvido"
+      }).eq("id", patient.id);
+      patient.is_ai_active = false;
+      console.log(`🛑 [HANDOFF] Contato ${maskPhone(telefoneUsuario)} solicitou ${isOptOut ? 'opt-out' : 'atendente humano'}. IA pausada.`);
+      updateIncomingMessageStatus(messageId, "answered", { patientId: patient.id, skipped: isOptOut ? "opt_out" : "human_handoff" });
+      return;
+    }
 
     if (!patient.is_ai_active) {
       updateIncomingMessageStatus(messageId, "answered", { patientId: patient.id, skipped: "ai_inactive" });
@@ -1493,6 +1654,19 @@ app.post("/webhook/whatsapp", async (req, res) => {
           const combinedInlineDatas = [];
           for (const item of items) {
             if (item.inlineData) combinedInlineDatas.push(item.inlineData);
+          }
+
+          // Revalida se o atendimento ainda está ativo para a IA (WA-005)
+          const { data: latestPatient } = await supabase
+            .from("users_whatsapp")
+            .select("is_ai_active")
+            .eq("id", patient.id)
+            .maybeSingle();
+
+          if (latestPatient && latestPatient.is_ai_active === false) {
+            console.log(`⏸️ [HANDOFF] Atendimento humano assumiu o contato ${maskPhone(telefoneUsuario)}. IA cancelada.`);
+            markItemsStatus("answered", { patientId: patient.id, skipped: "human_takeover" });
+            continue;
           }
 
           const inicioMs = Date.now();

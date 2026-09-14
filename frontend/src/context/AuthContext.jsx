@@ -3,7 +3,7 @@
  * Armazena: token JWT, user { id, nome, email, role }, tenant { id, nome, status, ... }
  * A chave localStorage mudou de "dentistai_token" para "sofia_token" para evitar conflito.
  */
-import { createContext, useState, useEffect } from "react";
+import { createContext, useState, useEffect, useContext } from "react";
 import { apiFetch } from "../api";
 
 export const AuthContext = createContext({});
@@ -42,6 +42,19 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     localStorage.removeItem("sofia_token");
+    localStorage.removeItem("sandbox_history");
+    if (tenant?.id) {
+      localStorage.removeItem(`sandbox_history_${tenant.id}`);
+    }
+    // Remove qualquer chave residual de sandbox do navegador (TEN-002)
+    try {
+      Object.keys(localStorage).forEach((key) => {
+        if (key.startsWith("sandbox_history")) {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch (_) {}
+
     setToken(null);
     setUser(null);
     setTenant(null);
@@ -55,3 +68,8 @@ export function AuthProvider({ children }) {
     </AuthContext.Provider>
   );
 }
+
+export function useAuth() {
+  return useContext(AuthContext);
+}
+

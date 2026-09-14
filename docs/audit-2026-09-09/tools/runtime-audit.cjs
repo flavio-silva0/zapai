@@ -1,0 +1,53 @@
+const fs=require('fs'),path=require('path'),assert=require('assert');
+const root=path.resolve(__dirname,'../../..'),runtime=path.join(process.env.LOCALAPPDATA,'ZapAI-audit-runtime');
+const out=path.resolve(__dirname,'../evidence');
+const {Client}=require(path.join(runtime,'node_modules/pg'));
+const results=[];const record=(name,expected,actual)=>{results.push({name,expected,actual});console.log(name,JSON.stringify(actual))};
+const base='http://127.0.0.1:3001';
+async function req(method,url,token,body,extra={}){const r=await fetch(base+url,{method,headers:{'Content-Type':'application/json',...(token?{Authorization:`Bearer ${token}`} :{}),...extra},...(body?{body:JSON.stringify(body)}:{})});return {status:r.status,body:await r.json().catch(()=>null),cors:r.headers.get('access-control-allow-origin')}}
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+(async()=>{
+ const db=new Client({host:'127.0.0.1',port:55432,user:'postgres',password:'zapai-local-only',database:'zapai_audit_utf8'});await db.connect();
+ const a=(await req('POST','/api/auth/login',null,{email:'demo@zapai.local',password:'ZapAI-local-2026!'})).body;
+ const b=(await req('POST','/api/auth/login',null,{email:'empresa-b@zapai.local',password:'ZapAI-local-2026!'})).body;
+ assert(a.token&&b.token,'local login');record('login real bcrypt + PostgreSQL',200,200);
+ for(const [method,url] of [['GET','/api/patients'],['GET','/api/stats'],['GET','/api/auth/me'],['GET','/api/admin/knowledge'],['POST','/api/admin/magic-setup'],['POST','/api/admin/sandbox/chat'],['GET','/api/admin/tenants']])record(`anonymous ${method} ${url}`,401,(await req(method,url,null,method==='POST'?{}:null)).status);
+ const ap=(await req('GET','/api/patients',a.token)).body;const bp=(await req('GET','/api/patients',b.token)).body;
+ record('tenant A list excludes B',true,ap.every(p=>p.tenant_id===a.tenant.id));
+ record('tenant A supplies B query/header',true,(await req('GET',`/api/patients?tenantId=${b.tenant.id}`,a.token,null,{'X-Tenant-Id':b.tenant.id})).body.every(p=>p.tenant_id===a.tenant.id));
+ record('tenant A reads B messages','403/404 or empty',(await req('GET',`/api/patients/${bp[0].id}/messages`,a.token)).body);
+ record('tenant A updates B contact','403/404',(await req('PUT',`/api/patients/${bp[0].id}/status`,a.token,{status_kanban:'Agendado'})).status);
+ record('tenant A sends to B contact',404,(await req('POST',`/api/patients/${bp[0].id}/send`,a.token,{texto:'Local fixture'})).status);
+ record('owner uses admin tenants',403,(await req('GET','/api/admin/tenants',a.token)).status);
+ const ac=new AbortController();const stream=await fetch(base+'/api/events',{signal:ac.signal});let events='';const reader=stream.body.getReader();const reading=(async()=>{try{while(true){const x=await reader.read();if(x.done)break;events+=Buffer.from(x.value).toString()}}catch{}})();
+ await req('PUT',`/api/patients/${ap[0].id}/status`,a.token,{status_kanban:'Em Atendimento'});await wait(100);ac.abort();await reading;
+ record('anonymous SSE receives tenant A event','reject 401',{status:stream.status,containsTenantA:events.includes(a.tenant.id),containsPatient:events.includes(ap[0].id)});
+ record('untrusted CORS origin','not allowed',(await req('GET','/health',null,null,{Origin:'https://untrusted.invalid'})).cors);
+ const jwt=require(path.join(root,'node_modules/jsonwebtoken'));const secret=JSON.parse(fs.readFileSync(path.join(runtime,'local-secrets.json'))).jwt;
+ const viewer=jwt.sign({userId:a.user.id,tenantId:a.tenant.id,role:'viewer'},secret,{expiresIn:'10m'});
+ record('viewer changes contact',403,(await req('PUT',`/api/patients/${ap[0].id}/status`,viewer,{status_kanban:'Novo'})).status);
+ const oldPrompt=(await db.query('select prompt_text from tenants where id=$1',[a.tenant.id])).rows[0].prompt_text;
+ record('save IA configuration',200,(await req('PUT','/api/admin/magic-setup/save',a.token,{prompt_text:'AUDIT persistence marker',bot_name:'Zap Demo'})).status);
+ record('IA configuration survives fresh me request',true,(await req('GET','/api/auth/me',a.token)).body.tenant.prompt_text==='AUDIT persistence marker');
+ await db.query('update tenants set prompt_text=$1 where id=$2',[oldPrompt,a.tenant.id]);
+ const sandbox=await req('POST','/api/admin/sandbox/chat',a.token,{prompt_text:oldPrompt,mensagemUsuario:'Quero um atendente',historicoAnterior:[]});record('sandbox mocked provider',200,sandbox.status);
+ const payload=(id,phone,text)=>({object:'whatsapp_business_account',entry:[{changes:[{value:{metadata:{phone_number_id:phone},contacts:[{profile:{name:'Contato fictício de auditoria'}}],messages:[{id,from:'5500900000098',type:'text',text:{body:text}}]}}]}]});
+ const marker='AUDIT-'+Date.now();const hook=await fetch(base+'/webhook/whatsapp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload(marker,'AUDIT_PHONE_A','Teste local sem assinatura'))});await wait(800);
+ const count=(await db.query('select count(*) n from whatsapp_message_processing where whatsapp_message_id=$1',[marker])).rows[0].n;record('unsigned webhook','401/403',{http:hook.status,persisted:count});
+ const before=(await db.query("select count(*) n from messages where texto='Teste local sem assinatura'")).rows[0].n;
+ await fetch(base+'/webhook/whatsapp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload(marker,'AUDIT_PHONE_A','Teste local sem assinatura'))});await wait(150);
+ record('duplicate webhook persisted once',true,before===(await db.query("select count(*) n from messages where texto='Teste local sem assinatura'")).rows[0].n);
+ // Reproduce conditional fallback with a temporary failure trigger, only on a local fixture phone.
+ await db.query("update users_whatsapp set ai_memory=$1 where telefone='5500900000098' and tenant_id=$2",[{private_marker:'TENANT_A_PRIVATE'},a.tenant.id]);
+ await db.query(`CREATE OR REPLACE FUNCTION audit_fail_insert() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.telefone='5500900000098' THEN RAISE EXCEPTION 'Audit-injected insert failure'; END IF; RETURN NEW; END $$; CREATE TRIGGER audit_fail_insert BEFORE INSERT ON users_whatsapp FOR EACH ROW EXECUTE FUNCTION audit_fail_insert();`);
+ try{await fetch(base+'/webhook/whatsapp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload(marker+'-transfer','AUDIT_PHONE_B','Teste fallback local'))});await wait(700);
+ const transferred=(await db.query("select tenant_id,ai_memory from users_whatsapp where telefone='5500900000098'")).rows;
+ record('insert error must not transfer contact','tenant A retained',transferred);
+ }finally{await db.query('DROP TRIGGER audit_fail_insert ON users_whatsapp; DROP FUNCTION audit_fail_insert();');}
+ const invalidEmail='invalid-email-'+Date.now();record('register invalid email',400,(await req('POST','/api/auth/register',null,{email:invalidEmail,password:'12345678',nome:'Fixture',businessName:'Audit invalid fixture'})).status);
+ record('wrong password',401,(await req('POST','/api/auth/login',null,{email:'demo@zapai.local',password:'wrong'})).status);
+ record('unknown user',401,(await req('POST','/api/auth/login',null,{email:'absent@zapai.local',password:'wrong'})).status);
+ const roles=(await db.query("select tablename,rowsecurity from pg_tables where schemaname='public' order by tablename")).rows;
+ fs.writeFileSync(path.join(out,'local-db-rls.json'),JSON.stringify({scope:'reconstructed demonstration, not production',tables:roles},null,2));
+ await db.end();fs.writeFileSync(path.join(out,'runtime-audit.json'),JSON.stringify(results,null,2));
+})().catch(e=>{fs.writeFileSync(path.join(out,'runtime-audit.json'),JSON.stringify({results,error:e.message},null,2));console.error(e);process.exit(1)});

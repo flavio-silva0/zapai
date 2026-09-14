@@ -11,7 +11,7 @@
 const express  = require("express");
 const bcrypt   = require("bcryptjs");
 const { createClient } = require("@supabase/supabase-js");
-const { criarToken, requireAuth } = require("../middleware/authMiddleware");
+const { criarToken, requireAuth, forbidViewer } = require("../middleware/authMiddleware");
 
 const router  = express.Router();
 const supabase = createClient(
@@ -51,8 +51,26 @@ router.post("/register", async (req, res) => {
   if (!email || !password || !nome || !businessName) {
     return res.status(400).json({ error: "Campos obrigatórios: email, password, nome, businessName." });
   }
-  if (password.length < 8) {
+
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (typeof email !== "string" || !emailRegex.test(email.trim())) {
+    return res.status(400).json({ error: "Formato de e-mail inválido." });
+  }
+
+  if (typeof password !== "string" || password.length < 8) {
     return res.status(400).json({ error: "A senha deve ter pelo menos 8 caracteres." });
+  }
+
+  if (password.length > 128) {
+    return res.status(400).json({ error: "A senha não pode exceder 128 caracteres." });
+  }
+
+  if (typeof nome !== "string" || nome.trim().length < 2) {
+    return res.status(400).json({ error: "Nome inválido." });
+  }
+
+  if (typeof businessName !== "string" || businessName.trim().length < 2) {
+    return res.status(400).json({ error: "Nome da empresa inválido." });
   }
 
   // Verifica se e-mail já existe
@@ -180,17 +198,20 @@ router.post("/login", async (req, res) => {
 router.get("/me", requireAuth, async (req, res) => {
   const { data: user } = await supabase
     .from("users")
-    .select("id, email, nome, role, tenant_id, created_at")
+    .select("id, email, nome, role, tenant_id, is_active, created_at")
     .eq("id", req.user.userId)
     .single();
 
   if (!user) return res.status(404).json({ error: "Usuário não encontrado." });
+  if (user.is_active === false) {
+    return res.status(403).json({ error: "Usuário inativo ou desativado." });
+  }
 
   let tenant = null;
   if (user.tenant_id) {
     const { data } = await supabase
       .from("tenants")
-      .select("id, nome, status, bot_name, bot_emoji, clinic_name, clinic_phone, trial_ends_at, prompt_text")
+      .select("id, nome, status, bot_name, bot_emoji, clinic_name, clinic_phone, trial_ends_at, prompt_text, phone_number_id, plan, is_ai_active")
       .eq("id", user.tenant_id)
       .single();
     tenant = data;
@@ -199,8 +220,56 @@ router.get("/me", requireAuth, async (req, res) => {
   res.json({ user, tenant });
 });
 
+// ── POST /api/auth/change-password ────────────────────────────
+router.post("/change-password", requireAuth, async (req, res) => {
+  const { senhaAtual, novaSenha } = req.body;
+
+  if (!senhaAtual || !novaSenha) {
+    return res.status(400).json({ error: "Senha atual e nova senha são obrigatórias." });
+  }
+
+  if (typeof novaSenha !== "string" || novaSenha.length < 8) {
+    return res.status(400).json({ error: "A nova senha deve ter pelo menos 8 caracteres." });
+  }
+
+  if (novaSenha.length > 128) {
+    return res.status(400).json({ error: "A nova senha não pode exceder 128 caracteres." });
+  }
+
+  const { data: user, error: uErr } = await supabase
+    .from("users")
+    .select("id, password_hash, is_active")
+    .eq("id", req.user.userId)
+    .single();
+
+  if (uErr || !user) {
+    return res.status(404).json({ error: "Usuário não encontrado." });
+  }
+
+  if (user.is_active === false) {
+    return res.status(403).json({ error: "Conta inativa." });
+  }
+
+  const matches = await bcrypt.compare(senhaAtual, user.password_hash);
+  if (!matches) {
+    return res.status(401).json({ error: "A senha atual informada está incorreta." });
+  }
+
+  const novoHash = await bcrypt.hash(novaSenha, SALT_ROUNDS);
+  const { error: updErr } = await supabase
+    .from("users")
+    .update({ password_hash: novoHash })
+    .eq("id", user.id);
+
+  if (updErr) {
+    return res.status(500).json({ error: "Erro ao atualizar senha no banco de dados." });
+  }
+
+  res.json({ success: true, message: "Senha alterada com sucesso." });
+});
+
 // ── PUT /api/auth/profile ─────────────────────────────────────
-router.put("/profile", requireAuth, async (req, res) => {
+router.put("/profile", requireAuth, forbidViewer, async (req, res) => {
   const { nome, email, tenant_nome, clinic_phone, bot_name } = req.body;
 
   try {

@@ -1,4 +1,4 @@
-import { useContext, useState } from "react";
+import { useContext, useState, useEffect } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { CheckCircle, Save, X, Sparkles, Edit2, User, MessageSquare, Target, Clock, Smile } from "lucide-react";
 import { apiFetch } from "../api";
@@ -67,8 +67,11 @@ export default function AiSetup() {
   const { user, tenant, login } = useContext(AuthContext);
 
   const [magicForm, setMagicForm] = useState({
-    nomeAgente: tenant?.bot_name || "Assistente",
-    tomVoz: "Profissional e Empático",
+    nomeAgente: tenant?.bot_name || "Sofia",
+    emojiAgente: tenant?.bot_emoji || "🤖",
+    tipoNegocio: "Clinica Odontológica",
+    nomeEmpresa: tenant?.clinic_name || "",
+    whatsappContato: tenant?.clinic_phone || "",
     objetivo: "BDR/SDR",
     cep: "",
     logradouro: "",
@@ -83,8 +86,23 @@ export default function AiSetup() {
     resumo: ""
   });
 
-  // Personality sliders
-  const [sliders, setSliders] = useState({ formality: 65, empathy: 80, objectivity: 55 });
+  // Personality sliders (UX-003: persistência por tenant)
+  const [sliders, setSliders] = useState(() => {
+    try {
+      const saved = tenant?.id ? localStorage.getItem(`ai_sliders_${tenant.id}`) : null;
+      return saved ? JSON.parse(saved) : { formality: 65, empathy: 80, objectivity: 55 };
+    } catch {
+      return { formality: 65, empathy: 80, objectivity: 55 };
+    }
+  });
+
+  useEffect(() => {
+    if (tenant?.id) {
+      try {
+        localStorage.setItem(`ai_sliders_${tenant.id}`, JSON.stringify(sliders));
+      } catch {}
+    }
+  }, [sliders, tenant?.id]);
 
   const [generating, setGenerating] = useState(false);
   const [savingPrompt, setSavingPrompt] = useState(false);
@@ -114,6 +132,7 @@ export default function AiSetup() {
 
     const fullForm = {
       ...magicForm,
+      sliders,
       endereco: finalEndereco,
       horarios: `${magicForm.dias}, das ${magicForm.horaAbre} às ${magicForm.horaFecha}`
     };

@@ -1,0 +1,11 @@
+User-agent: *
+Disallow: /painel/
+Disallow: /admin/
+Disallow: /login
+Disallow: /cadastro
+Allow: /
+Allow: /planos
+Allow: /sobre
+Allow: /privacidade
+
+Sitemap: https://zapai.com.br/sitemap.xml

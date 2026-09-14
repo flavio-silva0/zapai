@@ -59,10 +59,37 @@ function requireSuperAdmin(req, res, next) {
 }
 
 /**
+ * Middleware RBAC — permite apenas papéis listados.
+ * Super admin tem passe livre.
+ */
+function requireRole(...allowedRoles) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ error: "Não autenticado." });
+    }
+    if (req.user.role === "super_admin" || allowedRoles.includes(req.user.role)) {
+      return next();
+    }
+    return res.status(403).json({ error: "Acesso negado: permissões insuficientes para esta ação." });
+  };
+}
+
+/**
+ * Middleware RBAC — bloqueia expressamente o perfil 'viewer' de executar mutações.
+ */
+function forbidViewer(req, res, next) {
+  if (req.user?.role === "viewer") {
+    return res.status(403).json({ error: "Perfil de visualizador não possui permissão para executar alterações." });
+  }
+  next();
+}
+
+/**
  * Helpers para criar tokens.
  */
 function criarToken(payload, expiresIn = "7d") {
   return jwt.sign(payload, JWT_SECRET, { expiresIn });
 }
 
-module.exports = { requireAuth, requireSuperAdmin, criarToken };
+module.exports = { requireAuth, requireSuperAdmin, requireRole, forbidViewer, criarToken };
+

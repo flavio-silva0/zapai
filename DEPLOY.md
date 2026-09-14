@@ -1,198 +1,116 @@
-# 🚀 Guia de Deploy — DentistAI (Sofia)
+# 🚀 Guia de Implantação e Operação — ZapAI (Multi-Tenant SaaS)
 
-> **Arquitetura de produção:**
-> - 🟢 **Frontend (Painel)** → [Vercel](https://vercel.com) — **grátis**
-> - 🟡 **Backend (Bot + API)** → [Railway.app](https://railway.app) — ~R$ 10-25/mês
-
----
-
-## Pré-requisitos
-
-- Conta no [GitHub](https://github.com) (para conectar ao Vercel e Railway)
-- Conta no [Railway.app](https://railway.app)
-- Conta no [Vercel](https://vercel.com)
-- Repositório do projeto no GitHub (veja Passo 0)
+> **Arquitetura Oficial:**
+> - 🟢 **Frontend (SPA React 19 + Vite)** → [Vercel](https://vercel.com)
+> - 🟡 **Backend (API REST + SSE + Webhook Meta)** → [Railway](https://railway.app) ou [Render](https://render.com)
+> - 🔵 **Banco de Dados (PostgreSQL + pgvector)** → [Supabase](https://supabase.com)
+> - 🟣 **Motor de IA** → Google Gemini API (`gemini-3.5-flash-lite` com fallback para `gemini-2.5-flash`)
+> - 💬 **Mensageria Oficial** → Meta Cloud API WhatsApp v20.0 (Graph API)
 
 ---
 
-## Passo 0 — Subir o projeto no GitHub
+## 1. Pré-requisitos
 
-> Faça isso UMA VEZ. Para novos clientes, apenas mude o `.env` no Railway.
-
-```bash
-# No terminal, dentro da pasta do projeto:
-git init
-git add .
-git commit -m "feat: sofia v2.1 production ready"
-
-# Crie um repositório PRIVADO no GitHub e conecte:
-git remote add origin https://github.com/SEU_USUARIO/dentistai.git
-git branch -M main
-git push -u origin main
-```
-
-> ⚠️ **IMPORTANTE**: O arquivo `.env` já está no `.gitignore`. Nunca remova essa proteção — as chaves API jamais devem ir para o GitHub.
+1. **Conta no GitHub** com o repositório do ZapAI configurado.
+2. **Conta no Supabase** para provisionamento do banco de dados relacional e busca vetorial.
+3. **Conta no Google AI Studio** com chave de API do Gemini ativa.
+4. **Conta no Meta for Developers** com App do tipo Business e produto WhatsApp configurado.
+5. **Conta no Railway ou Render** para hospedagem persistente da API Node.js.
+6. **Conta na Vercel** para distribuição global do frontend.
 
 ---
 
-## Parte 1 — Deploy do Backend no Railway
+## 2. Passo a Passo do Banco de Dados (Supabase)
 
-### 1.1 — Criar o projeto
-
-1. Acesse [railway.app](https://railway.app) e faça login com o GitHub
-2. Clique em **"New Project"**
-3. Selecione **"Deploy from GitHub repo"**
-4. Escolha o repositório `dentistai`
-5. Railway detecta automaticamente que é Node.js ✅
-
-### 1.2 — Configurar as variáveis de ambiente
-
-No painel do Railway, clique em **"Variables"** e adicione cada uma:
-
-| Variável | Valor |
-|---|---|
-| `GEMINI_API_KEY` | Sua chave do Google AI Studio |
-| `SUPABASE_URL` | URL do seu projeto Supabase |
-| `SUPABASE_SERVICE_KEY` | Service Role Key do Supabase |
-| `PANEL_USER` | Nome de usuário do painel (ex: `admin`) |
-| `PANEL_PASSWORD` | Senha forte do painel |
-| `JWT_SECRET` | String aleatória longa (gere abaixo 👇) |
-| `CLINIC_NAME` | Nome do negócio do cliente |
-| `CLINIC_PHONE` | Telefone de contato do cliente |
-| `PORT` | `3001` |
-| `NUMEROS_BLOQUEADOS` | Vazio (ou números separados por vírgula) |
-| `DEBOUNCE_MS` | `8000` |
-| `DELAY_MINIMO_MS` | `3000` |
-| `DELAY_MAXIMO_MS` | `20000` |
-| `MS_POR_PALAVRA` | `100` |
-| `HISTORICO_LIMITE` | `10` |
-| `SYSTEM_PROMPT` | Prompt customizado (ou deixe vazio para usar o padrão dental) |
-
-**Como gerar um JWT_SECRET forte:**
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
-
-### 1.3 — Configurar o comando de start
-
-No Railway, vá em **"Settings"** → **"Deploy"** e configure:
-- **Start Command**: `node src/index.js`
-- **Root Directory**: `/` (raiz do projeto)
-
-### 1.4 — Aguardar o deploy e pegar a URL
-
-Após o deploy, o Railway gera uma URL pública tipo:
-```
-https://dentistai-production-XXXX.railway.app
-```
-
-Copie essa URL — você vai precisar dela para configurar o frontend.
-
-### 1.5 — Escanear o QR Code do WhatsApp
-
-O QR Code aparece nos **logs do Railway**. Para acessar:
-1. Railway → seu projeto → clique no processo → **"Deploy Logs"**
-2. Procure o QR Code no log, escaneie com o celular do cliente
-
-> **Importante**: Após escanear, a sessão fica salva no servidor e não precisa escanear de novo (a não ser que o número seja desconectado manualmente).
+1. Acesse o painel do seu projeto no Supabase.
+2. Navegue até o **SQL Editor**.
+3. Abra e execute o script baseline de migração localizado em:
+   ```
+   scripts/00-baseline-schema.sql
+   ```
+4. Este script irá:
+   - Habilitar as extensões `pgcrypto` e `vector`.
+   - Criar todas as tabelas: `tenants`, `users`, `users_whatsapp`, `messages`, `knowledge_base`, `whatsapp_message_processing`, além das tabelas de sandbox.
+   - Definir restrições de unicidade (`phone_number_id` único por tenant, `(tenant_id, telefone)` único).
+   - Configurar o RPC `match_knowledge` para busca semântica RAG.
+   - Ativar o Row Level Security (RLS) protegendo o acesso direto via Data API.
 
 ---
 
-## Parte 2 — Deploy do Frontend na Vercel
+## 3. Implantação do Backend (Railway / Render)
 
-### 2.1 — Criar o projeto na Vercel
+### 3.1 — Configuração do Serviço
+1. Conecte seu repositório GitHub ao Railway / Render.
+2. Defina o comando de inicialização:
+   - **Start Command**: `node src/index.js`
+   - **Root Directory**: `/`
+3. Certifique-se de usar Node.js versão **20.x** ou **22.x LTS**.
 
-1. Acesse [vercel.com](https://vercel.com) e faça login com o GitHub
-2. Clique em **"Add New Project"**
-3. Importe o repositório `dentistai`
-4. Em **"Root Directory"**, clique em **"Edit"** e selecione: `frontend`
-5. Framework Preset: **Vite** (detectado automaticamente)
+### 3.2 — Variáveis de Ambiente do Backend
+Configure as variáveis conforme o arquivo `.env.example`:
 
-### 2.2 — Configurar a variável de ambiente
-
-Ainda na tela de criação, em **"Environment Variables"**, adicione:
-
-| Variável | Valor |
-|---|---|
-| `VITE_API_URL` | A URL do Railway do Passo 1.4 (ex: `https://dentistai-production-XXXX.railway.app`) |
-
-### 2.3 — Deploy
-
-Clique em **"Deploy"**. Em ~2 minutos o painel estará disponível em:
-```
-https://dentistai-SEU-USUARIO.vercel.app
-```
-
-> 💡 **Dica**: Configure um domínio personalizado gratuito no Vercel (ex: `painel.seudominio.com.br`) nas configurações do projeto.
-
----
-
-## Parte 3 — Verificação Final
-
-Após o deploy, verifique tudo na ordem:
-
-- [ ] **Backend**: Acesse `https://SEU-PROJETO.railway.app/health` — deve retornar um JSON com `"status": "ok"`
-- [ ] **WhatsApp**: Verifique os logs do Railway e confirme que aparece `✅ Sofia está online!`
-- [ ] **Frontend**: Acesse a URL da Vercel e faça login com as credenciais configuradas
-- [ ] **Painel**: Confirme que o status do WhatsApp aparece como "Conectado" na Home
-- [ ] **Teste**: Envie uma mensagem de WhatsApp para o número do cliente e confirme que a Sofia responde
-
----
-
-## Manutenção do Dia a Dia
-
-### Reiniciar o bot (se travar)
-No Railway: **Deploy** → **"Restart"**
-
-### Ver logs em tempo real
-No Railway: **Deployments** → clique no deploy ativo → **"View Logs"**
-
-### Atualizar para uma nova versão do código
-```bash
-git add .
-git commit -m "feat: nova atualização"
-git push origin main
-# Railway faz o redeploy automaticamente em segundos!
-```
-
-### Para um novo cliente
-
-1. Crie um **novo projeto no Railway** (não reutilize o do cliente anterior)
-2. Use o mesmo repositório do GitHub
-3. Configure as variáveis de ambiente com os dados do novo cliente
-4. Na Vercel, crie um novo projeto apontando para o mesmo repositório, com `VITE_API_URL` do novo Railway
-5. Escanear o QR com o WhatsApp do novo cliente
-
----
-
-## Custos Estimados por Cliente
-
-| Serviço | Custo | Observação |
+| Variável | Descrição | Exemplo |
 |---|---|---|
-| Railway (backend) | ~R$ 15-25/mês | Pago por uso de CPU/RAM |
-| Vercel (frontend) | **Grátis** | Plano Hobby é suficiente |
-| Supabase (banco) | **Grátis** | Até 500MB e 50k usuários |
-| Google Gemini (IA) | **~R$ 3-5/mês** | Para 1.000 leads/mês |
-| **Total** | **~R$ 20-30/mês** | Por cliente |
+| `PORT` | Porta de escuta da aplicação | `3001` |
+| `NODE_ENV` | Ambiente de execução | `production` |
+| `FRONTEND_URL` | Domínio do frontend para CORS | `https://zapai.com.br` |
+| `JWT_SECRET` | Chave secreta de assinatura JWT (32+ bytes hex) | `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"` |
+| `SUPABASE_URL` | URL do projeto Supabase | `https://xxxxxx.supabase.co` |
+| `SUPABASE_SERVICE_KEY` | Chave de serviço do Supabase (service_role) | `eyJhbGciOi...` |
+| `GEMINI_API_KEY` | Chave de API Google Gemini | `AIzaSy...` |
+| `GEMINI_MODEL` | Modelo principal de linguagem | `gemini-3.5-flash-lite` |
+| `GEMINI_FALLBACK_MODEL`| Modelo secundário de contingência | `gemini-2.5-flash` |
+| `META_VERIFY_TOKEN` | Token de verificação para o webhook Meta | `seu_verify_token_secreto` |
+| `META_APP_SECRET` | App Secret da Meta para validação HMAC SHA-256 | `sua_chave_secreta_app_meta` |
 
-Com mensalidade de R$ 297 por cliente → **margem bruta de ~90%**.
+### 3.3 — Health Check e Verificação
+Após o deploy, valide a saúde da API acessando:
+- `GET https://seu-backend.up.railway.app/health` → deve retornar `{ "status": "ok" }`
+- `GET https://seu-backend.up.railway.app/health/ready` → valida conexão com o Supabase
 
 ---
 
-## Suporte e Troubleshooting
+## 4. Configuração do Webhook na Meta (WhatsApp Cloud API)
 
-### WhatsApp desconectado
-- Verifique os logs no Railway
-- Se necessário, reinicie o processo (o QR Code aparecerá nos logs novamente)
+1. Acesse o **Meta for Developers** → Seu App → **WhatsApp** → **Configuration**.
+2. No campo **Callback URL**, insira:
+   ```
+   https://seu-backend.up.railway.app/webhook
+   ```
+3. No campo **Verify Token**, insira exatamente o valor definido em `META_VERIFY_TOKEN`.
+4. Clique em **Verify and Save**.
+5. Em **Webhook Fields**, assine o evento **`messages`**.
 
-### "Erro ao conectar ao Supabase"
-- Verifique `SUPABASE_URL` e `SUPABASE_SERVICE_KEY` nas variáveis do Railway
+---
 
-### Frontend não conecta ao backend
-- Verifique se `VITE_API_URL` na Vercel aponta para a URL correta do Railway
-- Confirme que o CORS está ativado (já está no código, `cors({ origin: "*" })`)
+## 5. Implantação do Frontend (Vercel)
 
-### Bot não responde mensagens
-- Verifique se o WhatsApp está conectado (logs do Railway)
-- Verifique se o número do remetente não está em `NUMEROS_BLOQUEADOS`
-- Confirme que `is_ai_active = true` para o contato no Supabase
+1. No painel da Vercel, clique em **Add New Project** e selecione o repositório.
+2. Em **Root Directory**, selecione: `frontend`.
+3. O preset do framework será detectado automaticamente como **Vite**.
+4. Configure as variáveis de ambiente:
+   | Variável | Valor |
+   |---|---|
+   | `VITE_API_URL` | URL do backend implantado (ex: `https://seu-backend.up.railway.app`) |
+5. Clique em **Deploy**.
+6. A Vercel aplicará as regras de segurança e cabeçalhos definidos em `frontend/vercel.json`, além de servir estaticamente `robots.txt` e `sitemap.xml`.
+
+---
+
+## 6. Onboarding de Nova Organização (Tenant)
+
+Diferente de sistemas legados que exigiam deploys isolados, o ZapAI é **100% Multi-Tenant**:
+
+1. Acesse o painel de Super Admin (`/admin`).
+2. Cadastre uma nova organização ou permita que ela se registre pela tela de cadastro (`/cadastro`).
+3. Obtenha o **Phone Number ID** e o **Permanent System User Access Token** da clínica/empresa no Meta Business Suite.
+4. Salve essas credenciais nos detalhes da organização.
+5. O ZapAI roteia automaticamente as mensagens de entrada e saída com base no `phone_number_id`, garantindo isolamento criptográfico e lógico por organização.
+
+---
+
+## 7. Monitoramento e Manutenção
+
+- **Logs de Aplicação**: Monitore stdout/stderr no painel do Railway/Render. Erros de rede e status da Meta Cloud API são registrados de forma sanitizada (telefones e dados confidenciais são mascarados).
+- **Rate Limit de IA**: Cada organização possui uma quota de requisições por minuto gerenciada automaticamente para evitar estouro de custos.
+- **Transição Humana**: Caso o cliente solicite atendimento humano ou envie palavras-chave de pausa, a IA desativa-se instantaneamente para o contato e notifica o painel.

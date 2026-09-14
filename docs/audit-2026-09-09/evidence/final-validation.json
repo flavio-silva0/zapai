@@ -1,0 +1,53 @@
+{
+  "verifiedAt": "2026-09-09T18:34:57.683Z",
+  "originalTrackedFilesChangedSinceInventory": [],
+  "syntaxChecked": [
+    "src/index.js",
+    "src/middleware/authMiddleware.js",
+    "src/mocks/geminiMock.js",
+    "src/mocks/metaMock.js",
+    "src/mocks/supabaseMock.js",
+    "src/routes/admin.js",
+    "src/routes/auth.js",
+    "src/utils/aiMessageSafety.js",
+    "src/utils/hallucination.js"
+  ],
+  "missionSections": 88,
+  "reportCount": 16,
+  "score": 35,
+  "existingTests": "4 scripts passed with fictitious JWT_SECRET and USE_REAL_GEMINI=false",
+  "frontendLint": "passed; disabled rules documented",
+  "frontendBuild": "passed; Browserslist warning",
+  "focusedE2E": [
+    {
+      "case": "anonymous protected route",
+      "result": "redirect login"
+    },
+    {
+      "case": "real login through UI",
+      "result": "passed"
+    },
+    {
+      "case": "personality slider reload",
+      "before": "12",
+      "after": "65",
+      "defect": true
+    },
+    {
+      "case": "IA edit save reload through UI",
+      "result": "passed"
+    },
+    {
+      "case": "logout protected route",
+      "result": "redirect login"
+    },
+    {
+      "case": "sandbox account switch",
+      "leakedTenantAHistory": true
+    }
+  ],
+  "limitations": [
+    "No production authenticated mutation or real Meta/LLM call",
+    "Reconstructed local schema is not production Supabase verification"
+  ]
+}

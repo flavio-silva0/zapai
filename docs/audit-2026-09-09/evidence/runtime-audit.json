@@ -1,0 +1,146 @@
+[
+  {
+    "name": "login real bcrypt + PostgreSQL",
+    "expected": 200,
+    "actual": 200
+  },
+  {
+    "name": "anonymous GET /api/patients",
+    "expected": 401,
+    "actual": 401
+  },
+  {
+    "name": "anonymous GET /api/stats",
+    "expected": 401,
+    "actual": 401
+  },
+  {
+    "name": "anonymous GET /api/auth/me",
+    "expected": 401,
+    "actual": 401
+  },
+  {
+    "name": "anonymous GET /api/admin/knowledge",
+    "expected": 401,
+    "actual": 401
+  },
+  {
+    "name": "anonymous POST /api/admin/magic-setup",
+    "expected": 401,
+    "actual": 401
+  },
+  {
+    "name": "anonymous POST /api/admin/sandbox/chat",
+    "expected": 401,
+    "actual": 401
+  },
+  {
+    "name": "anonymous GET /api/admin/tenants",
+    "expected": 401,
+    "actual": 401
+  },
+  {
+    "name": "tenant A list excludes B",
+    "expected": true,
+    "actual": true
+  },
+  {
+    "name": "tenant A supplies B query/header",
+    "expected": true,
+    "actual": true
+  },
+  {
+    "name": "tenant A reads B messages",
+    "expected": "403/404 or empty",
+    "actual": []
+  },
+  {
+    "name": "tenant A updates B contact",
+    "expected": "403/404",
+    "actual": 500
+  },
+  {
+    "name": "tenant A sends to B contact",
+    "expected": 404,
+    "actual": 404
+  },
+  {
+    "name": "owner uses admin tenants",
+    "expected": 403,
+    "actual": 403
+  },
+  {
+    "name": "anonymous SSE receives tenant A event",
+    "expected": "reject 401",
+    "actual": {
+      "status": 200,
+      "containsTenantA": true,
+      "containsPatient": true
+    }
+  },
+  {
+    "name": "untrusted CORS origin",
+    "expected": "not allowed",
+    "actual": "https://untrusted.invalid"
+  },
+  {
+    "name": "viewer changes contact",
+    "expected": 403,
+    "actual": 200
+  },
+  {
+    "name": "save IA configuration",
+    "expected": 200,
+    "actual": 200
+  },
+  {
+    "name": "IA configuration survives fresh me request",
+    "expected": true,
+    "actual": true
+  },
+  {
+    "name": "sandbox mocked provider",
+    "expected": 200,
+    "actual": 200
+  },
+  {
+    "name": "unsigned webhook",
+    "expected": "401/403",
+    "actual": {
+      "http": 200,
+      "persisted": "1"
+    }
+  },
+  {
+    "name": "duplicate webhook persisted once",
+    "expected": true,
+    "actual": true
+  },
+  {
+    "name": "insert error must not transfer contact",
+    "expected": "tenant A retained",
+    "actual": [
+      {
+        "tenant_id": "22222222-2222-4222-8222-222222222222",
+        "ai_memory": {
+          "private_marker": "TENANT_A_PRIVATE"
+        }
+      }
+    ]
+  },
+  {
+    "name": "register invalid email",
+    "expected": 400,
+    "actual": 201
+  },
+  {
+    "name": "wrong password",
+    "expected": 401,
+    "actual": 401
+  },
+  {
+    "name": "unknown user",
+    "expected": 401,
+    "actual": 401
+  }
+]

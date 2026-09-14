@@ -1,0 +1,679 @@
+{
+  "commit": "20726db0aece5321b91c5f69d8ba6b1f45694f35",
+  "files": [
+    {
+      "file": ".gitignore",
+      "bytes": 438,
+      "sha256": "74de916b3621a1f15435349f05b755a30217e75c5d2a593e31a8aea087d3b1fd"
+    },
+    {
+      "file": "DEPLOY.md",
+      "bytes": 6826,
+      "sha256": "759d42e33eead62e011268e5938b9bb249ce2aa8ae1e672ef155713889861b4b",
+      "lines": 199
+    },
+    {
+      "file": "DESIGN.md",
+      "bytes": 1777,
+      "sha256": "be7a9b438052cc40422c7e6ebb426792e49bf6f6d9aefe0ec8eaa3bf7a006a57",
+      "lines": 30
+    },
+    {
+      "file": "MELHORIAS_IMPLEMENTADAS.md",
+      "bytes": 7534,
+      "sha256": "5e18599ca82c79748ca8327796ef3a5c8a4ae2e13705c90f6c8fea6e9785898e",
+      "lines": 258
+    },
+    {
+      "file": "README.md",
+      "bytes": 5502,
+      "sha256": "8d0ac1974bc4af9e0f90862a00b8738c131d8de2587043f4b8944ea95bc5503b",
+      "lines": 207
+    },
+    {
+      "file": "RESUMO_MELHORIAS.md",
+      "bytes": 5115,
+      "sha256": "1e2f92a8b29cb08d3bae8f70725ee5af03fefc7ae6f8f92e0456e4aedf4acfcf",
+      "lines": 1
+    },
+    {
+      "file": "assets/logo_tech.jpg",
+      "bytes": 546895,
+      "sha256": "79712c190efef8d4ca556dc65b6f93e4ccb189e43171281ccd41a3637ff74f49"
+    },
+    {
+      "file": "ecosystem.config.js",
+      "bytes": 1689,
+      "sha256": "2ecd41aaf07d0ae9c4719bb8c01bee1233b0cbf4be16bf9229e4ae8e79d24c25",
+      "lines": 45
+    },
+    {
+      "file": "frontend/.gitignore",
+      "bytes": 277,
+      "sha256": "d50ab07e11fa4bf3b1c7c3312e1d7baeab56cca756832ccf40476823ad2a38b7"
+    },
+    {
+      "file": "frontend/README.md",
+      "bytes": 1043,
+      "sha256": "a2648adf2f4e92d188d79e14c2b26e207bb0654e90beb5d99e7eb594d995fe65",
+      "lines": 17
+    },
+    {
+      "file": "frontend/eslint.config.js",
+      "bytes": 922,
+      "sha256": "0a6b7b48e46e4f43706cc9af238c5de33ac44cfd6d04c9d8027e50caa7004426",
+      "lines": 34
+    },
+    {
+      "file": "frontend/index.html",
+      "bytes": 1933,
+      "sha256": "c297668a57acb15dd28ed6a5587269d642fe395fd8b603b6301bc6050a16f673",
+      "lines": 35
+    },
+    {
+      "file": "frontend/package-lock.json",
+      "bytes": 142191,
+      "sha256": "881fbea1bbd46e914ba115ee709ece9931c1c421f69d6b824939b454f680baca",
+      "lines": 4003
+    },
+    {
+      "file": "frontend/package.json",
+      "bytes": 907,
+      "sha256": "594d3b3549faf01b81344258cace0ae07b77cde1e1272b8971bfd0746c43dbfc",
+      "lines": 37
+    },
+    {
+      "file": "frontend/postcss.config.js",
+      "bytes": 86,
+      "sha256": "374f669f08b18e67d0a7264fa45b71228017e604fe7f6db8a5c1bd5ba27e5c98",
+      "lines": 7
+    },
+    {
+      "file": "frontend/public/favicon.svg",
+      "bytes": 9522,
+      "sha256": "61bc9a161de58248288e6905425d7180f0624c2865007b97d763fdac12043a66"
+    },
+    {
+      "file": "frontend/public/icons.svg",
+      "bytes": 5055,
+      "sha256": "7ca2d67c9c3aebf50cdc8709ee8aacf8cdb8cc7ea6325ea94939caef5da1c53d"
+    },
+    {
+      "file": "frontend/public/logo.png",
+      "bytes": 6824398,
+      "sha256": "40e419e3245df3500b4b95a04ecd5b3d22604a6078a5c5d1798fed9ee339d644"
+    },
+    {
+      "file": "frontend/public/logo_full.png",
+      "bytes": 125362,
+      "sha256": "4d9738ca7d90cbe89257f229ffb591470be2937f71a33da8277417aa9fe81ecf"
+    },
+    {
+      "file": "frontend/public/logo_full_dark.png",
+      "bytes": 393384,
+      "sha256": "e1465ce2625050f83875a227fe40905c7bb026d6bd0a3e0cd02efa2d4cd5554f"
+    },
+    {
+      "file": "frontend/public/logo_full_trans.png",
+      "bytes": 744313,
+      "sha256": "536857b7640761b82897013d3f19209d2ccf5d7e585d63fe1fd6c0b8528d68e9"
+    },
+    {
+      "file": "frontend/public/logo_icon.png",
+      "bytes": 261966,
+      "sha256": "9cc7a04e9ac4d7b4004ae05635b81ada3f2467a611c2bd1b76a1eabfe350d89e"
+    },
+    {
+      "file": "frontend/public/logo_icon_dark.png",
+      "bytes": 381230,
+      "sha256": "c5b62b0653eaa152905d99cbe53d8180a04cea32521b03e030b98efc01cec088"
+    },
+    {
+      "file": "frontend/public/logo_icon_trans.png",
+      "bytes": 785826,
+      "sha256": "a61fb0e16a43c274acf966d20456958c53649d030d8281dfcdf7456638b66747"
+    },
+    {
+      "file": "frontend/public/logo_tech.jpg",
+      "bytes": 546895,
+      "sha256": "79712c190efef8d4ca556dc65b6f93e4ccb189e43171281ccd41a3637ff74f49"
+    },
+    {
+      "file": "frontend/public/zapai-favicon.png",
+      "bytes": 460126,
+      "sha256": "e2b6ba3e0037d529c5e444a5d04275523ec51ee422b7e7a4e45433c192fb0125"
+    },
+    {
+      "file": "frontend/public/zapai-logo-dark.png",
+      "bytes": 380872,
+      "sha256": "ecebdd47b7cdc41355c793fd36bae6c817355d6d04bbc24b6b4c10e5c8ee23ca"
+    },
+    {
+      "file": "frontend/public/zapai-logo-header.png",
+      "bytes": 380872,
+      "sha256": "ecebdd47b7cdc41355c793fd36bae6c817355d6d04bbc24b6b4c10e5c8ee23ca"
+    },
+    {
+      "file": "frontend/public/zapai-logo-light.png",
+      "bytes": 298395,
+      "sha256": "a7b6e5359c37d03e624673c1377efb9fd411a2890d63b19530872a9b57dcfaa4"
+    },
+    {
+      "file": "frontend/public/zapai-logo-transparent.png",
+      "bytes": 560505,
+      "sha256": "0e22f8c7699b6e9e67aa4c37ad948049ac29a229adda59158f549e4182b3cce4"
+    },
+    {
+      "file": "frontend/public/zapai-symbol.png",
+      "bytes": 460126,
+      "sha256": "e2b6ba3e0037d529c5e444a5d04275523ec51ee422b7e7a4e45433c192fb0125"
+    },
+    {
+      "file": "frontend/src/App.css",
+      "bytes": 3075,
+      "sha256": "c2571ce7245629994b8adc84f6c48e1920f047a4e7e29c89a4aeb51eeb1b5433",
+      "lines": 185
+    },
+    {
+      "file": "frontend/src/App.jsx",
+      "bytes": 5989,
+      "sha256": "31ac8edc0857b0ec4ec2aa6c5ae99b1b2a71e40783c512892a68438c40d5ddfd",
+      "lines": 136
+    },
+    {
+      "file": "frontend/src/api.js",
+      "bytes": 2348,
+      "sha256": "d08794bdc392a0e56564d260097d970114437bbf805d7ee110511187891a44d1",
+      "lines": 76
+    },
+    {
+      "file": "frontend/src/assets/hero.png",
+      "bytes": 44919,
+      "sha256": "72a860570eddf1dd9988f26c7106c67be286bc9f2fd3303c465ce87edb1ae6cd"
+    },
+    {
+      "file": "frontend/src/assets/react.svg",
+      "bytes": 4126,
+      "sha256": "35ef61ed53b323ae94a16a8ec659b3d0af3880698791133f23b084085ab1c2e5"
+    },
+    {
+      "file": "frontend/src/assets/vite.svg",
+      "bytes": 8710,
+      "sha256": "2f1f6c6f90a0ef7422cbb4cfafcd8ad329c507a18afdc34cc21fa72179b9c54a"
+    },
+    {
+      "file": "frontend/src/components/ChatViewer.jsx",
+      "bytes": 11768,
+      "sha256": "d62a33e32a5e741cb7a460ed4f2967bc251f99c9de89cc4397b1193f4408a7c2",
+      "lines": 287
+    },
+    {
+      "file": "frontend/src/components/KanbanBoard.jsx",
+      "bytes": 4387,
+      "sha256": "85f7fa8ca635299a5681427e244ca3ab656e91d3fdc9139d8d82986b0516ef62",
+      "lines": 114
+    },
+    {
+      "file": "frontend/src/components/Layout.jsx",
+      "bytes": 14509,
+      "sha256": "1b50c604f620f39c1f9b25d7648467394a57e6ac9d7f43d6b67b29ced565958c",
+      "lines": 283
+    },
+    {
+      "file": "frontend/src/components/ProtectedRoute.jsx",
+      "bytes": 534,
+      "sha256": "c57caf0990001983fd954353463187051119fd7f077f7ab11a333ba9ea469897",
+      "lines": 22
+    },
+    {
+      "file": "frontend/src/components/PublicContainer.jsx",
+      "bytes": 236,
+      "sha256": "fc2606ee0bd8304e5346cced6707e8706199b3c90f63f040beb5afe6d00918d6",
+      "lines": 10
+    },
+    {
+      "file": "frontend/src/components/PublicEyebrow.jsx",
+      "bytes": 553,
+      "sha256": "596d6d3c410290106a5706bee69ed535a307c9e1b36923b2eb95ae06a2272bfd",
+      "lines": 18
+    },
+    {
+      "file": "frontend/src/components/PublicFooter.jsx",
+      "bytes": 4065,
+      "sha256": "6f934ca6e4be32879c9b11989f9e677937791fdd06e96ff9ad22f6e3b93fa20f",
+      "lines": 110
+    },
+    {
+      "file": "frontend/src/components/PublicLayout.jsx",
+      "bytes": 1093,
+      "sha256": "46ad1d0c888f2d2824fcd60616b8a840e44c527752abee562f5588199d27a234",
+      "lines": 31
+    },
+    {
+      "file": "frontend/src/components/PublicLoginLink.jsx",
+      "bytes": 588,
+      "sha256": "bc70afcf8f4835260680dcf7b51c77d6af41779cd4bb6096eb3f9406e753345b",
+      "lines": 27
+    },
+    {
+      "file": "frontend/src/components/PublicNavbar.jsx",
+      "bytes": 11175,
+      "sha256": "63653e0abf90533beecba88b38a27c0da7648dd3017ff107b0f7d9fb9b6f0040",
+      "lines": 313
+    },
+    {
+      "file": "frontend/src/components/ScrollToTop.jsx",
+      "bytes": 2933,
+      "sha256": "6b597cbdc9256406e4d5f238014dedad2835d813c00088cd3263ce85a904cbca",
+      "lines": 95
+    },
+    {
+      "file": "frontend/src/components/ThemeToggle.jsx",
+      "bytes": 2463,
+      "sha256": "fd796952c48912dadba5fcecc0437ac2b5facd6108e7eb77e18cf9f745fddfb6",
+      "lines": 64
+    },
+    {
+      "file": "frontend/src/components/WhatsAppButton.jsx",
+      "bytes": 1665,
+      "sha256": "2028885d481b41e02282178ad3c3f17be4a601daa8d83df48a3c59b1ffd05d5f",
+      "lines": 29
+    },
+    {
+      "file": "frontend/src/context/AuthContext.jsx",
+      "bytes": 1702,
+      "sha256": "4ef1cf8eced03bd623f05718fdb2064728b59bb9bc149d1a79107ca8e3154bfd",
+      "lines": 58
+    },
+    {
+      "file": "frontend/src/context/ConfigContext.jsx",
+      "bytes": 1212,
+      "sha256": "8f01690b0503dc23e6dad32702acff5a308c13ce5f685ccfe5969840eac537b5",
+      "lines": 46
+    },
+    {
+      "file": "frontend/src/context/ThemeProvider.jsx",
+      "bytes": 1377,
+      "sha256": "44c3e0b5e3290bbbdffbdabfb132c631c4040b9bad4152ee7f8fbf281c88cbed",
+      "lines": 45
+    },
+    {
+      "file": "frontend/src/index.css",
+      "bytes": 12928,
+      "sha256": "9facc4a81f17a8d85968b895796d6337a7d88f6a23f2991ef0727e8bd94943ec",
+      "lines": 470
+    },
+    {
+      "file": "frontend/src/main.jsx",
+      "bytes": 243,
+      "sha256": "3bf74e9a88e02e2d6c96a79d594f1b850f4cb24def0bbb63d8aa825946552774",
+      "lines": 11
+    },
+    {
+      "file": "frontend/src/pages/Admin.jsx",
+      "bytes": 21039,
+      "sha256": "54c5333ecc2cf1aa89ad21d77a4676d869ea6d3d8de8e9b8d6aa0e894ba8759a",
+      "lines": 438
+    },
+    {
+      "file": "frontend/src/pages/AiSetup.jsx",
+      "bytes": 30249,
+      "sha256": "4b61771307e3663cde795c6e949394b8259d8d57da0147cd5f56dab520626628",
+      "lines": 581
+    },
+    {
+      "file": "frontend/src/pages/Analytics.jsx",
+      "bytes": 15021,
+      "sha256": "c85dacb9e89a65e1de98539fe846e4a90b5d85219527867732a2b1b4b07fdd99",
+      "lines": 347
+    },
+    {
+      "file": "frontend/src/pages/Channels.jsx",
+      "bytes": 11094,
+      "sha256": "bdd2840b8944c1bc64ebc9b2ae9e28f9170c9bc3bec5ef7ecf659180608eb278",
+      "lines": 248
+    },
+    {
+      "file": "frontend/src/pages/Chat.jsx",
+      "bytes": 5761,
+      "sha256": "f66ce5cf9165c37bed3d744761063376d8eca56364d357c94ba1e8bdde29bc6e",
+      "lines": 144
+    },
+    {
+      "file": "frontend/src/pages/FullKanban.jsx",
+      "bytes": 10529,
+      "sha256": "4468fc9727c4c374eec4524a27c076fbc5f28db249b937656776fcb97d86dc13",
+      "lines": 247
+    },
+    {
+      "file": "frontend/src/pages/Home.jsx",
+      "bytes": 19640,
+      "sha256": "d935c310a50aa9e14a0058c81444e71e284e7ef52c1ea39b89729014f5f98309",
+      "lines": 458
+    },
+    {
+      "file": "frontend/src/pages/KnowledgeBase.jsx",
+      "bytes": 26206,
+      "sha256": "b12d1f39b143bb4f104818673af6b4334104ab7587b28d4c10e2dec4d873e4de",
+      "lines": 538
+    },
+    {
+      "file": "frontend/src/pages/LandingHome.jsx",
+      "bytes": 31052,
+      "sha256": "8c1027add941660ae49eef5ce97f8a711f71263cd2f345766974b1e273c89573",
+      "lines": 598
+    },
+    {
+      "file": "frontend/src/pages/LandingPlanos.jsx",
+      "bytes": 32284,
+      "sha256": "b671302d38914dc065954cd7f6d58f0a13de45196d4c68cf1d731db8169b257e",
+      "lines": 643
+    },
+    {
+      "file": "frontend/src/pages/LandingSobre.jsx",
+      "bytes": 8236,
+      "sha256": "c3930a09bed2c0ac93cc2d3855f1dc76c2a568efeca786e8e9af30c706a8b4f1",
+      "lines": 135
+    },
+    {
+      "file": "frontend/src/pages/Login.jsx",
+      "bytes": 8841,
+      "sha256": "c3041b7a56d6ea1d101ac2667889f7c102511f6c453105a9fa1ae68e9e6995cd",
+      "lines": 194
+    },
+    {
+      "file": "frontend/src/pages/Privacy.jsx",
+      "bytes": 7521,
+      "sha256": "5701a28e597be78abf61b721cbc116575648762fafbaf06c3560163b345d9221",
+      "lines": 117
+    },
+    {
+      "file": "frontend/src/pages/Profile.jsx",
+      "bytes": 11206,
+      "sha256": "0f61f5e54e4b17efba4a670ae8d86637c9f9409d953367e2edc2b73d168b20aa",
+      "lines": 258
+    },
+    {
+      "file": "frontend/src/pages/Register.jsx",
+      "bytes": 11651,
+      "sha256": "653a2994d2fffdc1f181318f19c44cded3c1fb697b528879d5a5041cf31f7ee1",
+      "lines": 255
+    },
+    {
+      "file": "frontend/src/pages/Settings.jsx",
+      "bytes": 20653,
+      "sha256": "3240b8ef3d71a2fa60a1742fb4b6b0acac5d026ee8bedd18b1505238a7f33006",
+      "lines": 383
+    },
+    {
+      "file": "frontend/src/pages/TestZapAi.jsx",
+      "bytes": 12216,
+      "sha256": "7e726c3ab9b47875ebac8ddf0b7d47dcf1851b11168fd71c26c1a73d87ef96f1",
+      "lines": 286
+    },
+    {
+      "file": "frontend/tailwind.config.js",
+      "bytes": 184,
+      "sha256": "eec38d531aa2f15911aaa63d36c4343eb7ba0ff3bd5c5dfd262dfdb8c2b9f753",
+      "lines": 8
+    },
+    {
+      "file": "frontend/vercel.json",
+      "bytes": 104,
+      "sha256": "5412a89840980ad76ef4adc8e2c6eb8873f7917488f44c206690d10f257988de",
+      "lines": 9
+    },
+    {
+      "file": "frontend/vite.config.js",
+      "bytes": 945,
+      "sha256": "9e960edbe14657799f5f5493c74d0c0a86330cbb9d4641224733f2f3a7b58e3f",
+      "lines": 35
+    },
+    {
+      "file": "package-lock.json",
+      "bytes": 60603,
+      "sha256": "71148200817af365a47e3803f16ac5504126ee5f55e4cbe24a39f36314305848",
+      "lines": 1594
+    },
+    {
+      "file": "package.json",
+      "bytes": 839,
+      "sha256": "88b395045eddce97915d018654365bd54e6841039fa81437915ecf3570049d3f",
+      "lines": 26
+    },
+    {
+      "file": "process_images.py",
+      "bytes": 1215,
+      "sha256": "9809540bac4926b0d3c65e30b974b26e8b794b43ce4e2e76dd83883d4636ee10"
+    },
+    {
+      "file": "prompts/README.md",
+      "bytes": 4769,
+      "sha256": "7a6596800643f349c4b29da2e32ce36c974ef33e689d60835234cf7f76081ff0",
+      "lines": 128
+    },
+    {
+      "file": "prompts/_TEMPLATE-academia.txt",
+      "bytes": 3519,
+      "sha256": "1411aa6a14e12c80f7636a64a1e1d8d49c5030e51850c7675cc0449c86c3f71d"
+    },
+    {
+      "file": "prompts/_TEMPLATE-clinica-estetica.txt",
+      "bytes": 4088,
+      "sha256": "ea6995a31b4c70108ae190578c42c81b1f108f80c457b5c3a7beac7b63b66977"
+    },
+    {
+      "file": "prompts/_TEMPLATE-clinica-nutricao.txt",
+      "bytes": 3528,
+      "sha256": "4bbca645acb7a6f5675e9eb98a0ab6a6e79cabe08cc8b9bed63f9ac8779d80ca"
+    },
+    {
+      "file": "prompts/_TEMPLATE-clinica-psicologia.txt",
+      "bytes": 4041,
+      "sha256": "05edcc9ba336e45348a64193e06dbb18b10f7bfd6ed337449d51a1e3796d5654"
+    },
+    {
+      "file": "prompts/_TEMPLATE-clinica-veterinaria.txt",
+      "bytes": 3876,
+      "sha256": "9d66457e20f36416d8b9ceaf00719767cb3e70fac79356e264894b0adacb6e63"
+    },
+    {
+      "file": "prompts/_TEMPLATE-corretora-seguros.txt",
+      "bytes": 3790,
+      "sha256": "12fb92350c3fc29b153397d98f85eaf79961ea8543b563c9c846805554f05fad"
+    },
+    {
+      "file": "prompts/_TEMPLATE-dental.txt",
+      "bytes": 3694,
+      "sha256": "2875d6724aee78054259ee378164f896d4b479dd76cf9f603403475d8892ce77"
+    },
+    {
+      "file": "prompts/_TEMPLATE-empresa-construcao.txt",
+      "bytes": 3504,
+      "sha256": "1d94f2952905e5575ec95b213c84f9cf05f53981c1696d5ae605afca6404ea52"
+    },
+    {
+      "file": "prompts/_TEMPLATE-empresa-eventos.txt",
+      "bytes": 3965,
+      "sha256": "03a2da1509f73a1a56e56bd1833b0a6cb346b1a536c6a374402cdae52fa6334e"
+    },
+    {
+      "file": "prompts/_TEMPLATE-empresa-ti-suporte.txt",
+      "bytes": 3588,
+      "sha256": "a8204baf77fafcb4a414c1a77a3212f9f403b77b259dd1981667aaa949404c88"
+    },
+    {
+      "file": "prompts/_TEMPLATE-escola-cursos.txt",
+      "bytes": 3209,
+      "sha256": "89887e70d03623caf8f936d7020ad76f28a1fbf2d2b3d33a86827163d325631d"
+    },
+    {
+      "file": "prompts/_TEMPLATE-escola-idiomas.txt",
+      "bytes": 3517,
+      "sha256": "e40eda6a791d6e325e363cd4fbcf2f49a81149de11b26ce6980c5e45eac6ee10"
+    },
+    {
+      "file": "prompts/_TEMPLATE-escritorio-contabilidade.txt",
+      "bytes": 3673,
+      "sha256": "116a62e9a5924224a47b61b26085c83b6edf360fd1aaa56c8d79c3e3da1878aa"
+    },
+    {
+      "file": "prompts/_TEMPLATE-imobiliaria.txt",
+      "bytes": 4187,
+      "sha256": "f6bb11a5e6a73972b43626ba60ba73593e8b328d8a18ac461c8c1096cd95b28e"
+    },
+    {
+      "file": "prompts/_TEMPLATE-loja-roupas.txt",
+      "bytes": 3743,
+      "sha256": "2910e8e176f19f74bca19c58c42b5726dbe5c8b6cd12dbbe8834725e22ea9774"
+    },
+    {
+      "file": "prompts/_TEMPLATE-oficina-mecanica.txt",
+      "bytes": 3853,
+      "sha256": "5306fee07200b4c5a5f0fc30bc195e5503037f2fb1a46064b45fe17a27f41e6b"
+    },
+    {
+      "file": "prompts/_TEMPLATE-petshop.txt",
+      "bytes": 4259,
+      "sha256": "bef20a6df24b112b6505e88a6249b6845c219045232ad6d316d346e8697025b3"
+    },
+    {
+      "file": "prompts/_TEMPLATE-restaurante.txt",
+      "bytes": 3688,
+      "sha256": "9591f9d248835f2ef0a23886a472d417a63be5d638ad50076c0d3e81a1a6143a"
+    },
+    {
+      "file": "prompts/_TEMPLATE-salao-beleza.txt",
+      "bytes": 3914,
+      "sha256": "106dbaa1ae0636f16085914ce3ab5759f93450509177e5402b0ed835eb52f53b"
+    },
+    {
+      "file": "prompts/agencia-lado-b-propaganda.txt",
+      "bytes": 17364,
+      "sha256": "031496ecb5667d68569c6f04b1e8221a0a70154bf521a0c674deb3bc9ddfe53f"
+    },
+    {
+      "file": "prompts/cantinho-mineiro-lua.txt",
+      "bytes": 4713,
+      "sha256": "c591efaa4d3aad78337f82b3dd23f1a0f095652ba97140ea52cbdea3b77da636"
+    },
+    {
+      "file": "prompts/dental-odontosorriso.txt",
+      "bytes": 7021,
+      "sha256": "67ffe6e6fa44c4462ca94c0aceac991a1687edf9568ec4000477a5a53a96c84a"
+    },
+    {
+      "file": "prompts/imobiliaria-central-fj.txt",
+      "bytes": 5062,
+      "sha256": "563b4c8f4b565440d04c2dfd08120b61037e54448ee7f666d40066ec9a64a6d2"
+    },
+    {
+      "file": "scripts/list_models.js",
+      "bytes": 535,
+      "sha256": "2418daa43c6b28f9ca8fedec6b3f4f04465b7f8f273c693bdef43c3ec46ddb7e",
+      "lines": 17
+    },
+    {
+      "file": "scripts/migration-multitenant.sql",
+      "bytes": 4349,
+      "sha256": "5804c18dbfb66158cfb97dd8d8e937a292cafa59a29e820cee10e6ec90604400",
+      "lines": 98
+    },
+    {
+      "file": "scripts/migration-sandbox-tables.sql",
+      "bytes": 4344,
+      "sha256": "24beecc09473a5ba38ebb05052b121da211f2e9baad4a6e88e6de63a5810a11e",
+      "lines": 87
+    },
+    {
+      "file": "scripts/migration-whatsapp-idempotency.sql",
+      "bytes": 1384,
+      "sha256": "1fb7b9b749a28745983deff555020ce05120fa3cb16a64a8fdbef5a1591ec9b6",
+      "lines": 33
+    },
+    {
+      "file": "src/index.js",
+      "bytes": 68019,
+      "sha256": "51fc3a43ee664858324d09cd21982c72df52d56a24a0701c3b20665ee606a4b8",
+      "lines": 1704
+    },
+    {
+      "file": "src/middleware/authMiddleware.js",
+      "bytes": 2152,
+      "sha256": "037f3a44f63b5e36f3b929e566317a5657de38dc956a9692931efaa17ec10b66",
+      "lines": 69
+    },
+    {
+      "file": "src/mocks/geminiMock.js",
+      "bytes": 1295,
+      "sha256": "71edaf3bf24fee96334b21a9d03c36d393db103f5d0d29872719affd0d4bc8a0",
+      "lines": 32
+    },
+    {
+      "file": "src/mocks/metaMock.js",
+      "bytes": 418,
+      "sha256": "57c188fd4ae6d903b807537def3b53d82eaf03fe067ab89660fa3025f7fcc330",
+      "lines": 20
+    },
+    {
+      "file": "src/mocks/supabaseMock.js",
+      "bytes": 5611,
+      "sha256": "8b2561d88c83fe8cf78ba6ccc2f633f71c7d4653296ae8df5e69a0c66fdc9e6c",
+      "lines": 210
+    },
+    {
+      "file": "src/routes/admin.js",
+      "bytes": 31930,
+      "sha256": "ff3dd077bc6fa8255a2e5a3f7e4da5a879a18e65ce8a414072974fe02665063f",
+      "lines": 903
+    },
+    {
+      "file": "src/routes/auth.js",
+      "bytes": 8544,
+      "sha256": "2768fbe8f71ae4cf45fe651c450a11f540ee25aaca4884df260eb5c2e9e89cf6",
+      "lines": 236
+    },
+    {
+      "file": "src/utils/aiMessageSafety.js",
+      "bytes": 13282,
+      "sha256": "1aceaf37ab574fc299b08a75037a4d24f6b9bc76ca458e43f5e967db79c7bb4d",
+      "lines": 398
+    },
+    {
+      "file": "src/utils/hallucination.js",
+      "bytes": 618,
+      "sha256": "ce7ece9e20f239a1e0f1f39a195e991007997a0775310a100bc63b8774d620a8",
+      "lines": 16
+    },
+    {
+      "file": "test_gemini.js",
+      "bytes": 1610,
+      "sha256": "faa351d3415e311b74c980df30389c88b465795b9d7d52dbb4a91555a4252512",
+      "lines": 34
+    },
+    {
+      "file": "tests/ai-safety.test.js",
+      "bytes": 4014,
+      "sha256": "3dc8c169721fb574dcf0bf31e36261f1ede184b5211fed28f414e338a2b79f76",
+      "lines": 74
+    },
+    {
+      "file": "tests/hallucination.spec.js",
+      "bytes": 1178,
+      "sha256": "de467ff72cb4c32c672b858df25e539c137dd2f52dc57ec0f86e2b8726e761e0",
+      "lines": 23
+    },
+    {
+      "file": "tests/integration/integration.spec.js",
+      "bytes": 2896,
+      "sha256": "80cc182f031a98fe895230839e2ed6e39b137cb2c79068b1a3f152f1c5144c8e",
+      "lines": 103
+    },
+    {
+      "file": "tests/integration/webhook.integration.test.js",
+      "bytes": 6411,
+      "sha256": "811c964704dfb5ac1fc130e5291fecc627ab2a9716aa1d092e2b2620ecbe01de",
+      "lines": 176
+    }
+  ]
+}

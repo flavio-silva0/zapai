@@ -1,0 +1,28 @@
+[
+  {
+    "case": "anonymous protected route",
+    "result": "redirect login"
+  },
+  {
+    "case": "real login through UI",
+    "result": "passed"
+  },
+  {
+    "case": "personality slider reload",
+    "before": "12",
+    "after": "65",
+    "defect": true
+  },
+  {
+    "case": "IA edit save reload through UI",
+    "result": "passed"
+  },
+  {
+    "case": "logout protected route",
+    "result": "redirect login"
+  },
+  {
+    "case": "sandbox account switch",
+    "leakedTenantAHistory": true
+  }
+]

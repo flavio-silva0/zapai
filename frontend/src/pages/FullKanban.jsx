@@ -64,7 +64,8 @@ export default function FullKanban() {
   useEffect(() => { fetchPatients(); }, []);
 
   useEffect(() => {
-    const es = new EventSource(apiUrl("/api/events"));
+    const token = localStorage.getItem("sofia_token");
+    const es = new EventSource(apiUrl(`/api/events?token=${token || ""}`));
     es.addEventListener("patient_updated", fetchPatients);
     es.addEventListener("new_message",     fetchPatients);
     return () => {

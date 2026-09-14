@@ -114,7 +114,7 @@ export default function Analytics() {
 
   const total = stats?.total || 0;
   const aiAtivo = stats?.aiAtivo || 0;
-  const resolucaoRate = total > 0 ? Math.round((aiAtivo / total) * 100) : 0;
+  const automacaoRate = total > 0 ? Math.round((aiAtivo / total) * 100) : 0;
   const totalMensagens = stats?.totalMensagens || 0;
 
   // Real volume for last 14 days
@@ -128,44 +128,64 @@ export default function Analytics() {
 
   const maxVolume = Math.max(...dailyCounts, 1);
 
+  // Kanban status segments (UX-005: separar dimensões claramente)
+  const agendadosCount = patients.filter((p) => {
+    const s = String(p.status_kanban || "").toLowerCase();
+    return s.includes("agendad") || s.includes("convertid") || s.includes("concluid");
+  }).length || stats?.agendado || 0;
+
+  const agendamentoRate = total > 0 ? Math.round((agendadosCount / total) * 100) : 0;
+
+  const novosCount = patients.filter((p) => {
+    const s = String(p.status_kanban || "").toLowerCase();
+    return s.includes("novo");
+  }).length || stats?.novo || 0;
+
+  const emAtendimentoCount = patients.filter((p) => {
+    const s = String(p.status_kanban || "").toLowerCase();
+    return s.includes("atendimento");
+  }).length || stats?.emAtendimento || 0;
+
+  const humanoCount = patients.filter((p) => p.is_ai_active === false).length;
+
   const statusSegments = [
-    { label: "Auto-resolvido (IA)", value: stats?.aiAtivo || 0, color: "#06b6d4" },
-    { label: "Novos contatos", value: stats?.novo || 0, color: "#10b981" },
-    { label: "Em Atendimento", value: stats?.emAtendimento || 0, color: "#f59e0b" },
-    { label: "Agendados", value: stats?.agendado || 0, color: "#8b5cf6" },
+    { label: "Novos Contatos", value: novosCount, color: "#10b981" },
+    { label: "Em Atendimento", value: emAtendimentoCount, color: "#06b6d4" },
+    { label: "Agendados", value: agendadosCount, color: "#8b5cf6" },
+    { label: "Atendimento Humano", value: humanoCount, color: "#f59e0b" },
   ];
 
   const metrics = [
     {
       label: "Volume de Atendimentos",
       value: String(total),
-      subtext: "Total",
+      subtext: "Total cadastrado",
       sparkData: dailyCounts.slice(-7),
       color: "#06b6d4",
       icon: MessageSquare,
     },
     {
-      label: "Resolução Automatizada",
-      value: `${resolucaoRate}%`,
-      subtext: `${aiAtivo} com IA`,
-      sparkData: [resolucaoRate, resolucaoRate],
+      label: "Taxa de Automação IA",
+      value: `${automacaoRate}%`,
+      subtext: `${aiAtivo} sob condução IA`,
+      sparkData: [automacaoRate, automacaoRate],
       color: "#10b981",
       icon: Zap,
     },
     {
-      label: "Velocidade de Resposta",
-      value: "~3s",
-      subtext: "IA Oficial",
-      sparkData: [3, 3, 3, 3],
-      color: "#f59e0b",
+      label: "Taxa de Agendamento",
+      value: `${agendamentoRate}%`,
+      subtext: `${agendadosCount} agendados/convertidos`,
+      sparkData: [agendamentoRate, agendamentoRate],
+      color: "#8b5cf6",
       icon: Clock,
     },
     {
       label: "Total de Mensagens",
       value: String(totalMensagens),
-      subtext: "Trocadas",
+      subtext: "Trocadas no WhatsApp",
       sparkData: dailyCounts,
-      color: "#8b5cf6",
+      color: "#f59e0b",
       icon: Activity,
     },
   ];

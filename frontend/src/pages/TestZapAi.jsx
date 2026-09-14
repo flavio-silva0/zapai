@@ -7,21 +7,25 @@ import { AuthContext } from "../context/AuthContext";
 const DEBOUNCE_TEST_MS = 3000;
 
 export default function TestZapAi() {
-  const [mensagens,  setMensagens]  = useState(() => {
-    try {
-      const salvas = localStorage.getItem("sandbox_history");
-      return salvas ? JSON.parse(salvas) : [];
-    } catch {
-      return [];
-    }
-  });
+  const { token, tenant } = useContext(AuthContext);
+  const tenantId = tenant?.id || "anon";
+  const storageKey = `sandbox_history_${tenantId}`;
+
+  const [mensagens,  setMensagens]  = useState([]);
   const [input,      setInput]      = useState("");
   const [loading,    setLoading]    = useState(false);
   const [resetting,  setResetting]  = useState(false);
   const [countdown,  setCountdown]  = useState(null);
-  
-  // Pegamos o tenant atual para injetar o prompt do sandbox
-  const { token, tenant } = useContext(AuthContext);
+
+  // Carrega histórico isolado do tenant atual
+  useEffect(() => {
+    try {
+      const salvas = localStorage.getItem(storageKey);
+      setMensagens(salvas ? JSON.parse(salvas) : []);
+    } catch {
+      setMensagens([]);
+    }
+  }, [storageKey]);
   
   const displayBotName = tenant?.bot_name || "Assistente";
   const displayBotEmoji = tenant?.bot_emoji || "🤖";
@@ -43,8 +47,10 @@ export default function TestZapAi() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("sandbox_history", JSON.stringify(mensagens));
-  }, [mensagens]);
+    if (tenant?.id) {
+      localStorage.setItem(storageKey, JSON.stringify(mensagens));
+    }
+  }, [mensagens, storageKey, tenant?.id]);
 
   const iniciarContagem = () => {
     clearInterval(countdownIntervalRef.current);
@@ -123,6 +129,7 @@ export default function TestZapAi() {
     bufferRef.current = [];
     setCountdown(null);
     setMensagens([]);
+    localStorage.removeItem(storageKey);
     localStorage.removeItem("sandbox_history");
   };
 
