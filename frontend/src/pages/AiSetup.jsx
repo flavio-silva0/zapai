@@ -64,10 +64,10 @@ function AgentCard({ name, emoji, role, status }) {
 }
 
 export default function AiSetup() {
-  const { user, tenant, login } = useContext(AuthContext);
+  const { user, tenant, login, loading } = useContext(AuthContext);
 
   const [magicForm, setMagicForm] = useState({
-    nomeAgente: tenant?.bot_name || "Sofia",
+    nomeAgente: tenant?.bot_name || "Beatriz",
     emojiAgente: tenant?.bot_emoji || "🤖",
     tipoNegocio: "Clinica Odontológica",
     nomeEmpresa: tenant?.clinic_name || "",
@@ -95,6 +95,24 @@ export default function AiSetup() {
       return { formality: 65, empathy: 80, objectivity: 55 };
     }
   });
+
+  useEffect(() => {
+    if (tenant) {
+      setMagicForm(prev => ({
+        ...prev,
+        nomeAgente: prev.nomeAgente && prev.nomeAgente !== "Beatriz" && prev.nomeAgente !== "Sofia" ? prev.nomeAgente : (tenant.bot_name || "Beatriz"),
+        emojiAgente: prev.emojiAgente && prev.emojiAgente !== "🤖" ? prev.emojiAgente : (tenant.bot_emoji || "🤖"),
+        nomeEmpresa: prev.nomeEmpresa || tenant.clinic_name || tenant.nome || "",
+        whatsappContato: prev.whatsappContato || tenant.clinic_phone || ""
+      }));
+      if (tenant.id) {
+        try {
+          const saved = localStorage.getItem(`ai_sliders_${tenant.id}`);
+          if (saved) setSliders(JSON.parse(saved));
+        } catch {}
+      }
+    }
+  }, [tenant]);
 
   useEffect(() => {
     if (tenant?.id) {
@@ -210,7 +228,21 @@ export default function AiSetup() {
     }
   };
 
-  if (!user || !tenant) return null;
+  if (loading) {
+    return (
+      <div className="p-6 lg:p-8 space-y-6 max-w-6xl animate-pulse">
+        <div className="h-8 bg-[var(--bg-surface-active)] rounded-xl w-64" />
+        <div className="h-4 bg-[var(--bg-surface-active)] rounded-lg w-96" />
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
+          <div className="h-36 bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl" />
+          <div className="h-36 bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl" />
+        </div>
+        <div className="h-72 bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl" />
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   return (
     <div className="p-6 lg:p-8 space-y-6 max-w-6xl">
@@ -562,10 +594,10 @@ export default function AiSetup() {
           {!isEditingPrompt ? (
             <div className="space-y-3">
               <div className="w-full rounded-xl px-5 py-4 text-[12px] border font-mono whitespace-pre-wrap max-h-[400px] overflow-y-auto leading-relaxed bg-[var(--bg-surface-active)] border-[var(--border-medium)] text-[var(--text-secondary)]">
-                {tenant.prompt_text || "Seu atendente ainda não possui diretrizes definidas.\n\nUtilize a aba 'Configuração por IA' para gerar automaticamente ou edite manualmente."}
+                {tenant?.prompt_text || "Seu atendente ainda não possui diretrizes definidas.\n\nUtilize a aba 'Configuração por IA' para gerar automaticamente ou edite manualmente."}
               </div>
               <button
-                onClick={() => { setIsEditingPrompt(true); setEditingPromptText(tenant.prompt_text || ""); }}
+                onClick={() => { setIsEditingPrompt(true); setEditingPromptText(tenant?.prompt_text || ""); }}
                 className="btn-outline flex items-center gap-2 text-sm">
                 <Edit2 size={14} />
                 Editar Diretrizes Manualmente

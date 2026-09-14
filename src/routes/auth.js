@@ -209,11 +209,14 @@ router.get("/me", requireAuth, async (req, res) => {
 
   let tenant = null;
   if (user.tenant_id) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("tenants")
-      .select("id, nome, status, bot_name, bot_emoji, clinic_name, clinic_phone, trial_ends_at, prompt_text, phone_number_id, plan, is_ai_active")
+      .select("id, nome, status, bot_name, bot_emoji, clinic_name, clinic_phone, trial_ends_at, prompt_text, phone_number_id, plan")
       .eq("id", user.tenant_id)
       .single();
+    if (error) {
+      console.error("[AUTH] Erro ao buscar tenant no /me:", error.message || error);
+    }
     tenant = data;
   }
 

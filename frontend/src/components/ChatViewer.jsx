@@ -18,10 +18,36 @@ const ORIGIN_LABEL = (name, emoji) => ({
   human: "Recepção 👤",
 });
 
-function formatarHorario(isoString) {
-  return new Date(isoString).toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
+function formatarDataHora(isoString) {
+  if (!isoString) return "";
+  const d = new Date(isoString);
+  if (isNaN(d.getTime())) return "";
+
+  const dia = String(d.getDate()).padStart(2, "0");
+  const mes = String(d.getMonth() + 1).padStart(2, "0");
+  const ano = d.getFullYear();
+  const hora = String(d.getHours()).padStart(2, "0");
+  const min = String(d.getMinutes()).padStart(2, "0");
+
+  return `${dia}/${mes}/${ano} às ${hora}:${min}`;
+}
+
+function formatarDataSeparador(isoString) {
+  if (!isoString) return "";
+  const d = new Date(isoString);
+  if (isNaN(d.getTime())) return "";
+
+  const hoje = new Date();
+  const ontem = new Date();
+  ontem.setDate(ontem.getDate() - 1);
+
+  if (d.toDateString() === hoje.toDateString()) return "Hoje";
+  if (d.toDateString() === ontem.toDateString()) return "Ontem";
+
+  return d.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
   });
 }
 
@@ -39,8 +65,8 @@ function MessageBubble({ msg, botName, botEmoji }) {
       <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed break-words whitespace-pre-wrap ${BUBBLE_STYLES[msg.origin]}`}>
         {msg.texto}
       </div>
-      <span className="text-[11px] text-slate-500 dark:text-slate-400 px-1 font-medium">
-        {formatarHorario(msg.created_at)}
+      <span className="text-[10px] text-slate-500 dark:text-slate-400 px-1 font-medium">
+        {formatarDataHora(msg.created_at)}
       </span>
     </div>
   );
@@ -231,14 +257,29 @@ export default function ChatViewer({
             <p className="text-sm font-medium">Nenhuma mensagem ainda</p>
           </div>
         ) : (
-          messages.map((msg) => (
-            <MessageBubble
-              key={msg.id}
-              msg={msg}
-              botName={resolvedBotName}
-              botEmoji={resolvedBotEmoji}
-            />
-          ))
+          messages.map((msg, index) => {
+            const prevMsg = index > 0 ? messages[index - 1] : null;
+            const msgDate = new Date(msg.created_at).toDateString();
+            const prevDate = prevMsg ? new Date(prevMsg.created_at).toDateString() : null;
+            const showDateSeparator = !prevMsg || msgDate !== prevDate;
+
+            return (
+              <div key={msg.id} className="flex flex-col gap-3.5">
+                {showDateSeparator && (
+                  <div className="flex justify-center my-2">
+                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-white/90 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 px-3 py-1 rounded-full shadow-xs">
+                      {formatarDataSeparador(msg.created_at)}
+                    </span>
+                  </div>
+                )}
+                <MessageBubble
+                  msg={msg}
+                  botName={resolvedBotName}
+                  botEmoji={resolvedBotEmoji}
+                />
+              </div>
+            );
+          })
         )}
         <div ref={bottomRef} />
       </div>
