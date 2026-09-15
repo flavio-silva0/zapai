@@ -194,9 +194,9 @@ export default function PublicNavbar() {
           aria-label="ZapAI Página Inicial"
         >
           <img
-            src={useDarkTheme ? "/zapai-logo-light.png" : "/zapai-logo-dark.png"}
+            src={useDarkTheme ? "/zapai-logo-lp-light.png" : "/zapai-logo-lp.png"}
             alt="ZapAI"
-            className="h-8 w-auto object-contain transition-opacity duration-200"
+            className="h-10 sm:h-11 md:h-12 w-auto object-contain transition-all duration-200"
           />
         </Link>
 

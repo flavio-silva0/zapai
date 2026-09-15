@@ -88,17 +88,17 @@ export default function Layout() {
         {/* ── Logo ── */}
         <div className="px-5 pt-5 pb-4 border-b border-[var(--border-medium)]">
           <div className="flex items-center justify-between">
-            <Link to="/painel" className="flex items-center gap-3 group w-fit" aria-label="ZapAI Painel Principal">
-              <div className="relative">
-                <div className="w-9 h-9 rounded-xl bg-brand-gradient flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform duration-200"
-                  style={{ background: "linear-gradient(135deg, var(--clr-primary), var(--clr-info))" }}>
-                  <Zap size={16} className="text-white" strokeWidth={2.5} />
-                </div>
-                <div className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-[var(--clr-success)] border-2 border-[var(--sidebar-bg)] animate-pulse" />
-              </div>
-              <span className="font-display font-black text-[18px] text-[var(--text-primary)] tracking-tight">
-                Zap<span style={{ color: "var(--clr-primary)" }}>AI</span>
-              </span>
+            <Link to="/painel" className="flex items-center group w-fit" aria-label="ZapAI Painel Principal">
+              <img
+                src="/zapai-logo-dark.png"
+                alt="ZapAI Logo"
+                className="h-11 md:h-12 w-auto object-contain block dark:hidden group-hover:scale-105 transition-transform duration-200"
+              />
+              <img
+                src="/zapai-logo-light.png"
+                alt="ZapAI Logo"
+                className="h-11 md:h-12 w-auto object-contain hidden dark:block group-hover:scale-105 transition-transform duration-200"
+              />
             </Link>
 
             <button

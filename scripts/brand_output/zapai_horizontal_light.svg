@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 160" width="680" height="160">
+  <defs>
+    <linearGradient id="brandEmerald" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#10B981" />
+    </linearGradient>
+    <linearGradient id="accentTeal" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F766E" />
+      <stop offset="100%" stop-color="#14B8A6" />
+    </linearGradient>
+  </defs>
+
+  <!-- ICON GROUP (Centered vertically at X=24, Y=20, Size=120x120) -->
+  <g transform="translate(24, 20)">
+    <!-- Squircle container for the symbol -->
+    <rect width="120" height="120" rx="30" fill="#F1F5F9" />
+    
+    <!-- Modern Chat Monogram Z inside squircle -->
+    <!-- Top arm: chat message incoming -->
+    <path d="M 32 38 
+             L 86 38 
+             A 6 6 0 0 1 91 47 
+             L 54 84 
+             L 84 84 
+             A 6 6 0 0 1 90 90 
+             L 90 94 
+             L 98 102 
+             L 86 102 
+             L 34 102 
+             A 6 6 0 0 1 29 93 
+             L 66 56 
+             L 36 56 
+             A 6 6 0 0 1 30 50 
+             L 30 44 
+             A 6 6 0 0 1 32 38 Z" 
+          fill="url(#brandEmerald)" />
+          
+    <!-- Discreet AI Spark / Intelligence dot -->
+    <circle cx="94" cy="38" r="5" fill="url(#accentTeal)" />
+  </g>
+
+  <!-- WORDMARK: ZapAI -->
+  <g transform="translate(170, 96)">
+    <text font-family="Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" 
+          font-size="64" 
+          font-weight="800" 
+          letter-spacing="-1.5">
+      <tspan fill="#0F172A">Zap</tspan><tspan fill="#10B981">AI</tspan>
+    </text>
+  </g>
+  
+  <!-- MICRO-LABEL: Atendimento Inteligente WhatsApp -->
+  <g transform="translate(172, 126)">
+    <text font-family="Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" 
+          font-size="14" 
+          font-weight="600" 
+          letter-spacing="1.8" 
+          fill="#64748B">
+      ATENDIMENTO DIGITAL NO WHATSAPP
+    </text>
+  </g>
+</svg>

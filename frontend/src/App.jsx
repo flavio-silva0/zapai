@@ -6,6 +6,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import PublicLayout from "./components/PublicLayout";
 import ScrollToTop from "./components/ScrollToTop";
+import DynamicFavicon from "./components/DynamicFavicon";
 import { ThemeProvider } from "./context/ThemeProvider";
 
 // ── Página Pública Principal (Eager para carregamento instantâneo) ──
@@ -84,6 +85,7 @@ export default function App() {
     <ThemeProvider>
       <BrowserRouter>
         <ScrollToTop />
+        <DynamicFavicon />
         <Routes>
 
           {/* ── Rotas Públicas (SEM AuthProvider nem ConfigProvider) ── */}

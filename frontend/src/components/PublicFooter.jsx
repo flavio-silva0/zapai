@@ -11,9 +11,9 @@ export default function PublicFooter() {
         <div className="lg:col-span-4 flex flex-col items-start">
           <Link to="/" className="inline-block mb-4" aria-label="ZapAI Início">
             <img
-              src="/zapai-logo-light.png"
+              src="/zapai-logo-lp-light.png"
               alt="ZapAI Logo"
-              className="h-8 w-auto object-contain"
+              className="h-10 md:h-11 w-auto object-contain"
             />
           </Link>
           <p className="text-sm leading-relaxed max-w-xs">

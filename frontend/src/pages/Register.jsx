@@ -86,16 +86,16 @@ export default function Register() {
       <div className="flex-1 flex flex-col justify-center px-8 lg:px-16 py-12 bg-[var(--bg-surface)] border-r border-[var(--border-subtle)]">
         <div className="w-full max-w-sm mx-auto">
           
-          <Link to="/" className="inline-block mb-10">
+          <Link to="/" className="inline-block mb-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 rounded-lg">
             <img 
               src="/zapai-logo-dark.png" 
               alt="ZapAI Logo" 
-              className="h-9 w-auto object-contain block dark:hidden" 
+              className="h-14 md:h-16 w-auto object-contain block dark:hidden" 
             />
             <img 
               src="/zapai-logo-light.png" 
               alt="ZapAI Logo" 
-              className="h-9 w-auto object-contain hidden dark:block" 
+              className="h-14 md:h-16 w-auto object-contain hidden dark:block" 
             />
           </Link>
 

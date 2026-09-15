@@ -62,12 +62,12 @@ export default function Login() {
             <img 
               src="/zapai-logo-dark.png" 
               alt="ZapAI Logo" 
-              className="h-9 w-auto object-contain block dark:hidden" 
+              className="h-14 md:h-16 w-auto object-contain block dark:hidden" 
             />
             <img 
               src="/zapai-logo-light.png" 
               alt="ZapAI Logo" 
-              className="h-9 w-auto object-contain hidden dark:block" 
+              className="h-14 md:h-16 w-auto object-contain hidden dark:block" 
             />
           </Link>
 
