@@ -88,16 +88,98 @@ export default function LandingHome() {
   }, []);
 
   const getComputedResponse = () => {
-    if (personality.tone < 40 && personality.style < 40) {
-      return "O corte masculino é R$ 45 e o feminino R$ 65. Quer agendar?";
+    const { tone, style, emoji, sales } = personality;
+
+    // 1. Saudação inicial
+    let greeting = "";
+    if (tone <= 30) {
+      greeting = style <= 45 ? "Olá." : "Olá! Tudo bem?";
+    } else if (tone <= 70) {
+      greeting = style <= 45 ? "Olá! Tudo bem?" : "Oi! Tudo bem? Com prazer te passo as informações.";
+    } else {
+      if (style <= 45) {
+        greeting = emoji > 50 ? "Opa, e aí! 😄" : "E aí! Beleza?";
+      } else {
+        greeting = emoji > 50 
+          ? "Opa, tudo joia? Que bom falar com você! 😄" 
+          : "Opa, tudo joia por aí? Que bom falar com você!";
+      }
     }
-    if (personality.tone > 60 && personality.style > 60 && personality.emoji > 60) {
-      return "Oi! 😄 Então, o corte masculino sai por R$ 45 e o feminino R$ 65. Se quiser, já posso ver o melhor horário pra você! ✂️";
+
+    // 2. Preço e Explicação
+    let priceText = "";
+    if (style <= 40) {
+      if (tone <= 30) {
+        priceText = "O corte masculino custa R$ 45,00 e o feminino R$ 65,00.";
+      } else if (tone <= 70) {
+        priceText = "O corte masculino é R$ 45 e o feminino R$ 65.";
+      } else {
+        priceText = "O corte masculino sai por R$ 45 e o feminino R$ 65.";
+      }
+    } else {
+      if (tone <= 30) {
+        priceText = "Nossos serviços de corte estão tabelados em R$ 45,00 para o modelo masculino e R$ 65,00 para o feminino, incluindo lavagem e finalização completa.";
+      } else if (tone <= 70) {
+        priceText = "Trabalhamos com cortes personalizados: o masculino fica R$ 45 e o feminino R$ 65, já com lavagem e produtos inclusos.";
+      } else {
+        priceText = "Aqui na barbearia o corte masculino sai por R$ 45 e o feminino R$ 65, já com aquela lavagem e finalização caprichada!";
+      }
     }
-    if (personality.sales > 60 && personality.tone > 50) {
-      return "O corte masculino é R$ 45 e o feminino R$ 65. Hoje temos uma promoção: corte + barba por R$ 55! Quer aproveitar? 🔥";
+
+    // 3. CTA Comercial
+    let ctaText = "";
+    if (sales <= 30) {
+      if (tone <= 30) {
+        ctaText = "Permanecemos à disposição caso necessite de agendamento.";
+      } else if (tone <= 70) {
+        ctaText = "Fico à disposição se quiser marcar um horário!";
+      } else {
+        ctaText = "Se quiser marcar, é só me dar um toque por aqui!";
+      }
+    } else if (sales <= 70) {
+      if (tone <= 30) {
+        ctaText = "Podemos agendar um horário de sua conveniência nesta semana?";
+      } else if (tone <= 70) {
+        ctaText = "Posso agendar um horário pra você? Temos vagas para hoje e amanhã.";
+      } else {
+        ctaText = "Bora agendar seu horário? Tenho umas vagas ótimas pra hoje e amanhã!";
+      }
+    } else {
+      if (tone <= 30) {
+        ctaText = "Dispomos hoje de condição especial: corte e barba completos por R$ 55,00. Deseja garantir sua vaga com desconto exclusivo?";
+      } else if (tone <= 70) {
+        ctaText = "Hoje estamos com uma promoção imperdível: corte + barba por apenas R$ 55! Quer que eu garanta sua vaga antes que esgote?";
+      } else {
+        ctaText = "E se liga: hoje tem combo corte + barba saindo por apenas R$ 55! Bora aproveitar essa condição antes que acabem os horários?";
+      }
     }
-    return "Claro! O corte masculino é R$ 45 e o feminino R$ 65. Posso agendar um horário pra você?";
+
+    let fullMessage = `${greeting} ${priceText} ${ctaText}`.trim();
+
+    // 4. Modulação de Emojis
+    if (emoji <= 25) {
+      fullMessage = fullMessage.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E0}-\u{1F1FF}]/gu, '').replace(/\s{2,}/g, ' ').trim();
+    } else if (emoji <= 70) {
+      if (!/[\u{1F300}-\u{1F9FF}]/u.test(fullMessage)) {
+        if (sales > 70) {
+          fullMessage += " 🔥";
+        } else if (tone > 65) {
+          fullMessage += " ✂️";
+        } else {
+          fullMessage += " 😊";
+        }
+      }
+    } else {
+      if (sales > 70) {
+        fullMessage = `✂️ ${fullMessage} 🔥💈`;
+      } else if (tone > 65) {
+        fullMessage = `✌️ ${fullMessage} ✂️✨`;
+      } else {
+        fullMessage = `${fullMessage} ✂️📅`;
+      }
+    }
+
+    return fullMessage;
   };
 
   const handleSliderChange = (e, key) => {
@@ -252,11 +334,14 @@ export default function LandingHome() {
 
           <div className="mt-12 flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
             <div className="flex-1 w-full bg-[#f8f7f5] rounded-2xl p-6 lg:p-8 border border-[#e8e5e0]">
-              <div className="space-y-8">
+              <div className="space-y-7">
                 <div>
-                  <div className="flex justify-between text-sm font-medium text-[#1a1a1a] mb-3">
-                    <span>Profissional</span>
-                    <span>Descontraída</span>
+                  <div className="flex items-center justify-between text-sm font-medium text-[#1a1a1a] mb-2.5">
+                    <span className={personality.tone <= 40 ? "text-teal-700 font-bold" : "text-[#777]"}>Profissional</span>
+                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200">
+                      {personality.tone <= 35 ? "Muito Formal" : personality.tone >= 65 ? "Descontraída" : "Equilibrada"} ({personality.tone}%)
+                    </span>
+                    <span className={personality.tone >= 60 ? "text-teal-700 font-bold" : "text-[#777]"}>Descontraída</span>
                   </div>
                   <input 
                     type="range" min="0" max="100" 
@@ -266,9 +351,12 @@ export default function LandingHome() {
                   />
                 </div>
                 <div>
-                  <div className="flex justify-between text-sm font-medium text-[#1a1a1a] mb-3">
-                    <span>Direta</span>
-                    <span>Conversadora</span>
+                  <div className="flex items-center justify-between text-sm font-medium text-[#1a1a1a] mb-2.5">
+                    <span className={personality.style <= 40 ? "text-teal-700 font-bold" : "text-[#777]"}>Direta</span>
+                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200">
+                      {personality.style <= 40 ? "Direta & Rápida" : "Conversadora"} ({personality.style}%)
+                    </span>
+                    <span className={personality.style >= 60 ? "text-teal-700 font-bold" : "text-[#777]"}>Conversadora</span>
                   </div>
                   <input 
                     type="range" min="0" max="100" 
@@ -278,9 +366,12 @@ export default function LandingHome() {
                   />
                 </div>
                 <div>
-                  <div className="flex justify-between text-sm font-medium text-[#1a1a1a] mb-3">
-                    <span>Sem emojis</span>
-                    <span>Usa emojis</span>
+                  <div className="flex items-center justify-between text-sm font-medium text-[#1a1a1a] mb-2.5">
+                    <span className={personality.emoji <= 30 ? "text-teal-700 font-bold" : "text-[#777]"}>Sem emojis</span>
+                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200">
+                      {personality.emoji <= 25 ? "Zero emojis" : personality.emoji >= 70 ? "Muitos emojis ✨" : "Emojis moderados 😊"} ({personality.emoji}%)
+                    </span>
+                    <span className={personality.emoji >= 60 ? "text-teal-700 font-bold" : "text-[#777]"}>Usa emojis</span>
                   </div>
                   <input 
                     type="range" min="0" max="100" 
@@ -290,9 +381,12 @@ export default function LandingHome() {
                   />
                 </div>
                 <div>
-                  <div className="flex justify-between text-sm font-medium text-[#1a1a1a] mb-3">
-                    <span>Pouco comercial</span>
-                    <span>Vendedora</span>
+                  <div className="flex items-center justify-between text-sm font-medium text-[#1a1a1a] mb-2.5">
+                    <span className={personality.sales <= 35 ? "text-teal-700 font-bold" : "text-[#777]"}>Pouco comercial</span>
+                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200">
+                      {personality.sales <= 35 ? "Informativa" : personality.sales >= 70 ? "Super vendedora 🔥" : "Consultiva"} ({personality.sales}%)
+                    </span>
+                    <span className={personality.sales >= 65 ? "text-teal-700 font-bold" : "text-[#777]"}>Vendedora</span>
                   </div>
                   <input 
                     type="range" min="0" max="100" 
@@ -305,14 +399,30 @@ export default function LandingHome() {
             </div>
 
             <div className="flex-1 w-full">
-              <div className="bg-white rounded-2xl shadow-lg border border-[#e8e5e0] overflow-hidden w-full max-w-md mx-auto">
+              <div className="bg-white rounded-2xl shadow-xl border border-[#e8e5e0] overflow-hidden w-full max-w-md mx-auto">
+                {/* WhatsApp header */}
+                <div className="bg-[#075E54] text-white px-4 py-3 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-full bg-emerald-700 border border-emerald-400/40 flex items-center justify-center font-bold text-sm text-white shadow-inner">
+                      B
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold leading-none text-white">Bia • Atendente ZapAI</p>
+                      <p className="text-[11px] text-teal-200 mt-1">● Online agora</p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-semibold bg-emerald-400/25 text-emerald-100 border border-emerald-300/30 px-2 py-0.5 rounded-full">
+                    Tempo Real
+                  </span>
+                </div>
+
                 <div className="bg-[#ECE5DD] p-4 space-y-3 min-h-[220px] flex flex-col justify-center">
                   <div className="bg-white rounded-xl rounded-tl-sm px-4 py-2.5 text-sm text-[#1a1a1a] shadow-sm max-w-[85%] self-start">
                     Quanto custa o corte?
                   </div>
                   <div 
                     key={getComputedResponse()}
-                    className="bg-[#DCF8C6] rounded-xl rounded-tr-sm px-4 py-2.5 text-sm text-[#1a1a1a] shadow-sm max-w-[85%] self-end animate-[fadeIn_0.3s_ease-in-out]"
+                    className="bg-[#DCF8C6] rounded-xl rounded-tr-sm px-4 py-2.5 text-sm text-[#1a1a1a] shadow-sm max-w-[90%] self-end leading-relaxed transition-all animate-fade-in"
                   >
                     {getComputedResponse()}
                   </div>
