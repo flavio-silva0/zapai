@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiFetch, apiUrl } from "../api";
+import ContactHubSpot from "./ContactHubSpot";
 import {
   MessageSquare, Zap, Search, Plus, X, Phone,
   Clock, Bot, User, Check, Flame, Sun, Snowflake,
   Sparkles, Calendar, ArrowUpRight, Tag, FileText,
   Edit3, Save, RefreshCw, ExternalLink, Copy, CheckCircle2,
-  SlidersHorizontal, CheckCheck, Send
+  SlidersHorizontal, CheckCheck, Send, LayoutGrid
 } from "lucide-react";
 
 // ── Colunas do Funil Kanban ─────────────────────────────────
@@ -120,432 +121,6 @@ function getLeadScore(patient) {
     color: "text-blue-400",
     bg: "bg-blue-400/15 border-blue-400/30 text-blue-600 dark:text-blue-400",
   };
-}
-
-// ── Drawer Lateral de Detalhes do Contato (CRM) ─────────────
-function ContactDrawer({
-  patient,
-  onClose,
-  onStatusChange,
-  onAiToggle,
-  onUpdatePatient,
-  onOpenChat,
-}) {
-  const [messages, setMessages] = useState([]);
-  const [loadingMessages, setLoadingMessages] = useState(true);
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [editName, setEditName] = useState(patient.nome || "");
-  const [savingName, setSavingName] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [notes, setNotes] = useState(patient.ai_memory?.notes || "");
-  const [savingNotes, setSavingNotes] = useState(false);
-  const [notesSavedAlert, setNotesSavedAlert] = useState(false);
-  const [tagInput, setTagInput] = useState("");
-  const [tags, setTags] = useState(patient.ai_memory?.tags || ["WhatsApp", "Lead Orgânico"]);
-
-  const cleanPhone = (patient.telefone || "").replace("@c.us", "").replace(/\D/g, "");
-  const waLink = `https://wa.me/${cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`}`;
-  const leadScore = getLeadScore(patient);
-
-  // Buscar histórico recente de mensagens
-  useEffect(() => {
-    let isMounted = true;
-    setLoadingMessages(true);
-    apiFetch(`/api/patients/${patient.id}/messages?limit=15`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (isMounted) setMessages(Array.isArray(data) ? data : []);
-      })
-      .catch((err) => console.error("Erro ao carregar mensagens do contato:", err))
-      .finally(() => {
-        if (isMounted) setLoadingMessages(false);
-      });
-    return () => { isMounted = false; };
-  }, [patient.id]);
-
-  // Tecla ESC para fechar
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
-
-  const handleSaveName = async () => {
-    if (!editName.trim()) return;
-    setSavingName(true);
-    try {
-      await onUpdatePatient(patient.id, { nome: editName.trim() });
-      setIsEditingName(false);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSavingName(false);
-    }
-  };
-
-  const handleCopyPhone = () => {
-    navigator.clipboard.writeText(formatPhone(patient.telefone));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleSaveNotes = async () => {
-    setSavingNotes(true);
-    try {
-      const updatedMemory = { ...(patient.ai_memory || {}), notes: notes.trim(), tags };
-      await onUpdatePatient(patient.id, { ai_memory: updatedMemory });
-      setNotesSavedAlert(true);
-      setTimeout(() => setNotesSavedAlert(false), 2500);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSavingNotes(false);
-    }
-  };
-
-  const handleAddTag = async (e) => {
-    if (e.key === "Enter" && tagInput.trim()) {
-      e.preventDefault();
-      const newTag = tagInput.trim();
-      if (!tags.includes(newTag)) {
-        const newTags = [...tags, newTag];
-        setTags(newTags);
-        setTagInput("");
-        const updatedMemory = { ...(patient.ai_memory || {}), notes, tags: newTags };
-        await onUpdatePatient(patient.id, { ai_memory: updatedMemory });
-      }
-    }
-  };
-
-  const handleRemoveTag = async (tagToRemove) => {
-    const newTags = tags.filter((t) => t !== tagToRemove);
-    setTags(newTags);
-    const updatedMemory = { ...(patient.ai_memory || {}), notes, tags: newTags };
-    await onUpdatePatient(patient.id, { ai_memory: updatedMemory });
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 overflow-hidden flex justify-end">
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity animate-fade-in"
-        onClick={onClose}
-      />
-
-      {/* Drawer Container */}
-      <div className="relative w-full max-w-xl bg-[var(--bg-surface)] h-full shadow-2xl border-l border-[var(--border-medium)] flex flex-col z-10 animate-slide-left">
-        {/* ── Top Bar ── */}
-        <div className="px-6 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between bg-[var(--bg-surface-hover)]/40">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-[var(--clr-primary)]">
-              Ficha do Contato · CRM
-            </span>
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${leadScore.bg}`}>
-              {leadScore.icon && <leadScore.icon size={11} className="inline mr-1" />}
-              {leadScore.label} ({leadScore.score} pts)
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => onOpenChat(patient.id)}
-              className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--clr-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer"
-              title="Abrir no Chat de Atendimento"
-            >
-              <ExternalLink size={17} />
-            </button>
-            <button
-              onClick={onClose}
-              className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-active)] transition-colors cursor-pointer"
-            >
-              <X size={18} />
-            </button>
-          </div>
-        </div>
-
-        {/* ── Scrollable Body ── */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-
-          {/* 1. Perfil & Identificação */}
-          <div className="bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded-2xl p-5 relative overflow-hidden">
-            <div className="flex items-start gap-4">
-              <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${getAvatarColor(patient.nome || patient.telefone)} flex items-center justify-center text-white font-black text-xl shadow-md shrink-0`}>
-                {getInitials(patient.nome, patient.telefone)}
-              </div>
-
-              <div className="flex-1 min-w-0">
-                {isEditingName ? (
-                  <div className="flex items-center gap-2 mb-1">
-                    <input
-                      type="text"
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      className="text-base font-bold px-2 py-1 rounded-lg border border-teal-500 bg-[var(--bg-surface)] text-[var(--text-primary)] w-full outline-hidden"
-                      autoFocus
-                    />
-                    <button
-                      onClick={handleSaveName}
-                      disabled={savingName}
-                      className="p-1.5 rounded-lg bg-teal-600 text-white hover:bg-teal-700 transition-colors"
-                    >
-                      <Check size={16} />
-                    </button>
-                    <button
-                      onClick={() => setIsEditingName(false)}
-                      className="p-1.5 rounded-lg border border-[var(--border-medium)] text-[var(--text-secondary)]"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 mb-1">
-                    <h2 className="text-lg font-bold text-[var(--text-primary)] truncate">
-                      {patient.nome || "Contato sem nome"}
-                    </h2>
-                    <button
-                      onClick={() => { setEditName(patient.nome || ""); setIsEditingName(true); }}
-                      className="text-[var(--text-muted)] hover:text-[var(--clr-primary)] transition-colors cursor-pointer p-1"
-                      title="Editar nome"
-                    >
-                      <Edit3 size={14} />
-                    </button>
-                  </div>
-                )}
-
-                <div className="flex items-center gap-3 text-xs text-[var(--text-secondary)]">
-                  <span className="font-mono">{formatPhone(patient.telefone)}</span>
-                  <button
-                    onClick={handleCopyPhone}
-                    className="text-[var(--text-muted)] hover:text-[var(--clr-primary)] transition-colors flex items-center gap-1 cursor-pointer"
-                    title="Copiar número"
-                  >
-                    {copied ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
-                    <span className="text-[10px]">{copied ? "Copiado!" : "Copiar"}</span>
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-[var(--border-subtle)]">
-                  <a
-                    href={waLink}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs font-semibold hover:bg-emerald-600/20 transition-colors"
-                  >
-                    <Phone size={12} />
-                    Chamar no WhatsApp Web
-                    <ArrowUpRight size={12} />
-                  </a>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 2. Estágio no Funil Kanban */}
-          <div>
-            <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] block mb-2">
-              Estágio Atual do Atendimento
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {COLUMNS.map((col) => {
-                const isActive = (patient.status_kanban || "Novo") === col.status;
-                return (
-                  <button
-                    key={col.status}
-                    onClick={() => onStatusChange(patient.id, col.status)}
-                    className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer flex flex-col items-center gap-1 ${
-                      isActive
-                        ? "bg-teal-600 text-white border-teal-600 shadow-md shadow-teal-500/20"
-                        : "bg-[var(--bg-surface)] text-[var(--text-secondary)] border-[var(--border-medium)] hover:bg-[var(--bg-surface-hover)]"
-                    }`}
-                  >
-                    <span className="truncate">{col.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 3. Controle de Automação & IA */}
-          <div className="bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded-2xl p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                patient.is_ai_active
-                  ? "bg-emerald-500/15 text-emerald-500"
-                  : "bg-amber-500/15 text-amber-500"
-              }`}>
-                <Bot size={18} />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-[var(--text-primary)]">
-                  {patient.is_ai_active ? "Atendente IA Ativa" : "Intervenção Humana (IA Pausada)"}
-                </p>
-                <p className="text-[11px] text-[var(--text-muted)]">
-                  {patient.is_ai_active
-                    ? "A ZapAI responde mensagens deste cliente automaticamente."
-                    : "A automação está pausada. Você responde manualmente."}
-                </p>
-              </div>
-            </div>
-
-            <button
-              onClick={() => onAiToggle(patient.id, !patient.is_ai_active)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold border transition-all cursor-pointer ${
-                patient.is_ai_active
-                  ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-                  : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
-              }`}
-            >
-              {patient.is_ai_active ? "Pausar IA" : "Ativar IA"}
-            </button>
-          </div>
-
-          {/* 4. Tags & Etiquetas */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-1.5">
-                <Tag size={13} className="text-[var(--clr-primary)]" />
-                Tags do Lead
-              </label>
-              <span className="text-[10px] text-[var(--text-muted)]">Pressione Enter para adicionar</span>
-            </div>
-            <div className="flex flex-wrap gap-1.5 mb-2">
-              {tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-[var(--clr-primary)]/10 text-[var(--clr-primary)] border border-[var(--clr-primary)]/20"
-                >
-                  #{tag}
-                  <button
-                    onClick={() => handleRemoveTag(tag)}
-                    className="hover:text-rose-500 cursor-pointer ml-0.5"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-            <input
-              type="text"
-              placeholder="Adicionar nova tag (ex: VIP, Retorno, Barba)..."
-              value={tagInput}
-              onChange={(e) => setTagInput(e.target.value)}
-              onKeyDown={handleAddTag}
-              className="w-full text-xs px-3 py-2 rounded-xl bg-[var(--bg-base)] border border-[var(--border-medium)] text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-hidden focus:border-[var(--clr-primary)]"
-            />
-          </div>
-
-          {/* 5. Linha do Tempo de Mensagens */}
-          <div>
-            <div className="flex items-center justify-between mb-2.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-1.5">
-                <MessageSquare size={13} className="text-[var(--clr-primary)]" />
-                Últimas Mensagens trocadas
-              </label>
-              <button
-                onClick={() => onOpenChat(patient.id)}
-                className="text-[11px] text-[var(--clr-primary)] font-semibold hover:underline cursor-pointer"
-              >
-                Ver todas no Chat →
-              </button>
-            </div>
-
-            <div className="bg-[var(--bg-base)] border border-[var(--border-subtle)] rounded-2xl p-4 max-h-60 overflow-y-auto space-y-2.5">
-              {loadingMessages ? (
-                <div className="py-8 text-center text-xs text-[var(--text-muted)] animate-pulse">
-                  Carregando mensagens do WhatsApp...
-                </div>
-              ) : messages.length === 0 ? (
-                <div className="py-6 text-center text-xs text-[var(--text-muted)] italic">
-                  Nenhuma mensagem registrada ainda.
-                </div>
-              ) : (
-                messages.map((m) => {
-                  const isClient = m.origin === "user";
-                  return (
-                    <div
-                      key={m.id || m.created_at}
-                      className={`flex flex-col ${isClient ? "items-start" : "items-end"}`}
-                    >
-                      <div
-                        className={`max-w-[85%] rounded-xl px-3.5 py-2 text-xs leading-relaxed ${
-                          isClient
-                            ? "bg-[var(--bg-surface)] text-[var(--text-primary)] border border-[var(--border-subtle)] rounded-tl-xs"
-                            : "bg-emerald-700 text-white rounded-tr-xs"
-                        }`}
-                      >
-                        {m.texto}
-                      </div>
-                      <span className="text-[10px] text-[var(--text-muted)] mt-0.5 px-1">
-                        {new Date(m.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                        {!isClient && " · IA/Equipe"}
-                      </span>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-
-          {/* 6. Anotações Internas da Equipe */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-1.5">
-                <FileText size={13} className="text-[var(--clr-primary)]" />
-                Anotações Internas do CRM
-              </label>
-              {notesSavedAlert && (
-                <span className="text-[11px] font-bold text-emerald-500 animate-fade-in flex items-center gap-1">
-                  <CheckCircle2 size={12} /> Salvo com sucesso!
-                </span>
-              )}
-            </div>
-            <textarea
-              rows={3}
-              placeholder="Escreva anotações importantes para sua equipe (ex: cliente prefere atendimento de manhã, ligar na sexta, etc.)..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              className="w-full text-xs p-3 rounded-xl bg-[var(--bg-base)] border border-[var(--border-medium)] text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-hidden focus:border-[var(--clr-primary)] resize-none"
-            />
-            <div className="flex justify-end mt-1.5">
-              <button
-                onClick={handleSaveNotes}
-                disabled={savingNotes}
-                className="px-3.5 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-semibold hover:bg-teal-700 transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-              >
-                <Save size={13} />
-                {savingNotes ? "Salvando..." : "Salvar Anotação"}
-              </button>
-            </div>
-          </div>
-
-          {/* 7. Metadados do Registro */}
-          <div className="pt-4 border-t border-[var(--border-subtle)] text-[11px] text-[var(--text-muted)] space-y-1">
-            <p>Criado em: {new Date(patient.created_at).toLocaleString("pt-BR")}</p>
-            <p className="font-mono text-[10px]">ID do Lead: {patient.id}</p>
-          </div>
-
-        </div>
-
-        {/* ── Footer ── */}
-        <div className="p-4 border-t border-[var(--border-subtle)] bg-[var(--bg-surface-hover)]/30 flex items-center justify-between">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 rounded-xl text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--bg-surface-active)] transition-colors"
-          >
-            Fechar
-          </button>
-          <button
-            onClick={() => onOpenChat(patient.id)}
-            className="px-5 py-2 rounded-xl text-xs font-bold bg-teal-600 text-white hover:bg-teal-700 transition-all flex items-center gap-1.5 shadow-md shadow-teal-500/20 cursor-pointer"
-          >
-            <MessageSquare size={14} />
-            Conversar no Chat
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 // ── Modal de Novo Contato ───────────────────────────────────
@@ -711,6 +286,7 @@ export default function FullKanban() {
   const [draggingId, setDraggingId]     = useState(null);
   const [dragOver, setDragOver]         = useState(null);
   const [selectedPatient, setSelectedPatient] = useState(null);
+  const [crmView, setCrmView]           = useState("kanban"); // "kanban" | "contact"
   const [searchQuery, setSearchQuery]   = useState("");
   const [aiFilter, setAiFilter]         = useState("all"); // 'all' | 'ai' | 'human'
   const [tempFilter, setTempFilter]     = useState("all"); // 'all' | 'hot' | 'warm' | 'cold'
@@ -858,6 +434,7 @@ export default function FullKanban() {
 
   const handleCardClick = (patient) => {
     setSelectedPatient(patient);
+    setCrmView("contact");
   };
 
   const handleDoubleClick = (patientId) => {
@@ -896,8 +473,83 @@ export default function FullKanban() {
   const agendadosCount = patients.filter((p) => (p.status_kanban || "Novo") === "Agendado").length;
   const conversionRate = totalLeads > 0 ? Math.round((agendadosCount / totalLeads) * 100) : 0;
 
+  if (crmView === "contact" && selectedPatient) {
+    return (
+      <div className="flex-1 flex flex-col min-h-0 bg-[var(--bg-base)] animate-fade-in">
+        {/* Barra de Abas do CRM (Estilo Workspace Multi-Tab do HubSpot) */}
+        <div className="px-6 pt-3 pb-0 flex items-center gap-2 border-b border-[var(--border-subtle)] bg-[var(--bg-surface)] shrink-0">
+          <button
+            onClick={() => setCrmView("kanban")}
+            className="px-4 py-2.5 rounded-t-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]"
+          >
+            <LayoutGrid size={14} />
+            Quadro Funil Kanban
+          </button>
+
+          <div className="px-4 py-2.5 rounded-t-xl text-xs font-bold bg-[var(--bg-base)] border-t-2 border-teal-500 text-teal-600 dark:text-teal-400 flex items-center gap-2 shadow-xs">
+            <User size={14} />
+            <span className="truncate max-w-[200px]">
+              {selectedPatient.nome || formatPhone(selectedPatient.telefone)}
+            </span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedPatient(null);
+                setCrmView("kanban");
+              }}
+              className="ml-1 p-0.5 rounded-full hover:bg-[var(--bg-surface-hover)] text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
+              title="Fechar aba"
+            >
+              <X size={13} />
+            </button>
+          </div>
+        </div>
+
+        <ContactHubSpot
+          contactId={selectedPatient.id}
+          onBack={() => setCrmView("kanban")}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 lg:p-8 h-full flex flex-col min-h-0 bg-[var(--bg-base)]">
+
+      {/* ── Barra de Abas do CRM (Estilo Workspace Multi-Tab do HubSpot) ── */}
+      {selectedPatient && (
+        <div className="flex items-center gap-2 mb-5 bg-[var(--bg-surface)] p-1.5 rounded-2xl border border-[var(--border-subtle)] w-fit shrink-0 shadow-xs">
+          <button
+            onClick={() => setCrmView("kanban")}
+            className="px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 bg-teal-600 text-white shadow-xs"
+          >
+            <LayoutGrid size={14} />
+            Quadro Funil
+          </button>
+          <div className="px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 bg-[var(--bg-base)] text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)]">
+            <button
+              onClick={() => setCrmView("contact")}
+              className="cursor-pointer flex items-center gap-2"
+              title="Abrir aba completa do contato estilo HubSpot"
+            >
+              <User size={14} className="text-teal-600" />
+              <span className="truncate max-w-[180px]">
+                {selectedPatient.nome || formatPhone(selectedPatient.telefone)}
+              </span>
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedPatient(null);
+              }}
+              className="ml-1 p-0.5 rounded-full hover:bg-[var(--bg-surface-active)] text-[var(--text-muted)] hover:text-[var(--text-primary)] cursor-pointer"
+              title="Fechar aba do contato"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Header Principal do CRM ── */}
       <header className="shrink-0 mb-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -1222,6 +874,17 @@ export default function FullKanban() {
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
+                                    window.open(`/painel/crm/contato/${p.id}`, "_blank");
+                                  }}
+                                  className="p-1 rounded-md text-[var(--text-muted)] hover:text-cyan-600 hover:bg-[var(--bg-surface)] transition-colors cursor-pointer"
+                                  title="Abrir perfil completo em nova aba do navegador"
+                                >
+                                  <ExternalLink size={13} />
+                                </button>
+
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     handleDoubleClick(p.id);
                                   }}
                                   className="p-1 rounded-md text-[var(--text-muted)] hover:text-teal-600 hover:bg-[var(--bg-surface)] transition-colors cursor-pointer"
@@ -1242,18 +905,6 @@ export default function FullKanban() {
           </div>
         )}
       </div>
-
-      {/* ── Drawer Lateral de Detalhes do Contato ── */}
-      {selectedPatient && (
-        <ContactDrawer
-          patient={selectedPatient}
-          onClose={() => setSelectedPatient(null)}
-          onStatusChange={handleStatusChange}
-          onAiToggle={handleAiToggle}
-          onUpdatePatient={handleUpdatePatient}
-          onOpenChat={handleDoubleClick}
-        />
-      )}
 
       {/* ── Modal de Novo Contato ── */}
       <NewContactModal

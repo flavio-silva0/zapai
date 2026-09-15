@@ -1130,6 +1130,126 @@ app.get("/api/patients/:id/messages", requireAuth, async (req, res) => {
   res.json(data || []);
 });
 
+app.get("/api/patients/:id", requireAuth, async (req, res) => {
+  const tenantId = getReqTenantId(req);
+  let query = supabase.from("users_whatsapp").select("*, tenants(nome, phone_number_id)").eq("id", req.params.id);
+  if (tenantId) query = query.eq("tenant_id", tenantId);
+  const { data, error } = await query.maybeSingle();
+  if (error) return res.status(500).json({ error: error.message });
+  if (!data) return res.status(404).json({ error: "Contato não encontrado." });
+  res.json(data);
+});
+
+app.post("/api/patients/:id/ai-insights", requireAuth, forbidViewer, async (req, res) => {
+  const tenantId = getReqTenantId(req);
+  let pQuery = supabase.from("users_whatsapp").select("*, tenants(nome, segmento)").eq("id", req.params.id);
+  if (tenantId) pQuery = pQuery.eq("tenant_id", tenantId);
+  const { data: patient, error: pErr } = await pQuery.maybeSingle();
+  if (pErr || !patient) return res.status(404).json({ error: "Contato não encontrado." });
+
+  // Busca histórico de mensagens do contato
+  let mQuery = supabase.from("messages").select("origin, texto, created_at").eq("patient_id", patient.id).order("created_at", { ascending: true }).limit(50);
+  if (tenantId) mQuery = mQuery.eq("tenant_id", tenantId);
+  const { data: messages = [] } = await mQuery;
+
+  if (!messages || messages.length === 0) {
+    const defaultInsight = {
+      summary: "Novo lead cadastrado no CRM. Nenhuma mensagem foi trocada ainda pelo WhatsApp.",
+      key_points: ["Contato recém-chegado aguardando primeiro contato ativo."],
+      sentiment: "neutro",
+      sentiment_label: "Aguardando Início 💬",
+      lead_score: 50,
+      intent: "Novo Lead",
+      recommended_action: "Envie uma mensagem inicial personalizada de boas-vindas para iniciar a qualificação.",
+      suggested_reply: `Olá ${patient.nome !== "Contato" ? patient.nome : ""}! Tudo bem? Sou da equipe da ${patient.tenants?.nome || "empresa"}. Como posso te ajudar hoje?`.trim(),
+      updated_at: new Date().toISOString(),
+    };
+    return res.json(defaultInsight);
+  }
+
+  const conversationLines = messages
+    .map((m) => `${m.origin === "user" ? "Cliente" : "IA/Atendente"}: ${m.texto}`)
+    .join("\n");
+
+  const systemPrompt = `Você é um analista comercial e de CRM sênior estilo HubSpot Breeze AI.
+Empresa: "${patient.tenants?.nome || "Empresa"}" (Segmento: ${patient.tenants?.segmento || "Geral"}).
+Contato: "${patient.nome || "Cliente"}" (${patient.telefone}).
+
+Analise o histórico recente de mensagens do WhatsApp abaixo e extraia inteligência de vendas para o atendente:
+---
+${conversationLines.slice(-4000)}
+---
+
+Retorne ESTRITAMENTE um objeto JSON válido (sem markdown, sem tags, sem crases) com o formato:
+{
+  "summary": "Resumo executivo em 2 a 3 frases explicando o momento da conversa, o que o cliente quer e o contexto atual.",
+  "key_points": [
+    "Ponto-chave 1 (dor, necessidade ou produto de interesse citado)",
+    "Ponto-chave 2 (orçamento, restrição de prazo ou dúvida levantada)",
+    "Ponto-chave 3 (preferência ou comportamento observado)"
+  ],
+  "sentiment": "positivo" | "neutro" | "cauteloso" | "objecao",
+  "sentiment_label": "Interesse Alto 🔥" | "Negociação Ativa 🌤️" | "Dúvida / Objeção ⚠️" | "Frio / Pouco Engajado ❄️",
+  "lead_score": 85,
+  "intent": "Orçamento" | "Agendamento" | "Dúvida" | "Suporte" | "Negociação",
+  "recommended_action": "Instrução tática direta para o vendedor fechar ou avançar o atendimento agora.",
+  "suggested_reply": "Mensagem persuasiva e humana sugerida pronta para envio no WhatsApp."
+}`;
+
+  try {
+    let insightData = null;
+    if (process.env.TEST_MODE === "1" || process.env.TEST_MODE === "true" || !genAI) {
+      insightData = {
+        summary: `Cliente demonstrou interesse nos serviços da ${patient.tenants?.nome || "empresa"}. O atendimento está em fase de qualificação ativa no WhatsApp.`,
+        key_points: [
+          "Busca entender valores e opções de atendimento",
+          "Respondeu de forma receptiva à abordagem inicial",
+          "Aguardando proposta e próximos passos",
+        ],
+        sentiment: "positivo",
+        sentiment_label: "Interesse Alto 🔥",
+        lead_score: 85,
+        intent: "Orçamento",
+        recommended_action: "Apresentar as opções disponíveis e convidar para o fechamento ou agendamento.",
+        suggested_reply: `Olá ${patient.nome !== "Contato" ? patient.nome : ""}! Preparei uma proposta sob medida para você. Quer que eu te passe os detalhes agora?`,
+        updated_at: new Date().toISOString(),
+      };
+    } else {
+      const model = genAI.getGenerativeModel({ model: process.env.GEMINI_MODEL || "gemini-3.5-flash-lite" });
+      const resp = await model.generateContent(systemPrompt);
+      const textRaw = resp.response.text().trim().replace(/^```[a-z]*\n?/, "").replace(/\n?```$/, "").trim();
+      insightData = JSON.parse(textRaw);
+      insightData.updated_at = new Date().toISOString();
+    }
+
+    // Salva o insight gerado em ai_memory
+    const updatedMemory = {
+      ...(patient.ai_memory || {}),
+      ai_insights: insightData,
+    };
+    await supabase.from("users_whatsapp").update({ ai_memory: updatedMemory }).eq("id", patient.id);
+
+    res.json(insightData);
+  } catch (err) {
+    console.warn("⚠️ [AI INSIGHTS] Falha ao sintetizar com Gemini, usando fallback estruturado:", err.message);
+    const fallbackInsight = {
+      summary: `Conversa com ${messages.length} mensagens trocadas. O cliente está em interação recente aguardando retorno.`,
+      key_points: [
+        `Última mensagem enviada por: ${messages[messages.length - 1]?.origin === "user" ? "Cliente" : "IA"}`,
+        `Total de interações registradas: ${messages.length}`,
+      ],
+      sentiment: "neutro",
+      sentiment_label: "Em Andamento 🌤️",
+      lead_score: 70,
+      intent: "Atendimento Geral",
+      recommended_action: "Analise a última mensagem do histórico e faça uma pergunta de avanço para conduzir ao fechamento.",
+      suggested_reply: "Olá! Como posso te ajudar a avançar no seu pedido hoje?",
+      updated_at: new Date().toISOString(),
+    };
+    res.json(fallbackInsight);
+  }
+});
+
 app.post("/api/patients", requireAuth, forbidViewer, async (req, res) => {
   const { telefone, nome, status_kanban, tags, notes } = req.body;
   if (!telefone) return res.status(400).json({ error: "Telefone é obrigatório." });
