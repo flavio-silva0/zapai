@@ -48,7 +48,7 @@ function payload(id, body) {
   };
 }
 
-function invokeApp(method, url, body) {
+function invokeApp(method, url, body, extraHeaders = {}) {
   return new Promise((resolve, reject) => {
     const rawBody = JSON.stringify(body);
     const req = new Readable({
@@ -63,6 +63,7 @@ function invokeApp(method, url, body) {
     req.headers = {
       "content-type": "application/json",
       "content-length": Buffer.byteLength(rawBody),
+      ...extraHeaders,
     };
 
     const res = new Writable({
@@ -93,6 +94,41 @@ async function postWebhook(id, text) {
 
 async function run() {
   try {
+    clearTestState();
+    supabaseMock.reset();
+
+    // ── Testes de validação de assinatura HMAC SHA-256 (WA-001) ──
+    delete process.env.META_APP_SECRET;
+    // Sem META_APP_SECRET: requisição com x-hub-signature-256 (como a Meta envia) não deve ser rejeitada
+    const resNoSecretWithSig = await invokeApp("POST", "/webhook/whatsapp", payload("msg-no-secret", "oi"), {
+      "x-hub-signature-256": "sha256=abcdef1234567890",
+    });
+    assert.strictEqual(resNoSecretWithSig.statusCode, 200, "Sem META_APP_SECRET não deve bloquear webhook");
+
+    // Com META_APP_SECRET configurado:
+    process.env.META_APP_SECRET = "test-meta-app-secret-12345";
+    const crypto = require("crypto");
+
+    // 1. Sem assinatura -> 401
+    const resNoSig = await invokeApp("POST", "/webhook/whatsapp", payload("msg-sig-1", "oi"));
+    assert.strictEqual(resNoSig.statusCode, 401, "Com META_APP_SECRET deve rejeitar 401 se assinatura ausente");
+
+    // 2. Assinatura inválida -> 403
+    const resBadSig = await invokeApp("POST", "/webhook/whatsapp", payload("msg-sig-2", "oi"), {
+      "x-hub-signature-256": "sha256=invalid_signature_hash_00000000000000000000000000000000000000000",
+    });
+    assert.strictEqual(resBadSig.statusCode, 403, "Com META_APP_SECRET deve rejeitar 403 se assinatura inválida");
+
+    // 3. Assinatura válida -> 200
+    const validPayload = payload("msg-sig-3", "oi");
+    const validRaw = JSON.stringify(validPayload);
+    const validHash = "sha256=" + crypto.createHmac("sha256", process.env.META_APP_SECRET).update(validRaw).digest("hex");
+    const resValidSig = await invokeApp("POST", "/webhook/whatsapp", validPayload, {
+      "x-hub-signature-256": validHash,
+    });
+    assert.strictEqual(resValidSig.statusCode, 200, "Com META_APP_SECRET e assinatura válida deve aceitar 200");
+
+    delete process.env.META_APP_SECRET;
     clearTestState();
     supabaseMock.reset();
 

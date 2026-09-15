@@ -293,7 +293,7 @@ function normalizarTelefoneBR(telefone) {
     const ddd = numero.slice(2, 4);
     const resto = numero.slice(4); // 8 dígitos
     const normalizado = `55${ddd}9${resto}`;
-    console.log(`🔧 [TELEFONE] Número normalizado: ${numero} → ${normalizado}`);
+    console.log(`🔧 [TELEFONE] Número normalizado: ${maskPhone(numero)} → ${maskPhone(normalizado)}`);
     return normalizado;
   }
 
@@ -1221,7 +1221,7 @@ async function enviarMensagemMeta(telefoneDestino, texto, tenant) {
     global.__testState__ = global.__testState__ || { sentMessages: [], geminiCalls: [] };
     const msgObj = { to: telefoneDestino, text: texto, tenant: tenant?.nome || null };
     global.__testState__.sentMessages.push(msgObj);
-    console.log(`✅ [META MOCK] (TEST_MODE) Mensagem simulada para ${telefoneDestino}`);
+    console.log(`✅ [META MOCK] (TEST_MODE) Mensagem simulada para ${maskPhone(telefoneDestino)}`);
     return msgObj;
   }
 
@@ -1254,13 +1254,13 @@ async function enviarMensagemMeta(telefoneDestino, texto, tenant) {
         }
       );
 
-      console.log(`✅ [META API] Mensagem enviada com sucesso para ${telefoneDestino} (tentativa ${tentativa}/${MAX_TENTATIVAS_META})`);
+      console.log(`✅ [META API] Mensagem enviada com sucesso para ${maskPhone(telefoneDestino)} (tentativa ${tentativa}/${MAX_TENTATIVAS_META})`);
       return true;
     } catch (error) {
       const metaMessage = error.response?.data?.error?.message || error.message;
       const isRetryable = isRetryableMetaError(error);
       
-      console.warn(`⚠️ [META API] Tentativa ${tentativa}/${MAX_TENTATIVAS_META} falhou para ${telefoneDestino}: ${metaMessage}`);
+      console.warn(`⚠️ [META API] Tentativa ${tentativa}/${MAX_TENTATIVAS_META} falhou para ${maskPhone(telefoneDestino)}: ${metaMessage}`);
 
       if (isRetryable && tentativa < MAX_TENTATIVAS_META) {
         const delayMs = BACKOFF_BASE_META_MS * Math.pow(2, tentativa - 1);
@@ -1269,7 +1269,7 @@ async function enviarMensagemMeta(telefoneDestino, texto, tenant) {
         continue;
       }
       
-      console.error(`❌ [META API] ${tenant.nome}: erro crítico ao enviar para ${telefoneDestino} -> ${metaMessage}`);
+      console.error(`❌ [META API] ${tenant.nome}: erro crítico ao enviar para ${maskPhone(telefoneDestino)} -> ${metaMessage}`);
       throw new Error(`Erro ao enviar mensagem Meta: ${metaMessage}`);
     }
   }
@@ -1507,18 +1507,17 @@ app.post("/webhook/whatsapp", async (req, res) => {
 
   // Validação de assinatura HMAC SHA-256 da Meta (WA-001)
   const signature = req.headers["x-hub-signature-256"];
-  const appSecret = process.env.META_APP_SECRET;
+  const appSecret = (process.env.META_APP_SECRET || "").trim();
   const isTest = process.env.TEST_MODE === "1" || process.env.TEST_MODE === "true";
 
-  if (!isTest || appSecret || signature) {
+  if (appSecret) {
     if (!signature) {
       console.warn("⚠️ [WEBHOOK] Rejeitado: header x-hub-signature-256 ausente.");
       return res.status(401).json({ error: "Assinatura ausente" });
     }
 
-    const secret = appSecret || process.env.META_VERIFY_TOKEN || "";
     const raw = req.rawBody || Buffer.from(JSON.stringify(req.body || {}));
-    const expected = "sha256=" + crypto.createHmac("sha256", secret).update(raw).digest("hex");
+    const expected = "sha256=" + crypto.createHmac("sha256", appSecret).update(raw).digest("hex");
 
     try {
       const sigBuf = Buffer.from(signature);
@@ -1529,6 +1528,11 @@ app.post("/webhook/whatsapp", async (req, res) => {
       }
     } catch (_) {
       return res.status(403).json({ error: "Falha na validação da assinatura" });
+    }
+  } else if (!isTest) {
+    if (!global.__metaAppSecretWarned__) {
+      console.warn("⚠️ [WEBHOOK] META_APP_SECRET não configurado no ambiente. Verificação HMAC ignorada para permitir recebimento de mensagens. Para proteção estrita, configure META_APP_SECRET no painel.");
+      global.__metaAppSecretWarned__ = true;
     }
   }
 
@@ -1839,10 +1843,10 @@ app.post("/webhook/whatsapp", async (req, res) => {
                 contextText: combinedTexto,
                 stage: "before_whatsapp_send",
               });
-              console.log(`✅ [WEBHOOK] Mensagem salva e enviada com sucesso para ${telefoneUsuario}`);
+              console.log(`✅ [WEBHOOK] Mensagem salva e enviada com sucesso para ${maskPhone(telefoneUsuario)}`);
             } catch (sendErr) {
               envioCompleto = false;
-              console.error(`❌ [WEBHOOK] Erro ao enviar mensagem para ${telefoneUsuario}: ${sendErr.message}`);
+              console.error(`❌ [WEBHOOK] Erro ao enviar mensagem para ${maskPhone(telefoneUsuario)}: ${sendErr.message}`);
               break;
             }
             await sleep(delayAleatorio());
