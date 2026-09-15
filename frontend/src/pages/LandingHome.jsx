@@ -4,7 +4,8 @@ import {
   MessageCircle, ArrowRight, Check, ChevronRight, Clock,
   Users, BookOpen, Sliders, Send, AlertCircle, Phone,
   Calendar, Scissors, Utensils, Building2, Car,
-  ShoppingBag, PawPrint, Wrench, Briefcase
+  ShoppingBag, PawPrint, Wrench, Briefcase,
+  Sparkles, Smile, Ban, Zap
 } from 'lucide-react';
 
 const SEGMENTS = {
@@ -58,9 +59,66 @@ const SEGMENTS = {
   ]}
 };
 
+const PERSONALITY_PRESETS = [
+  {
+    id: 'corporativo',
+    label: 'Corporativo & Formal',
+    icon: '👔',
+    badge: 'B2B / Consultório',
+    desc: 'Sem gírias, objetivo e educado',
+    config: { tone: 'formal', style: 'direta', emoji: 'none', sales: 'informativo' },
+  },
+  {
+    id: 'equilibrado',
+    label: 'Clínica & Serviços',
+    icon: '🤝',
+    badge: 'Equilibrado & Ágil',
+    desc: 'Cordial, atencioso e convida a agendar',
+    config: { tone: 'natural', style: 'detalhada', emoji: 'moderado', sales: 'agendamento' },
+  },
+  {
+    id: 'varejo',
+    label: 'Barbearia & Varejo',
+    icon: '💈',
+    badge: 'Descontraído & Comercial',
+    desc: 'Empolgado, com emojis e ofertas ativas',
+    config: { tone: 'descontraido', style: 'detalhada', emoji: 'expressivo', sales: 'promocional' },
+  },
+];
+
+const SIMULATOR_QUESTIONS = [
+  {
+    id: 'preco',
+    label: 'Quanto custa o corte?',
+    shortLabel: 'Preço do corte',
+    icon: '✂️',
+    clientText: 'Quanto custa o corte?',
+  },
+  {
+    id: 'horario',
+    label: 'Tem horário pra hoje?',
+    shortLabel: 'Horário hoje',
+    icon: '⏰',
+    clientText: 'Tem horário disponível pra hoje?',
+  },
+  {
+    id: 'pagamento',
+    label: 'Quais formas de pagamento?',
+    shortLabel: 'Formas de pagamento',
+    icon: '💳',
+    clientText: 'Quais as formas de pagamento aceitas?',
+  },
+];
+
 export default function LandingHome() {
   const navigate = useNavigate();
-  const [personality, setPersonality] = useState({ tone: 50, style: 50, emoji: 50, sales: 50 });
+  const [personality, setPersonality] = useState({
+    tone: 'natural',
+    style: 'detalhada',
+    emoji: 'moderado',
+    sales: 'agendamento',
+  });
+  const [activeQuestion, setActiveQuestion] = useState('preco');
   const [activeSegment, setActiveSegment] = useState('barbearia');
   
   useEffect(() => {
@@ -89,101 +147,140 @@ export default function LandingHome() {
 
   const getComputedResponse = () => {
     const { tone, style, emoji, sales } = personality;
+    const q = activeQuestion;
 
-    // 1. Saudação inicial
     let greeting = "";
-    if (tone <= 30) {
-      greeting = style <= 45 ? "Olá." : "Olá! Tudo bem?";
-    } else if (tone <= 70) {
-      greeting = style <= 45 ? "Olá! Tudo bem?" : "Oi! Tudo bem? Com prazer te passo as informações.";
-    } else {
-      if (style <= 45) {
-        greeting = emoji > 50 ? "Opa, e aí! 😄" : "E aí! Beleza?";
+    let mainBody = "";
+    let cta = "";
+
+    if (q === 'preco') {
+      if (tone === 'formal') {
+        greeting = style === 'direta' ? "Olá." : "Olá, tudo bem? É um prazer atender você.";
+        mainBody = style === 'direta'
+          ? "O corte masculino custa R$ 45,00 e o feminino R$ 65,00."
+          : "Nossos serviços de corte estão tabelados em R$ 45,00 para o modelo masculino e R$ 65,00 para o feminino, incluindo lavagem, produtos profissionais e finalização completa.";
+      } else if (tone === 'natural') {
+        greeting = style === 'direta' ? "Olá!" : "Oi! Tudo bem? Prazer falar com você!";
+        mainBody = style === 'direta'
+          ? "O corte masculino é R$ 45 e o feminino R$ 65."
+          : "Aqui o corte masculino é R$ 45 e o feminino R$ 65, já com lavagem e finalização inclusas para o seu conforto.";
       } else {
-        greeting = emoji > 50 
-          ? "Opa, tudo joia? Que bom falar com você! 😄" 
-          : "Opa, tudo joia por aí? Que bom falar com você!";
+        greeting = style === 'direta' ? "Opa, e aí!" : "E aí, beleza pura? Que bom te ver por aqui!";
+        mainBody = style === 'direta'
+          ? "O corte masculino sai por R$ 45 e o feminino R$ 65."
+          : "Aqui na casa o corte masculino tá R$ 45 e o feminino R$ 65, com aquela lavagem caprichada e finalização no estilo!";
+      }
+
+      if (sales === 'informativo') {
+        cta = tone === 'formal'
+          ? "Permanecemos à disposição para eventuais esclarecimentos."
+          : tone === 'natural'
+            ? "Se precisar de mais alguma informação, estou por aqui!"
+            : "Qualquer dúvida só me dar um toque!";
+      } else if (sales === 'agendamento') {
+        cta = tone === 'formal'
+          ? "Deseja verificar as datas e horários disponíveis em nossa agenda desta semana?"
+          : tone === 'natural'
+            ? "Posso agendar um horário pra você? Temos vagas para hoje e amanhã."
+            : "Bora agendar seu horário? Tenho umas vagas ótimas pra hoje e amanhã!";
+      } else {
+        cta = tone === 'formal'
+          ? "Dispomos hoje de condição especial: pacote corte e barba por R$ 55,00. Deseja garantir sua reserva com desconto?"
+          : tone === 'natural'
+            ? "Aproveitando, hoje temos combo especial: corte + barba por apenas R$ 55! Quer que eu garanta sua vaga?"
+            : "E se liga: hoje tá rolando combo corte + barba por só R$ 55! Bora aproveitar antes que acabem os horários?";
+      }
+    } else if (q === 'horario') {
+      if (tone === 'formal') {
+        greeting = style === 'direta' ? "Olá." : "Olá, tudo bem? Seja bem-vindo(a).";
+        mainBody = style === 'direta'
+          ? "Dispomos de horários hoje às 16h30 e às 18h00."
+          : "Verificamos disponibilidade em nossa agenda de hoje nos horários das 16h30 e 18h00 com nossos profissionais especialistas.";
+      } else if (tone === 'natural') {
+        greeting = style === 'direta' ? "Olá!" : "Oi! Tudo bem por aí?";
+        mainBody = style === 'direta'
+          ? "Temos sim, vagas hoje às 16h30 e às 18h."
+          : "Temos sim! Para hoje ainda sobraram duas ótimas opções: às 16h30 e às 18h.";
+      } else {
+        greeting = style === 'direta' ? "Opa, e aí!" : "E aí, beleza? Deu sorte no dia!";
+        mainBody = style === 'direta'
+          ? "Tem sim, sobrou horário às 16h30 e às 18h."
+          : "Acabaram de liberar duas vagas pra hoje: uma às 16h30 e outra às 18h pra você dar aquele trato no visual.";
+      }
+
+      if (sales === 'informativo') {
+        cta = tone === 'formal'
+          ? "Ficamos no aguardo de sua manifestação."
+          : tone === 'natural'
+            ? "Se algum desses der certo pra você, só me avisar!"
+            : "Se algum encaixar na sua rotina, só me dar o toque!";
+      } else if (sales === 'agendamento') {
+        cta = tone === 'formal'
+          ? "Qual desses períodos melhor contempla sua conveniência para confirmação?"
+          : tone === 'natural'
+            ? "Qual dos dois horários fica melhor pra você? Já deixo marcado agora."
+            : "Qual desses você quer que eu já trave agora no seu nome?";
+      } else {
+        cta = tone === 'formal'
+          ? "Ao confirmar o atendimento das 18h00, disponibilizamos cortesia exclusiva em hidratação capilar."
+          : tone === 'natural'
+            ? "Dica: agendando para as 18h, preparamos uma bebida cortesia para você relaxar enquanto é atendido!"
+            : "Se colar no horário das 18h, a primeira gelada artesanal ou café expresso é por nossa conta!";
+      }
+    } else {
+      if (tone === 'formal') {
+        greeting = style === 'direta' ? "Olá." : "Olá, agradecemos o contato.";
+        mainBody = style === 'direta'
+          ? "Aceitamos cartões de crédito, débito, transferência via PIX e dinheiro."
+          : "Aceitamos as principais modalidades: cartões de crédito em até 3x, débito, transferência instantânea via PIX e dinheiro em espécie na recepção.";
+      } else if (tone === 'natural') {
+        greeting = style === 'direta' ? "Olá!" : "Oi! Tudo bem?";
+        mainBody = style === 'direta'
+          ? "Aceitamos PIX, cartões de crédito, débito e dinheiro."
+          : "Aceitamos várias opções: PIX, cartão de crédito, cartão de débito e dinheiro. Super prático e sem taxas adicionais!";
+      } else {
+        greeting = style === 'direta' ? "E aí!" : "Opa, e aí! Super fácil por aqui:";
+        mainBody = style === 'direta'
+          ? "Aceitamos PIX, cartão de crédito, débito e dinheiro."
+          : "Aceitamos PIX na hora, qualquer cartão de crédito ou débito e dinheiro vivo. Você escolhe o que for mais fácil!";
+      }
+
+      if (sales === 'informativo') {
+        cta = tone === 'formal'
+          ? "Permanecemos à disposição."
+          : tone === 'natural'
+            ? "Qualquer dúvida estou por aqui!"
+            : "Facilidade total! Qualquer coisa só chamar.";
+      } else if (sales === 'agendamento') {
+        cta = tone === 'formal'
+          ? "Podemos prosseguir com o agendamento do seu serviço?"
+          : tone === 'natural'
+            ? "Quer aproveitar e já deixar seu horário reservado?"
+            : "Bora já garantir sua cadeira? Qual dia fica melhor pra você?";
+      } else {
+        cta = tone === 'formal'
+          ? "Informamos que pagamentos via PIX possuem 5% de desconto promocional em serviços combinados."
+          : tone === 'natural'
+            ? "Aliás, pagando via PIX você ainda ganha 5% de desconto imediato no combo com barba!"
+            : "E pagando no PIX ainda rola aquele desconto camarada de 5% no combo, fechou?";
       }
     }
 
-    // 2. Preço e Explicação
-    let priceText = "";
-    if (style <= 40) {
-      if (tone <= 30) {
-        priceText = "O corte masculino custa R$ 45,00 e o feminino R$ 65,00.";
-      } else if (tone <= 70) {
-        priceText = "O corte masculino é R$ 45 e o feminino R$ 65.";
-      } else {
-        priceText = "O corte masculino sai por R$ 45 e o feminino R$ 65.";
-      }
-    } else {
-      if (tone <= 30) {
-        priceText = "Nossos serviços de corte estão tabelados em R$ 45,00 para o modelo masculino e R$ 65,00 para o feminino, incluindo lavagem e finalização completa.";
-      } else if (tone <= 70) {
-        priceText = "Trabalhamos com cortes personalizados: o masculino fica R$ 45 e o feminino R$ 65, já com lavagem e produtos inclusos.";
-      } else {
-        priceText = "Aqui na barbearia o corte masculino sai por R$ 45 e o feminino R$ 65, já com aquela lavagem e finalização caprichada!";
-      }
-    }
+    let fullMessage = `${greeting} ${mainBody} ${cta}`.trim();
 
-    // 3. CTA Comercial
-    let ctaText = "";
-    if (sales <= 30) {
-      if (tone <= 30) {
-        ctaText = "Permanecemos à disposição caso necessite de agendamento.";
-      } else if (tone <= 70) {
-        ctaText = "Fico à disposição se quiser marcar um horário!";
-      } else {
-        ctaText = "Se quiser marcar, é só me dar um toque por aqui!";
-      }
-    } else if (sales <= 70) {
-      if (tone <= 30) {
-        ctaText = "Podemos agendar um horário de sua conveniência nesta semana?";
-      } else if (tone <= 70) {
-        ctaText = "Posso agendar um horário pra você? Temos vagas para hoje e amanhã.";
-      } else {
-        ctaText = "Bora agendar seu horário? Tenho umas vagas ótimas pra hoje e amanhã!";
-      }
-    } else {
-      if (tone <= 30) {
-        ctaText = "Dispomos hoje de condição especial: corte e barba completos por R$ 55,00. Deseja garantir sua vaga com desconto exclusivo?";
-      } else if (tone <= 70) {
-        ctaText = "Hoje estamos com uma promoção imperdível: corte + barba por apenas R$ 55! Quer que eu garanta sua vaga antes que esgote?";
-      } else {
-        ctaText = "E se liga: hoje tem combo corte + barba saindo por apenas R$ 55! Bora aproveitar essa condição antes que acabem os horários?";
-      }
-    }
-
-    let fullMessage = `${greeting} ${priceText} ${ctaText}`.trim();
-
-    // 4. Modulação de Emojis
-    if (emoji <= 25) {
+    // Modulação de Emojis
+    if (emoji === 'none') {
       fullMessage = fullMessage.replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F1E0}-\u{1F1FF}]/gu, '').replace(/\s{2,}/g, ' ').trim();
-    } else if (emoji <= 70) {
-      if (!/[\u{1F300}-\u{1F9FF}]/u.test(fullMessage)) {
-        if (sales > 70) {
-          fullMessage += " 🔥";
-        } else if (tone > 65) {
-          fullMessage += " ✂️";
-        } else {
-          fullMessage += " 😊";
-        }
-      }
+    } else if (emoji === 'moderado') {
+      const em = tone === 'formal' ? ' 😊' : tone === 'natural' ? ' 😊 ✂️' : ' ✌️ 😄';
+      fullMessage = `${fullMessage}${em}`;
     } else {
-      if (sales > 70) {
-        fullMessage = `✂️ ${fullMessage} 🔥💈`;
-      } else if (tone > 65) {
-        fullMessage = `✌️ ${fullMessage} ✂️✨`;
-      } else {
-        fullMessage = `${fullMessage} ✂️📅`;
-      }
+      const emPrefix = tone === 'formal' ? '✨ ' : tone === 'natural' ? '✨ ✂️ ' : '🔥 💈 ';
+      const emSuffix = sales === 'promocional' ? ' 🔥🚀' : ' ✂️👊';
+      fullMessage = `${emPrefix}${fullMessage}${emSuffix}`;
     }
 
     return fullMessage;
-  };
-
-  const handleSliderChange = (e, key) => {
-    setPersonality(prev => ({ ...prev, [key]: parseInt(e.target.value) }));
   };
 
   const activeSegmentData = SEGMENTS[activeSegment];
@@ -328,77 +425,220 @@ export default function LandingHome() {
               Faça ela falar como sua empresa.
             </h2>
             <p className="text-lg text-[#666] mt-4 max-w-2xl mx-auto">
-              Cada negócio tem um jeito. Sua atendente também.
+              Cada negócio tem um jeito. Escolha o tom ideal ou personalize em 1 clique.
             </p>
           </div>
 
-          <div className="mt-12 flex flex-col lg:flex-row items-center gap-12 lg:gap-16">
-            <div className="flex-1 w-full bg-[#f8f7f5] rounded-2xl p-6 lg:p-8 border border-[#e8e5e0]">
-              <div className="space-y-7">
-                <div>
-                  <div className="flex items-center justify-between text-sm font-medium text-[#1a1a1a] mb-2.5">
-                    <span className={personality.tone <= 40 ? "text-teal-700 font-bold" : "text-[#777]"}>Profissional</span>
-                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200">
-                      {personality.tone <= 35 ? "Muito Formal" : personality.tone >= 65 ? "Descontraída" : "Equilibrada"} ({personality.tone}%)
+          {/* Quick Presets Bar */}
+          <div className="mt-10 max-w-3xl mx-auto">
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <Sparkles size={16} className="text-teal-600" />
+              <span className="text-xs font-bold uppercase tracking-wider text-[#666]">
+                Perfis Prontos Recomendados
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {PERSONALITY_PRESETS.map((p) => {
+                const isActive =
+                  personality.tone === p.config.tone &&
+                  personality.style === p.config.style &&
+                  personality.emoji === p.config.emoji &&
+                  personality.sales === p.config.sales;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => setPersonality(p.config)}
+                    className={`p-3.5 rounded-xl text-left border transition-all cursor-pointer flex flex-col gap-1 ${
+                      isActive
+                        ? 'bg-teal-50 border-teal-500 shadow-sm ring-2 ring-teal-500/20'
+                        : 'bg-[#fcfbf9] border-[#e8e5e0] hover:border-teal-300 hover:bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-base">{p.icon}</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        isActive ? 'bg-teal-600 text-white' : 'bg-[#ece9e4] text-[#666]'
+                      }`}>
+                        {p.badge}
+                      </span>
+                    </div>
+                    <span className={`text-sm font-bold ${isActive ? 'text-teal-900' : 'text-[#1a1a1a]'}`}>
+                      {p.label}
                     </span>
-                    <span className={personality.tone >= 60 ? "text-teal-700 font-bold" : "text-[#777]"}>Descontraída</span>
-                  </div>
-                  <input 
-                    type="range" min="0" max="100" 
-                    value={personality.tone}
-                    onChange={(e) => handleSliderChange(e, 'tone')}
-                    className="w-full accent-teal-600 h-2 bg-[#e8e5e0] rounded-lg appearance-none cursor-pointer"
-                  />
-                </div>
-                <div>
-                  <div className="flex items-center justify-between text-sm font-medium text-[#1a1a1a] mb-2.5">
-                    <span className={personality.style <= 40 ? "text-teal-700 font-bold" : "text-[#777]"}>Direta</span>
-                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200">
-                      {personality.style <= 40 ? "Direta & Rápida" : "Conversadora"} ({personality.style}%)
+                    <span className="text-[11px] text-[#777] leading-tight">
+                      {p.desc}
                     </span>
-                    <span className={personality.style >= 60 ? "text-teal-700 font-bold" : "text-[#777]"}>Conversadora</span>
-                  </div>
-                  <input 
-                    type="range" min="0" max="100" 
-                    value={personality.style}
-                    onChange={(e) => handleSliderChange(e, 'style')}
-                    className="w-full accent-teal-600 h-2 bg-[#e8e5e0] rounded-lg appearance-none cursor-pointer"
-                  />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-10 flex flex-col lg:flex-row items-stretch gap-10 lg:gap-14">
+            {/* Controls Panel */}
+            <div className="flex-1 w-full bg-[#f8f7f5] rounded-2xl p-6 lg:p-7 border border-[#e8e5e0] flex flex-col justify-between space-y-6">
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#777]">
+                    Ajuste Fino da Atendente
+                  </span>
+                  <span className="text-[11px] text-teal-700 bg-teal-100/60 px-2.5 py-0.5 rounded-full font-medium">
+                    Clique para mudar
+                  </span>
                 </div>
-                <div>
-                  <div className="flex items-center justify-between text-sm font-medium text-[#1a1a1a] mb-2.5">
-                    <span className={personality.emoji <= 30 ? "text-teal-700 font-bold" : "text-[#777]"}>Sem emojis</span>
-                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200">
-                      {personality.emoji <= 25 ? "Zero emojis" : personality.emoji >= 70 ? "Muitos emojis ✨" : "Emojis moderados 😊"} ({personality.emoji}%)
+
+                {/* 1. Tom de Voz */}
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold text-[#444] flex items-center justify-between">
+                    <span>Tom de Voz</span>
+                    <span className="text-[11px] text-teal-700 font-bold">
+                      {personality.tone === 'formal' ? '👔 Formal' : personality.tone === 'natural' ? '🤝 Natural' : '😄 Descontraído'}
                     </span>
-                    <span className={personality.emoji >= 60 ? "text-teal-700 font-bold" : "text-[#777]"}>Usa emojis</span>
                   </div>
-                  <input 
-                    type="range" min="0" max="100" 
-                    value={personality.emoji}
-                    onChange={(e) => handleSliderChange(e, 'emoji')}
-                    className="w-full accent-teal-600 h-2 bg-[#e8e5e0] rounded-lg appearance-none cursor-pointer"
-                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { key: 'formal', label: 'Formal', icon: '👔' },
+                      { key: 'natural', label: 'Natural', icon: '🤝' },
+                      { key: 'descontraido', label: 'Descontraído', icon: '😄' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.key}
+                        onClick={() => setPersonality(prev => ({ ...prev, tone: opt.key }))}
+                        className={`py-2 px-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                          personality.tone === opt.key
+                            ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                            : 'bg-white text-[#555] border-[#dedad5] hover:bg-slate-50'
+                        }`}
+                      >
+                        <span>{opt.icon}</span>
+                        <span>{opt.label}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div>
-                  <div className="flex items-center justify-between text-sm font-medium text-[#1a1a1a] mb-2.5">
-                    <span className={personality.sales <= 35 ? "text-teal-700 font-bold" : "text-[#777]"}>Pouco comercial</span>
-                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200">
-                      {personality.sales <= 35 ? "Informativa" : personality.sales >= 70 ? "Super vendedora 🔥" : "Consultiva"} ({personality.sales}%)
+
+                {/* 2. Estilo de Resposta */}
+                <div className="space-y-2 mt-5">
+                  <div className="text-xs font-semibold text-[#444] flex items-center justify-between">
+                    <span>Tamanho da Resposta</span>
+                    <span className="text-[11px] text-teal-700 font-bold">
+                      {personality.style === 'direta' ? '⚡ Curta & Direta' : '💬 Detalhada & Amigável'}
                     </span>
-                    <span className={personality.sales >= 65 ? "text-teal-700 font-bold" : "text-[#777]"}>Vendedora</span>
                   </div>
-                  <input 
-                    type="range" min="0" max="100" 
-                    value={personality.sales}
-                    onChange={(e) => handleSliderChange(e, 'sales')}
-                    className="w-full accent-teal-600 h-2 bg-[#e8e5e0] rounded-lg appearance-none cursor-pointer"
-                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { key: 'direta', label: 'Curta & Direta', icon: '⚡' },
+                      { key: 'detalhada', label: 'Detalhada & Acolhedora', icon: '💬' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.key}
+                        onClick={() => setPersonality(prev => ({ ...prev, style: opt.key }))}
+                        className={`py-2 px-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                          personality.style === opt.key
+                            ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                            : 'bg-white text-[#555] border-[#dedad5] hover:bg-slate-50'
+                        }`}
+                      >
+                        <span>{opt.icon}</span>
+                        <span>{opt.label}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
+                {/* 3. Emojis */}
+                <div className="space-y-2 mt-5">
+                  <div className="text-xs font-semibold text-[#444] flex items-center justify-between">
+                    <span>Uso de Emojis</span>
+                    <span className="text-[11px] text-teal-700 font-bold">
+                      {personality.emoji === 'none' ? '🚫 Sem Emojis' : personality.emoji === 'moderado' ? '😊 Moderados' : '✨ Expressivos'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { key: 'none', label: 'Sem emojis', icon: '🚫' },
+                      { key: 'moderado', label: 'Moderados', icon: '😊' },
+                      { key: 'expressivo', label: 'Expressivos', icon: '✨' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.key}
+                        onClick={() => setPersonality(prev => ({ ...prev, emoji: opt.key }))}
+                        className={`py-2 px-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                          personality.emoji === opt.key
+                            ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                            : 'bg-white text-[#555] border-[#dedad5] hover:bg-slate-50'
+                        }`}
+                      >
+                        <span>{opt.icon}</span>
+                        <span>{opt.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 4. Postura Comercial */}
+                <div className="space-y-2 mt-5">
+                  <div className="text-xs font-semibold text-[#444] flex items-center justify-between">
+                    <span>Postura Comercial</span>
+                    <span className="text-[11px] text-teal-700 font-bold">
+                      {personality.sales === 'informativo' ? 'ℹ️ Apenas Informar' : personality.sales === 'agendamento' ? '📅 Convidar p/ Agendar' : '🚀 Super Oferta'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { key: 'informativo', label: 'Informativa', icon: 'ℹ️' },
+                      { key: 'agendamento', label: 'Agendamento', icon: '📅' },
+                      { key: 'promocional', label: 'Super Oferta', icon: '🚀' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.key}
+                        onClick={() => setPersonality(prev => ({ ...prev, sales: opt.key }))}
+                        className={`py-2 px-2.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                          personality.sales === opt.key
+                            ? 'bg-teal-600 text-white border-teal-600 shadow-sm'
+                            : 'bg-white text-[#555] border-[#dedad5] hover:bg-slate-50'
+                        }`}
+                      >
+                        <span>{opt.icon}</span>
+                        <span>{opt.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-[#e8e5e0] flex items-center justify-between text-xs text-[#777]">
+                <span>Cada clique altera a resposta ao lado</span>
+                <span className="font-semibold text-teal-700">100% interativo</span>
               </div>
             </div>
 
-            <div className="flex-1 w-full">
+            {/* WhatsApp Simulator Panel */}
+            <div className="flex-1 w-full flex flex-col justify-center">
+              {/* Question Switcher */}
+              <div className="mb-3">
+                <p className="text-xs font-semibold text-[#666] mb-2 flex items-center gap-1.5">
+                  <MessageCircle size={14} className="text-teal-600" />
+                  Simule uma dúvida do cliente:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {SIMULATOR_QUESTIONS.map((q) => (
+                    <button
+                      key={q.id}
+                      onClick={() => setActiveQuestion(q.id)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium cursor-pointer border transition-all flex items-center gap-1.5 ${
+                        activeQuestion === q.id
+                          ? 'bg-[#1a1a1a] text-white border-[#1a1a1a] shadow-sm'
+                          : 'bg-white text-[#555] border-[#dedad5] hover:bg-[#f8f7f5]'
+                      }`}
+                    >
+                      <span>{q.icon}</span>
+                      <span>{q.shortLabel}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="bg-white rounded-2xl shadow-xl border border-[#e8e5e0] overflow-hidden w-full max-w-md mx-auto">
                 {/* WhatsApp header */}
                 <div className="bg-[#075E54] text-white px-4 py-3 flex items-center justify-between">
@@ -416,15 +656,38 @@ export default function LandingHome() {
                   </span>
                 </div>
 
-                <div className="bg-[#ECE5DD] p-4 space-y-3 min-h-[220px] flex flex-col justify-center">
-                  <div className="bg-white rounded-xl rounded-tl-sm px-4 py-2.5 text-sm text-[#1a1a1a] shadow-sm max-w-[85%] self-start">
-                    Quanto custa o corte?
+                {/* WhatsApp Chat Body */}
+                <div className="bg-[#ECE5DD] p-4 space-y-3 min-h-[260px] flex flex-col justify-center">
+                  {/* Client message */}
+                  <div className="bg-white rounded-xl rounded-tl-sm px-4 py-2.5 text-sm text-[#1a1a1a] shadow-sm max-w-[85%] self-start flex flex-col">
+                    <span>
+                      {SIMULATOR_QUESTIONS.find(q => q.id === activeQuestion)?.clientText || "Quanto custa o corte?"}
+                    </span>
+                    <span className="text-[10px] text-gray-400 self-end mt-1">14:31</span>
                   </div>
+
+                  {/* Bot response message */}
                   <div 
-                    key={getComputedResponse()}
-                    className="bg-[#DCF8C6] rounded-xl rounded-tr-sm px-4 py-2.5 text-sm text-[#1a1a1a] shadow-sm max-w-[90%] self-end leading-relaxed transition-all animate-fade-in"
+                    key={`${activeQuestion}-${personality.tone}-${personality.style}-${personality.emoji}-${personality.sales}`}
+                    className="bg-[#DCF8C6] rounded-xl rounded-tr-sm px-4 py-2.5 text-sm text-[#1a1a1a] shadow-sm max-w-[92%] self-end leading-relaxed transition-all animate-fade-in flex flex-col"
                   >
-                    {getComputedResponse()}
+                    <span>{getComputedResponse()}</span>
+                    <div className="flex items-center justify-between gap-2 mt-2 pt-1 border-t border-black/5">
+                      <div className="flex flex-wrap gap-1">
+                        <span className="text-[9px] font-semibold uppercase tracking-wider text-emerald-800 bg-emerald-600/10 px-1.5 py-0.5 rounded">
+                          {personality.tone}
+                        </span>
+                        <span className="text-[9px] font-semibold uppercase tracking-wider text-emerald-800 bg-emerald-600/10 px-1.5 py-0.5 rounded">
+                          {personality.style}
+                        </span>
+                        <span className="text-[9px] font-semibold uppercase tracking-wider text-emerald-800 bg-emerald-600/10 px-1.5 py-0.5 rounded">
+                          {personality.sales}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-emerald-900/60 font-medium whitespace-nowrap">
+                        14:32 ✓✓
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
