@@ -5,7 +5,7 @@ import {
   LayoutDashboard, MessageSquare, LogOut,
   Smartphone, User, ShieldAlert, ChevronRight,
   Settings, TrendingUp, Users, Plug, BookOpen,
-  Menu, X, Zap, Sparkles, Bell, Search
+  Menu, X, Zap, Sparkles, Bell, Search, KanbanSquare
 } from "lucide-react";
 import { apiFetch } from "../api";
 import ThemeToggle from "./ThemeToggle";
@@ -38,6 +38,7 @@ export default function Layout() {
       label: "Principal",
       items: [
         { to: "/painel",          icon: LayoutDashboard, label: "Visão Geral",      desc: "Métricas e conversas" },
+        { to: "/painel/crm",      icon: KanbanSquare,    label: "CRM & Funil",      desc: "Kanban e gestão de leads" },
         { to: "/painel/chat",     icon: MessageSquare,   label: "Mensagens",         desc: "Inbox de atendimentos" },
       ]
     },

@@ -1130,6 +1130,38 @@ app.get("/api/patients/:id/messages", requireAuth, async (req, res) => {
   res.json(data || []);
 });
 
+app.post("/api/patients", requireAuth, forbidViewer, async (req, res) => {
+  const { telefone, nome, status_kanban, tags, notes } = req.body;
+  if (!telefone) return res.status(400).json({ error: "Telefone é obrigatório." });
+  const tenantId = getReqTenantId(req);
+  try {
+    const rawTelefone = String(telefone).replace(/\D/g, "");
+    const cleanTelefone = rawTelefone.startsWith("55") ? rawTelefone : `55${rawTelefone}`;
+    const patient = await getOrCreatePatient(cleanTelefone, nome || "Novo Lead", tenantId);
+    const updates = {};
+    if (status_kanban && patient.status_kanban !== status_kanban) {
+      updates.status_kanban = status_kanban;
+    }
+    if (tags || notes) {
+      updates.ai_memory = { ...(patient.ai_memory || {}), tags: tags || [], notes: notes || "" };
+    }
+    if (Object.keys(updates).length > 0) {
+      const { data: updated } = await supabase
+        .from("users_whatsapp")
+        .update(updates)
+        .eq("id", patient.id)
+        .select()
+        .single();
+      emitirEvento("patient_updated", updated || patient, tenantId);
+      return res.status(201).json(updated || patient);
+    }
+    emitirEvento("patient_updated", patient, tenantId);
+    res.status(201).json(patient);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.put("/api/patients/:id/status", requireAuth, forbidViewer, async (req, res) => {
   const { status_kanban } = req.body;
   const tenantId = getReqTenantId(req);
@@ -1145,6 +1177,23 @@ app.put("/api/patients/:id/ai-status", requireAuth, forbidViewer, async (req, re
   const { is_ai_active } = req.body;
   const tenantId = getReqTenantId(req);
   let query = supabase.from("users_whatsapp").update({ is_ai_active }).eq("id", req.params.id);
+  if (tenantId) query = query.eq("tenant_id", tenantId);
+  const { data, error } = await query.select().single();
+  if (error) return res.status(500).json({ error: error.message });
+  emitirEvento("patient_updated", data, data.tenant_id);
+  res.json(data);
+});
+
+app.put("/api/patients/:id", requireAuth, forbidViewer, async (req, res) => {
+  const { nome, status_kanban, is_ai_active, ai_memory } = req.body;
+  const tenantId = getReqTenantId(req);
+  const updates = { updated_at: new Date().toISOString() };
+  if (nome !== undefined) updates.nome = nome;
+  if (status_kanban !== undefined) updates.status_kanban = status_kanban;
+  if (is_ai_active !== undefined) updates.is_ai_active = is_ai_active;
+  if (ai_memory !== undefined) updates.ai_memory = ai_memory;
+
+  let query = supabase.from("users_whatsapp").update(updates).eq("id", req.params.id);
   if (tenantId) query = query.eq("tenant_id", tenantId);
   const { data, error } = await query.select().single();
   if (error) return res.status(500).json({ error: error.message });

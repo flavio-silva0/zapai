@@ -115,8 +115,9 @@ export default function App() {
             {/* Painel Protegido (Com ConfigProvider interno) */}
             <Route path="painel" element={<PainelScope />}>
               <Route index                element={<Home />} />
-              <Route path="chat"          element={<Chat />} />
+              <Route path="crm"           element={<FullKanban />} />
               <Route path="kanban"        element={<FullKanban />} />
+              <Route path="chat"          element={<Chat />} />
               <Route path="test"          element={<TestSofia />} />
               <Route path="perfil"        element={<Profile />} />
               <Route path="ia"            element={<AiSetup />} />
