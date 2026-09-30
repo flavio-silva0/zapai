@@ -1,6 +1,7 @@
 import { lazy, Suspense, useContext } from "react";
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from "react-router-dom";
 import { AuthProvider, AuthContext } from "./context/AuthContext";
+import { NotificationProvider } from "./context/NotificationContext";
 import { ConfigProvider } from "./context/ConfigContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
@@ -19,6 +20,7 @@ const Privacy       = lazy(() => import("./pages/Privacy"));
 
 // ── Auth (Lazy) ───────────────────────────────────────────
 const Login    = lazy(() => import("./pages/Login"));
+const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 const Register = lazy(() => import("./pages/Register"));
 
 // ── Admin (Lazy) ──────────────────────────────────────────
@@ -75,7 +77,9 @@ function PainelScope() {
   return (
     <ConfigProvider>
       <ProtectedRoute>
+        <NotificationProvider>
         <Layout />
+        </NotificationProvider>
       </ProtectedRoute>
     </ConfigProvider>
   );
@@ -107,6 +111,7 @@ export default function App() {
           <Route element={<AuthScope />}>
             <Route path="login"    element={<Login />} />
             <Route path="cadastro" element={<Register />} />
+            <Route path="auth/confirmacao" element={<AuthCallback />} />
 
             {/* Admin */}
             <Route path="admin" element={

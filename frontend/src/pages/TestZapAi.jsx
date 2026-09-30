@@ -7,9 +7,11 @@ import { AuthContext } from "../context/AuthContext";
 const DEBOUNCE_TEST_MS = 3000;
 
 export default function TestZapAi() {
-  const { token, tenant } = useContext(AuthContext);
+  const { token, tenant, user } = useContext(AuthContext);
   const tenantId = tenant?.id || "anon";
-  const storageKey = `sandbox_history_${tenantId}`;
+  const storageKey = `sandbox_history_${tenantId}_${user?.id || "anon"}`;
+  const [loadedKey, setLoadedKey] = useState(null);
+  const requestRef = useRef(null);
 
   const [mensagens,  setMensagens]  = useState([]);
   const [input,      setInput]      = useState("");
@@ -19,13 +21,22 @@ export default function TestZapAi() {
 
   // Carrega histórico isolado do tenant atual
   useEffect(() => {
+    clearTimeout(timerRef.current);
+    clearInterval(countdownIntervalRef.current);
+    bufferRef.current = [];
+    requestRef.current?.abort();
+    setLoading(false);
+    setCountdown(null);
+    setInput("");
+    localStorage.removeItem(`sandbox_history_${tenantId}`);
     try {
       const salvas = localStorage.getItem(storageKey);
       setMensagens(salvas ? JSON.parse(salvas) : []);
     } catch {
       setMensagens([]);
     }
-  }, [storageKey]);
+    setLoadedKey(storageKey);
+  }, [storageKey, tenantId]);
   
   const displayBotName = tenant?.bot_name || "Assistente";
   const displayBotEmoji = tenant?.bot_emoji || "🤖";
@@ -43,14 +54,15 @@ export default function TestZapAi() {
     return () => {
       clearTimeout(timerRef.current);
       clearInterval(countdownIntervalRef.current);
+      requestRef.current?.abort();
     };
   }, []);
 
   useEffect(() => {
-    if (tenant?.id) {
+    if (tenant?.id && loadedKey === storageKey) {
       localStorage.setItem(storageKey, JSON.stringify(mensagens));
     }
-  }, [mensagens, storageKey, tenant?.id]);
+  }, [mensagens, storageKey, tenant?.id, loadedKey]);
 
   const iniciarContagem = () => {
     clearInterval(countdownIntervalRef.current);
@@ -71,6 +83,8 @@ export default function TestZapAi() {
     if (buffer.length === 0) return;
     const textoCompleto = buffer.join("\n");
     setLoading(true);
+    const controller = new AbortController();
+    requestRef.current = controller;
     try {
       // Isolar o histórico oficial removendo as mensagens que estão sendo processadas AGORA (trailing users)
       let mensagensAnteriores = [...mensagens];
@@ -95,6 +109,7 @@ export default function TestZapAi() {
 
       const res  = await apiFetch("/api/admin/sandbox/chat", { 
          method: "POST",
+         signal: controller.signal,
          headers: { Authorization: `Bearer ${token}` },
          body: JSON.stringify({ 
            prompt_text: tenant?.prompt_text || "Você é a assistente virtual.",
@@ -103,12 +118,14 @@ export default function TestZapAi() {
          }) 
       });
       const data = await res.json();
+      if (controller.signal.aborted) return;
       if (!res.ok) throw new Error(data.error);
       setMensagens((prev) => [...prev, { role: "ai", texto: data.resposta }]);
     } catch (err) {
+      if (controller.signal.aborted) return;
       setMensagens((prev) => [...prev, { role: "erro", texto: `Erro: ${err.message}` }]);
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
   };
 
@@ -124,6 +141,8 @@ export default function TestZapAi() {
   };
 
   const resetar = () => {
+    requestRef.current?.abort();
+    setLoading(false);
     clearTimeout(timerRef.current);
     clearInterval(countdownIntervalRef.current);
     bufferRef.current = [];

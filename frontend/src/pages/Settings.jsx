@@ -1,4 +1,4 @@
-import { useState, useContext } from "react";
+import { useState, useContext, useEffect } from "react";
 import {
   User, CreditCard, Users, Shield, Key, Bell, ChevronRight,
   Eye, EyeOff, Copy, Check, Zap, Globe, LogOut, Trash2,
@@ -6,6 +6,8 @@ import {
 } from "lucide-react";
 import { AuthContext } from "../context/AuthContext";
 import { apiFetch } from "../api";
+import { useSearchParams } from "react-router-dom";
+import { useNotifications } from "../context/NotificationContext";
 
 function SettingRow({ label, description, children }) {
   return (
@@ -19,14 +21,14 @@ function SettingRow({ label, description, children }) {
   );
 }
 
-function Toggle({ checked, onChange, disabled }) {
+function Toggle({ checked, onChange, disabled, label }) {
   return (
-    <div
-      className={`toggle-track ${checked ? "on" : ""} ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+    <button type="button" role="switch" aria-checked={Boolean(checked)} aria-label={label} disabled={disabled}
+      className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors ${checked ? "bg-cyan-500" : "bg-slate-300 dark:bg-slate-600"} disabled:opacity-40 disabled:cursor-not-allowed`}
       onClick={() => { if (!disabled && onChange) onChange(!checked); }}
     >
-      <div className="toggle-thumb" />
-    </div>
+      <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${checked ? "translate-x-5" : ""}`} />
+    </button>
   );
 }
 
@@ -41,15 +43,12 @@ const SECTIONS = [
 
 export default function Settings() {
   const { user, tenant, logout } = useContext(AuthContext);
-  const [activeSection, setActiveSection] = useState("account");
+  const [searchParams] = useSearchParams();
+  const [activeSection, setActiveSection] = useState(searchParams.get("section") === "notifications" ? "notifications" : "account");
+  useEffect(() => { if (searchParams.get("section") === "notifications") setActiveSection("notifications"); }, [searchParams]);
   const [apiVisible, setApiVisible] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [notifications, setNotifications] = useState({
-    newConversation: true,
-    dailyReport: true,
-    weeklyInsights: false,
-    alerts: true,
-  });
+  const { preferences: notifications, updatePreference, storageError } = useNotifications();
 
   // Password change state
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -88,11 +87,12 @@ export default function Settings() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Erro ao alterar senha.");
 
-      setPasswordSuccess("Senha alterada com sucesso!");
+      setPasswordSuccess("Senha alterada. Entre novamente com a nova senha.");
       setPasswordForm({ senhaAtual: "", novaSenha: "", confirmaSenha: "" });
       setTimeout(() => {
         setShowPasswordModal(false);
         setPasswordSuccess("");
+        logout();
       }, 2000);
     } catch (err) {
       setPasswordError(err.message);
@@ -303,17 +303,22 @@ export default function Settings() {
           {activeSection === "notifications" && (
             <div className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl p-6 space-y-1 animate-fade-scale">
               <h2 className="text-[var(--text-primary)] font-bold text-base mb-5">Preferências de Notificação</h2>
+              <p className="text-xs text-[var(--text-muted)] pb-3">Aplicadas ao sininho e salvas automaticamente neste navegador para sua conta e empresa.</p>
+              {storageError && <p role="alert" className="text-xs text-amber-600">{storageError}</p>}
 
               {[
-                { id: "newConversation", label: "Nova conversa iniciada", description: "Receba alertas quando um novo cliente iniciar uma conversa" },
-                { id: "dailyReport", label: "Relatório diário", description: "Resumo de performance enviado por e-mail às 8h" },
-                { id: "weeklyInsights", label: "Insights semanais", description: "Análise de tendências e oportunidades toda segunda-feira" },
-                { id: "alerts", label: "Alertas do sistema", description: "Notificações sobre status de conexão e erros críticos" },
+                { id: "newConversation", label: "Novos contatos", description: "Avise quando um cliente for adicionado ao CRM" },
+                { id: "newMessages", label: "Mensagens recebidas", description: "Mostre as novas mensagens recebidas dos clientes no WhatsApp" },
+                { id: "alerts", label: "Alertas do sistema", description: "Avise quando não for possível atualizar as notificações" },
+                { id: "dailyReport", label: "Relatório diário · Em breve", description: "Envio de resumo por e-mail ainda não disponível", disabled: true },
+                { id: "weeklyInsights", label: "Insights semanais · Em breve", description: "Envio de análises semanais ainda não disponível", disabled: true },
               ].map(n => (
                 <SettingRow key={n.id} label={n.label} description={n.description}>
                   <Toggle
-                    checked={notifications[n.id]}
-                    onChange={v => setNotifications(prev => ({ ...prev, [n.id]: v }))}
+                    label={n.label}
+                    disabled={n.disabled}
+                    checked={Boolean(notifications[n.id])}
+                    onChange={v => updatePreference(n.id, v)}
                   />
                 </SettingRow>
               ))}

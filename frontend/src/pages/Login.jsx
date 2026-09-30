@@ -1,6 +1,7 @@
 import { useState, useContext } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { apiFetch } from "../api";
+import { googleSignIn } from "../registrationAuth";
 import { AuthContext } from "../context/AuthContext";
 import { Eye, EyeOff, Lock, UserCheck } from "lucide-react";
 
@@ -13,6 +14,19 @@ export default function Login() {
   const [showPwd, setShowPwd] = useState(false);
 
   const [slowNotice, setSlowNotice] = useState(false);
+  const [notice, setNotice] = useState("");
+  async function googleLogin() {
+    setLoading(true); setErro("");
+    try { await googleSignIn(); } catch (e) { setErro(e.message); setLoading(false); }
+  }
+  async function recoverPassword() {
+    setLoading(true); setErro(""); setNotice("");
+    try {
+      const res = await apiFetch("/api/auth/recover", { method:"POST", body:JSON.stringify({ email }) });
+      const data = await res.json(); if (!res.ok) throw new Error(data.error);
+      setNotice(data.message);
+    } catch (e) { setErro(e.message); } finally { setLoading(false); }
+  }
 
   if (token) return <Navigate to="/painel" replace />;
 
@@ -76,6 +90,8 @@ export default function Login() {
             Bem-vindo de volta ao painel de atendimento.
           </p>
 
+          <button type="button" onClick={googleLogin} disabled={loading} className="btn-outline w-full h-12 mb-5">Entrar com Google / Gmail</button>
+          {notice && <p role="status" className="text-sm text-teal-600 mb-4">{notice}</p>}
           <form onSubmit={handleSubmit} className="space-y-5">
             {erro && (
               <div className="bg-rose-500/10 border border-rose-500/30 text-rose-500 p-4 rounded-xl text-sm font-medium flex gap-2 items-center">
@@ -148,6 +164,8 @@ export default function Login() {
               </p>
             )}
           </form>
+          <button type="button" disabled={loading} onClick={recoverPassword} className="text-sm text-teal-600 mt-4">Esqueci minha senha — enviar link por e-mail</button>
+
 
           <div className="mt-8 text-center text-sm text-[var(--text-secondary)]">
             Não tem uma conta?{" "}

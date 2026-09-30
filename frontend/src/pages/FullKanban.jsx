@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiFetch, apiUrl } from "../api";
+import { apiFetch } from "../api";
+import { createEventStream } from "../eventStream";
 import ContactHubSpot from "./ContactHubSpot";
 import {
   MessageSquare, Zap, Search, Plus, X, Phone,
@@ -311,8 +312,7 @@ export default function FullKanban() {
 
   // EventSource em tempo real
   useEffect(() => {
-    const token = localStorage.getItem("sofia_token");
-    const es = new EventSource(apiUrl(`/api/events?token=${token || ""}`));
+    const es = createEventStream();
 
     const handlePatientUpdate = (e) => {
       try {

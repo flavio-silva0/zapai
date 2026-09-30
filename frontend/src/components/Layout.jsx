@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { apiFetch } from "../api";
 import ThemeToggle from "./ThemeToggle";
+import NotificationBell from "./NotificationBell";
 
 export default function Layout() {
   const { user, tenant, logout } = useContext(AuthContext);
@@ -227,11 +228,14 @@ export default function Layout() {
               Zap<span style={{ color: "var(--clr-primary)" }}>AI</span>
             </span>
           </div>
+          <div className="flex items-center gap-2">
+          <NotificationBell />
           <button
             onClick={() => setIsMobileOpen(true)}
             className="p-2 rounded-xl text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)] transition-all">
             <Menu size={19} />
           </button>
+          </div>
         </div>
 
         {/* Background decorations */}
@@ -258,10 +262,7 @@ export default function Layout() {
 
             <div className="flex items-center gap-4">
               <ThemeToggle />
-              <button className="relative p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-all">
-                <Bell size={18} />
-                <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[var(--clr-danger)] animate-pulse" />
-              </button>
+              <NotificationBell />
               
               <div className="w-px h-6 bg-[var(--border-medium)] mx-1" />
               

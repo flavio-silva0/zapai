@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useContext } from "react";
 import { useSearchParams } from "react-router-dom";
-import { apiFetch, apiUrl } from "../api";
+import { apiFetch } from "../api";
+import { createEventStream } from "../eventStream";
 import { AuthContext } from "../context/AuthContext";
 import { useConfig } from "../context/ConfigContext";
 import KanbanBoard from "../components/KanbanBoard";
@@ -52,8 +53,7 @@ export default function Chat() {
   }, [loading, patients, searchParams]);
 
   useEffect(() => {
-    const token = localStorage.getItem("sofia_token");
-    const es = new EventSource(apiUrl(`/api/events?token=${token || ""}`));
+    const es = createEventStream();
     const onPatientUpdated = () => fetchPatients();
     const onNewMessage = (e) => {
       try {

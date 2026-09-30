@@ -9,7 +9,7 @@ export default function Privacy() {
     {
       title: "1. Informações que Coletamos",
       content: `Ao utilizar a plataforma ZapAI, podemos coletar as seguintes informações:
-• Dados de identificação pessoal: nome, e-mail, número de telefone.
+• Dados de identificação pessoal: nome completo, e-mail, CPF, data de nascimento, número de telefone e endereço completo. No cadastro, também coletamos nome e segmento do negócio e registramos a versão da política aceita e a data do aceite.
 • Dados de uso do serviço: mensagens trocadas com o assistente virtual, histórico de interações e preferências de atendimento.
 • Dados técnicos: endereço IP, tipo de navegador, sistema operacional e dados de acesso.
 • Dados fornecidos por integrações: informações recebidas através da API do WhatsApp Business (Meta), incluindo nome do perfil e número de telefone dos contatos.`
@@ -17,7 +17,7 @@ export default function Privacy() {
     {
       title: "2. Como Utilizamos suas Informações",
       content: `As informações coletadas são utilizadas para:
-• Fornecer, operar e manter os serviços da plataforma ZapAI.
+• Criar e administrar a conta, identificar seu responsável, confirmar o e-mail e verificar a idade mínima de cadastro.\n• Fornecer, operar e manter os serviços da plataforma ZapAI.
 • Processar e responder mensagens recebidas via WhatsApp utilizando inteligência artificial.
 • Melhorar a qualidade do atendimento automatizado e personalizar a experiência do usuário.
 • Enviar comunicações relacionadas ao serviço, como atualizações, alertas de segurança e suporte técnico.

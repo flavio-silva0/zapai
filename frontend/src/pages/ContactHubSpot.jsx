@@ -96,12 +96,15 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
   // Análise com IA (HubSpot Breeze AI)
   const [analyzingAi, setAnalyzingAi] = useState(false);
   const [aiInsights, setAiInsights] = useState(null);
+  const [insightsError, setInsightsError] = useState("");
 
   // Feedback de cópia
   const [copiedPhone, setCopiedPhone] = useState(false);
-  const [copiedReply, setCopiedReply] = useState(false);
 
   const messagesEndRef = useRef(null);
+  const insightsRequestsRef = useRef(new Map());
+  const activeContactRef = useRef(contactId);
+  activeContactRef.current = contactId;
 
   // Carrega dados completos do contato e histórico de mensagens
   const loadData = async (forceInsights = false) => {
@@ -118,6 +121,7 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
       if (!pRes.ok) throw new Error("Contato não encontrado ou sem permissão.");
       const pData = await pRes.json();
       const mData = mRes.ok ? await mRes.json() : [];
+      if (activeContactRef.current !== contactId) return;
 
       setPatient(pData);
       setMessages(mData || []);
@@ -128,36 +132,47 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
       setDealServiceInput(pData.ai_memory?.deal_service || "");
 
       // Insights pré-existentes na memória
-      if (pData.ai_memory?.ai_insights && !forceInsights) {
-        setAiInsights(pData.ai_memory.ai_insights);
-      } else {
+      const savedInsights = pData.ai_memory?.ai_insights;
+      const hasCompleteAnalysis = savedInsights?.schema_version === 2 && savedInsights?.source === "ai";
+      setAiInsights(hasCompleteAnalysis ? savedInsights : null);
+      if (forceInsights || !hasCompleteAnalysis) {
         // Gera novos insights
         fetchAiInsights();
       }
     } catch (err) {
-      setError(err.message);
+      if (activeContactRef.current === contactId) setError(err.message);
     } finally {
-      setLoading(false);
+      if (activeContactRef.current === contactId) setLoading(false);
     }
   };
 
   const fetchAiInsights = async () => {
     if (!contactId) return;
+    if (insightsRequestsRef.current.has(contactId)) return;
+    insightsRequestsRef.current.set(contactId, true);
     try {
       setAnalyzingAi(true);
+      setInsightsError("");
       const res = await apiFetch(`/api/patients/${contactId}/ai-insights`, { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Não foi possível gerar o resumo. Tente novamente.");
       if (res.ok) {
-        const data = await res.json();
+        if (activeContactRef.current !== contactId) return;
         setAiInsights(data);
+        setPatient(prev => prev ? { ...prev, ai_memory: { ...(prev.ai_memory || {}), ai_insights: data } } : prev);
       }
     } catch (err) {
-      console.warn("Falha ao gerar insights:", err);
+      if (activeContactRef.current === contactId) setInsightsError(err.message);
     } finally {
-      setAnalyzingAi(false);
+      insightsRequestsRef.current.delete(contactId);
+      if (activeContactRef.current === contactId) setAnalyzingAi(false);
     }
   };
 
   useEffect(() => {
+    setAiInsights(null);
+    setInsightsError("");
+    setAnalyzingAi(false);
     loadData();
   }, [contactId]);
 
@@ -363,13 +378,6 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
     setTimeout(() => setCopiedPhone(false), 2000);
   };
 
-  // Copiar resposta sugerida
-  const handleCopyReply = (text) => {
-    if (!text) return;
-    navigator.clipboard.writeText(text);
-    setCopiedReply(true);
-    setTimeout(() => setCopiedReply(false), 2000);
-  };
 
   const handleBack = () => {
     if (propOnBack) propOnBack();
@@ -423,10 +431,10 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
       
       {/* ── 1. Top Bar & Breadcrumb (Estilo HubSpot CRM) ── */}
       <div className="border-b border-[var(--border-subtle)] bg-[var(--bg-surface)]/90 backdrop-blur-md sticky top-0 z-30 px-6 py-3.5">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           
           {/* Breadcrumb e Retorno */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <button
               onClick={handleBack}
               className="p-2 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-all cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
@@ -438,7 +446,7 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
 
             <span className="text-[var(--border-medium)] text-sm">/</span>
 
-            <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+            <div className="flex items-center gap-2 min-w-0 text-xs text-[var(--text-muted)]">
               <span className="font-medium">CRM & Funil</span>
               <ChevronRight size={13} />
               <span className="text-teal-600 dark:text-teal-400 font-bold truncate max-w-[200px]">
@@ -448,7 +456,7 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
           </div>
 
           {/* Ações de Topo */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center flex-wrap gap-2">
             <button
               onClick={handleOpenNewTab}
               className="p-2 rounded-xl text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-surface-hover)] transition-all cursor-pointer"
@@ -546,7 +554,7 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
                 {/* Score & Sentiment */}
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
                   <Flame size={12} />
-                  Score: {aiInsights?.lead_score || 85} pts
+                  Score: {aiInsights?.lead_score != null ? `${aiInsights.lead_score} pts` : "Não avaliado"}
                 </span>
 
                 {/* Intent Badge */}
@@ -617,11 +625,62 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
 
         </div>
 
+        {/* Navegador de Abas acima de todos os cards */}
+        <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-1.5 shadow-xs flex flex-wrap items-center gap-1">
+          <button
+            onClick={() => setActiveTab("insights")}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 min-w-0 whitespace-normal text-left ${
+              activeTab === "insights"
+                ? "bg-teal-600 text-white shadow-sm"
+                : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]"
+            }`}
+          >
+            <Sparkles size={14} className="shrink-0" />
+            Inteligência de IA (Contexto)
+          </button>
+
+          <button
+            onClick={() => setActiveTab("chat")}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 min-w-0 whitespace-normal text-left ${
+              activeTab === "chat"
+                ? "bg-teal-600 text-white shadow-sm"
+                : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]"
+            }`}
+          >
+            <MessageSquare size={14} className="shrink-0" />
+            WhatsApp ({messages.length})
+          </button>
+
+          <button
+            onClick={() => setActiveTab("notes")}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 min-w-0 whitespace-normal text-left ${
+              activeTab === "notes"
+                ? "bg-teal-600 text-white shadow-sm"
+                : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]"
+            }`}
+          >
+            <FileText size={14} className="shrink-0" />
+            Notas da Equipe ({notesList.length})
+          </button>
+
+          <button
+            onClick={() => setActiveTab("tasks")}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 min-w-0 whitespace-normal text-left ${
+              activeTab === "tasks"
+                ? "bg-teal-600 text-white shadow-sm"
+                : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]"
+            }`}
+          >
+            <ListTodo size={14} className="shrink-0" />
+            Tarefas ({tasksList.length})
+          </button>
+        </div>
+
         {/* ── 3. Layout Principal 3 Colunas (HubSpot CRM Classic Layout) ── */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
           {/* ◀️ COLUNA ESQUERDA (3 colunas): Sobre este Contato & Propriedades ◀️ */}
-          <div className="lg:col-span-3 flex flex-col gap-5">
+          <div className="lg:col-span-3 min-w-0 flex flex-col gap-5">
             
             {/* Bloco 1: Propriedades Principais */}
             <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-3xl p-5 shadow-xs">
@@ -769,59 +828,8 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
           </div>
 
           {/* ⏺️ COLUNA CENTRAL (6 colunas): Workspace, Contexto de IA & Atividade ⏺️ */}
-          <div className="lg:col-span-6 flex flex-col gap-5">
+          <div className="lg:col-span-6 min-w-0 flex flex-col gap-5">
             
-            {/* Navegador de Abas Central (HubSpot Style Tabs) */}
-            <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-1.5 shadow-xs flex items-center gap-1 overflow-x-auto">
-              <button
-                onClick={() => setActiveTab("insights")}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
-                  activeTab === "insights"
-                    ? "bg-teal-600 text-white shadow-sm"
-                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]"
-                }`}
-              >
-                <Sparkles size={14} />
-                Inteligência de IA (Contexto)
-              </button>
-
-              <button
-                onClick={() => setActiveTab("chat")}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
-                  activeTab === "chat"
-                    ? "bg-teal-600 text-white shadow-sm"
-                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]"
-                }`}
-              >
-                <MessageSquare size={14} />
-                WhatsApp ({messages.length})
-              </button>
-
-              <button
-                onClick={() => setActiveTab("notes")}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
-                  activeTab === "notes"
-                    ? "bg-teal-600 text-white shadow-sm"
-                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]"
-                }`}
-              >
-                <FileText size={14} />
-                Notas da Equipe ({notesList.length})
-              </button>
-
-              <button
-                onClick={() => setActiveTab("tasks")}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap ${
-                  activeTab === "tasks"
-                    ? "bg-teal-600 text-white shadow-sm"
-                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-surface-hover)]"
-                }`}
-              >
-                <ListTodo size={14} />
-                Tarefas ({tasksList.length})
-              </button>
-            </div>
-
             {/* CONTEÚDO DA ABA 1: INTELIGÊNCIA & CONTEXTO DE IA */}
             {activeTab === "insights" && (
               <div className="flex flex-col gap-5 animate-fade-in">
@@ -836,8 +844,8 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
                         <Sparkles size={16} />
                       </div>
                       <div>
-                        <h3 className="text-sm font-bold text-[var(--text-primary)]">Resumo Executivo da Conversa</h3>
-                        <p className="text-[11px] text-[var(--text-muted)]">Síntese contextual gerada com Inteligência Artificial</p>
+                        <h3 className="text-sm font-bold text-[var(--text-primary)]">Insights da Conversa</h3>
+                        <p className="text-[11px] text-[var(--text-muted)]">Análise da IA com base no histórico e na memória do cliente</p>
                       </div>
                     </div>
 
@@ -851,9 +859,11 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
                     </button>
                   </div>
 
-                  <p className="text-sm leading-relaxed text-[var(--text-primary)] font-medium">
-                    {aiInsights?.summary || "Aguardando geração de resumo com o histórico de mensagens..."}
+                  <p className="text-sm leading-relaxed text-[var(--text-primary)] font-medium whitespace-pre-line">
+                    {aiInsights?.summary || (analyzingAi ? "Gerando resumo com o histórico e a memória do cliente..." : "Nenhum resumo disponível. Clique em Reanalisar para tentar novamente.")}
                   </p>
+                  {aiInsights?.generation_notice && <p role="status" className="text-xs text-[var(--text-muted)] mt-3">{aiInsights.generation_notice}</p>}
+                  {insightsError && <p role="alert" className="text-xs text-amber-600 mt-3">{insightsError}</p>}
                 </div>
 
                 {/* 2. Principais Pontos Identificados (Key Takeaways) */}
@@ -865,7 +875,7 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
 
                   {aiInsights?.key_points && aiInsights.key_points.length > 0 ? (
                     <div className="space-y-2.5">
-                      {aiInsights.key_points.map((pt, i) => (
+                      {aiInsights.key_points.slice(0, 3).map((pt, i) => (
                         <div key={i} className="flex items-start gap-3 p-3 rounded-2xl bg-[var(--bg-base)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)]">
                           <span className="w-5 h-5 rounded-full bg-teal-500/10 text-teal-600 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
                             {i + 1}
@@ -879,6 +889,28 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
                   )}
                 </div>
 
+                <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-3xl p-6 shadow-xs">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1.5 flex items-center gap-1.5">
+                    <ListTodo size={15} className="text-teal-600" />
+                    Próximos Passos
+                  </h3>
+                  <p className="text-[11px] text-[var(--text-muted)] mb-4">Em ordem de prioridade · 10 é a mais alta</p>
+                  {aiInsights?.next_steps?.length ? (
+                    <ol className="space-y-3">
+                      {aiInsights.next_steps.slice(0, 5).map((step, i) => (
+                        <li key={i} className="flex items-start gap-3 p-3.5 rounded-2xl bg-[var(--bg-base)] border border-[var(--border-subtle)]">
+                          <span className="w-6 h-6 shrink-0 rounded-full bg-teal-500/10 text-teal-600 flex items-center justify-center text-[11px] font-bold">{i + 1}</span>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-semibold text-[var(--text-primary)] leading-relaxed">{step.action}</p>
+                            <p className="text-[11px] text-[var(--text-muted)] leading-relaxed mt-1">{step.reason}</p>
+                          </div>
+                          <span className={`shrink-0 rounded-lg px-2 py-1 text-[11px] font-bold ${step.priority >= 8 ? "bg-amber-500/10 text-amber-600" : "bg-teal-500/10 text-teal-600"}`} aria-label={`Prioridade ${step.priority} de 10`}>{step.priority}/10</span>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : <p className="text-xs text-[var(--text-muted)] italic">{analyzingAi ? "Definindo os próximos passos..." : "Os próximos passos serão gerados com a análise da IA."}</p>}
+                </div>
+
                 {/* 3. Termômetro & Sentimento do Lead */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-3xl p-5 shadow-xs">
@@ -887,11 +919,11 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
                     </span>
                     <div className="flex items-center gap-2">
                       <span className="text-lg font-bold text-[var(--text-primary)]">
-                        {aiInsights?.sentiment_label || "Interesse Alto 🔥"}
+                        {aiInsights?.sentiment_label || "Não avaliado"}
                       </span>
                     </div>
                     <p className="text-[11px] text-[var(--text-muted)] mt-1.5">
-                      Avaliado pelo tom das mensagens e prontidão de resposta.
+                      {aiInsights?.sentiment_reason || "Aguardando análise do tom e do contexto das mensagens."}
                     </p>
                   </div>
 
@@ -901,65 +933,19 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
                     </span>
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-lg font-bold text-teal-600 font-mono">
-                        {aiInsights?.lead_score || 85}%
+                        {aiInsights?.lead_score != null ? `${aiInsights.lead_score}%` : aiInsights ? "Evidência insuficiente" : "Não avaliada"}
                       </span>
-                      <span className="text-[11px] font-bold text-emerald-500">Alta Chance</span>
+                      <span className="text-[11px] font-bold text-[var(--text-muted)]">{aiInsights?.lead_score != null ? "Estimativa da IA" : aiInsights ? "Sem estimativa" : "Sem análise"}</span>
                     </div>
                     <div className="w-full h-2 bg-[var(--bg-base)] rounded-full overflow-hidden">
                       <div
                         className="h-full bg-gradient-to-r from-teal-500 to-emerald-500 rounded-full transition-all duration-500"
-                        style={{ width: `${aiInsights?.lead_score || 85}%` }}
+                        style={{ width: `${aiInsights?.lead_score ?? 0}%` }}
                       />
                     </div>
+                    <p className="text-[11px] text-[var(--text-muted)] mt-2 leading-relaxed">{aiInsights?.closing_reason || "Aguardando análise dos sinais de intenção e das objeções."}</p>
                   </div>
                 </div>
-
-                {/* 4. Próxima Melhor Ação Recomendada (Next Best Action) */}
-                {aiInsights?.recommended_action && (
-                  <div className="bg-amber-500/10 border border-amber-500/25 rounded-3xl p-5 shadow-xs">
-                    <div className="flex items-center gap-2 mb-2 text-amber-600 dark:text-amber-400 font-bold text-xs">
-                      <Briefcase size={14} />
-                      Próxima Ação Recomendada para o Vendedor
-                    </div>
-                    <p className="text-xs text-[var(--text-primary)] leading-relaxed font-medium">
-                      {aiInsights.recommended_action}
-                    </p>
-                  </div>
-                )}
-
-                {/* 5. Sugestão de Resposta Rápida (1-Click Reply) */}
-                {aiInsights?.suggested_reply && (
-                  <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-3xl p-6 shadow-xs">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)] flex items-center gap-1.5">
-                        <MessageSquare size={14} className="text-teal-600" />
-                        Sugestão de Resposta Personalizada da IA
-                      </h4>
-                      <button
-                        onClick={() => handleCopyReply(aiInsights.suggested_reply)}
-                        className="text-[11px] text-teal-600 hover:underline flex items-center gap-1 cursor-pointer font-semibold"
-                      >
-                        {copiedReply ? <Check size={12} /> : <Copy size={12} />}
-                        {copiedReply ? "Copiado!" : "Copiar"}
-                      </button>
-                    </div>
-
-                    <div className="p-4 rounded-2xl bg-[var(--bg-base)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] leading-relaxed mb-3 italic">
-                      "{aiInsights.suggested_reply}"
-                    </div>
-
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => handleSendDirectMessage(aiInsights.suggested_reply)}
-                        disabled={sendingMsg}
-                        className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-all shadow-md shadow-teal-500/20 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
-                      >
-                        <Send size={13} />
-                        {sendingMsg ? "Enviando..." : "Enviar esta resposta no WhatsApp"}
-                      </button>
-                    </div>
-                  </div>
-                )}
 
               </div>
             )}
@@ -1158,7 +1144,7 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
           </div>
 
           {/* ▶️ COLUNA DIREITA (3 colunas): Atribuição, Canal & Integrações ▶️ */}
-          <div className="lg:col-span-3 flex flex-col gap-5">
+          <div className="lg:col-span-3 min-w-0 flex flex-col gap-5">
 
             {/* Bloco 1: Conexão Oficial WhatsApp */}
             <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-3xl p-5 shadow-xs">

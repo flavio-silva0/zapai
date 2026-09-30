@@ -24,3 +24,8 @@ screenshot_*.png
 
 # Arquivos de diagnóstico de rede (HARs com credenciais)
 *.har
+
+# Evidências locais, análises com dados reais e backups operacionais
+/audit-2026-09-09/
+/docs/qa-contact-insights/
+/docs/qa-registration/

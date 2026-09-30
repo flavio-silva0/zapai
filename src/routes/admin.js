@@ -3,9 +3,9 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
 const mammoth = require("mammoth");
-const { createClient } = require("@supabase/supabase-js");
+const { quotaModel, context: aiContext } = require("../utils/aiQuota");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
-const { requireAuth, requireSuperAdmin, forbidViewer } = require("../middleware/authMiddleware");
+const { requireAuth, requireSuperAdmin, forbidViewer, requireRole } = require("../middleware/authMiddleware");
 
 function maskToken(token) {
   if (!token || typeof token !== "string") return null;
@@ -13,25 +13,18 @@ function maskToken(token) {
   return "••••••••" + token.slice(-4);
 }
 
-const aiUsageByTenant = new Map();
-const MAX_AI_CALLS_PER_MINUTE = 30;
-
-function checkAiQuota(tenantId) {
-  if (!tenantId) return;
-  const now = Date.now();
-  const usage = aiUsageByTenant.get(tenantId) || { count: 0, resetAt: now + 60000 };
-  if (now > usage.resetAt) {
-    usage.count = 0;
-    usage.resetAt = now + 60000;
-  }
-  if (usage.count >= MAX_AI_CALLS_PER_MINUTE) {
-    throw new AppError(429, "Limite de chamadas de IA por minuto atingido. Aguarde um instante.");
-  }
-  usage.count += 1;
-  aiUsageByTenant.set(tenantId, usage);
-}
-
 const router = express.Router();
+router.use((req, _res, next) => aiContext.run({ req }, next));
+router.use(["/magic-setup", "/knowledge"], (req, res, next) => {
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
+  return requireAuth(req, res, () => requireRole("owner")(req, res, next));
+});
+function budgetedModel(options) {
+  return quotaModel(genAI, () => {
+    const req = aiContext.getStore()?.req;
+    return req && getTargetTenantId(req, req.body?.tenantId || req.query?.tenantId);
+  }, options);
+}
 
 const requiredEnv = ["GEMINI_API_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_KEY"];
 const missingEnv = requiredEnv.filter((key) => !process.env[key]);
@@ -40,12 +33,7 @@ if (missingEnv.length > 0) {
 }
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY, {
-  auth: {
-    persistSession: false,
-    autoRefreshToken: false,
-  },
-});
+const supabase = require("../utils/database")();
 
 const CONFIG = Object.freeze({
   aiModel: process.env.GEMINI_MODEL || "gemini-3.5-flash-lite",
@@ -81,9 +69,9 @@ const CONFIG = Object.freeze({
 });
 
 const models = {
-  magic: genAI.getGenerativeModel({ model: CONFIG.aiModel }),
-  embedding: genAI.getGenerativeModel({ model: CONFIG.embeddingModel }),
-  vision: genAI.getGenerativeModel({ model: CONFIG.aiModel }),
+  magic: budgetedModel({ model: CONFIG.aiModel }),
+  embedding: budgetedModel({ model: CONFIG.embeddingModel }),
+  vision: budgetedModel({ model: CONFIG.aiModel }),
 };
 
 class AppError extends Error {
@@ -134,7 +122,7 @@ async function withRetry(operation, options = {}) {
     } catch (err) {
       lastError = err;
 
-      if (attempt >= maxAttempts || !shouldRetry(err)) break;
+      if (err.quota || attempt >= maxAttempts || !shouldRetry(err)) break;
 
       const jitter = Math.floor(Math.random() * 350);
       const delay = backoffBaseMs * 2 ** (attempt - 1) + jitter;
@@ -438,7 +426,7 @@ function sanitizeGeminiHistory(history) {
 }
 
 function createChatModel(systemInstruction, fallback = false) {
-  return genAI.getGenerativeModel({
+  return budgetedModel({
     model: fallback ? CONFIG.aiFallbackModel : CONFIG.aiModel,
     systemInstruction,
   });
@@ -664,6 +652,10 @@ async function insertInBatches(table, rows, batchSize) {
 // POST /api/admin/seed
 // Bootstrap inicial: cria o primeiro super_admin somente se ainda não existir nenhum.
 router.post("/seed", asyncHandler(async (_req, res) => {
+  // Bootstrap must be explicitly enabled for a local administrative operation.
+  if (process.env.ENABLE_ADMIN_SEED !== "true" || process.env.NODE_ENV === "production") {
+    return res.sendStatus(404);
+  }
   const adminEmail = normalizeEmail(process.env.ADMIN_EMAIL);
   const adminPassword = process.env.ADMIN_PASSWORD;
   const adminNome = process.env.ADMIN_NOME || "Admin";
@@ -710,7 +702,6 @@ router.post("/magic-setup", requireAuth, forbidViewer, asyncHandler(async (req, 
     throw new AppError(400, "Dados do formulário insuficientes.");
   }
 
-  checkAiQuota(req.user?.tenantId);
 
   const prompt = buildMagicSetupPrompt(formSetup);
   const result = await withTimeout(
@@ -761,7 +752,6 @@ router.post("/sandbox/chat", requireAuth, asyncHandler(async (req, res) => {
   }
 
   const targetTenantId = requireTenantId(req, tenantId);
-  checkAiQuota(targetTenantId);
 
   const userMessage = limitText(mensagemUsuario, 5000);
 

@@ -42,6 +42,7 @@ function applyFilters(rows, filters) {
   return rows.filter((row) => {
     for (const filter of filters) {
       if (filter.op === "eq" && String(row[filter.field]) !== String(filter.value)) return false;
+      if (filter.op === "in" && !filter.value.some(value => String(value) === String(row[filter.field]))) return false;
       if (filter.op === "not_null" && (row[filter.field] === null || row[filter.field] === undefined)) return false;
     }
     return true;
@@ -57,6 +58,10 @@ function createSelectBuilder(table) {
   };
 
   const builder = {
+    in(field, values) {
+      state.filters.push({ op: "in", field, value: values });
+      return builder;
+    },
     eq(field, value) {
       state.filters.push({ op: "eq", field, value });
       return builder;
@@ -74,6 +79,10 @@ function createSelectBuilder(table) {
     },
     limit(count) {
       state.limitCount = count;
+      return builder;
+    },
+    range(start, end) {
+      state.range = [start, end];
       return builder;
     },
     async maybeSingle() {
@@ -98,6 +107,7 @@ function createSelectBuilder(table) {
       }
 
       if (typeof state.limitCount === "number") data = data.slice(0, state.limitCount);
+      if (state.range) data = data.slice(state.range[0], state.range[1] + 1);
       return { data, error: null, count: data.length };
     },
     then(resolve, reject) {

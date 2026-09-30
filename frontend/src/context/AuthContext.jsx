@@ -16,22 +16,40 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (!token) { setLoading(false); return; }
+    let active = true;
 
     apiFetch("/api/auth/me")
       .then((res) => {
-        if (!res.ok) throw new Error("Token inválido");
+        if (!res.ok) throw Object.assign(new Error("Não foi possível validar a sessão"), { status: res.status });
         return res.json();
       })
       .then(({ user, tenant }) => {
+        if (!active) return;
         setUser(user);
         setTenant(tenant);
       })
-      .catch(() => {
+      .catch((error) => {
+        if (!active || ![401, 403].includes(error.status)) return;
         setToken(null);
+        setUser(null);
+        setTenant(null);
         localStorage.removeItem("sofia_token");
       })
-      .finally(() => setLoading(false));
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
   }, [token]);
+
+  useEffect(() => {
+    const onStorage = (event) => {
+      if (event.key !== "sofia_token") return;
+      setUser(null);
+      setTenant(null);
+      setLoading(Boolean(event.newValue));
+      setToken(event.newValue);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
 
   const login = (newToken, userData, tenantData = null) => {
     localStorage.setItem("sofia_token", newToken);
