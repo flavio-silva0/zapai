@@ -115,6 +115,10 @@ export default function KnowledgeBase() {
   // Listener para Ctrl+V (colar prints direto da área de transferência)
   useEffect(() => {
     const handlePaste = (e) => {
+      const target = e.target;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) {
+        return;
+      }
       const clipboardData = e.clipboardData || window.clipboardData;
       if (!clipboardData) return;
 
@@ -218,9 +222,18 @@ export default function KnowledgeBase() {
   const handleDelete = async (id) => {
     if (!window.confirm("Remover este conhecimento? O atendente não terá mais acesso a essa informação.")) return;
     try {
-      const res = await apiFetch(`/api/admin/knowledge/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
-      if (res.ok) setKnowledgeList(prev => prev.filter(k => k.id !== id));
-    } catch (err) { console.error(err); }
+      const res = await apiFetch(`/api/admin/knowledge/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setKnowledgeList(prev => prev.filter(k => k.id !== id));
+        setMessage({ type: "success", text: "Item removido da base de conhecimento." });
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setMessage({ type: "error", text: errData.error || "Erro ao remover item." });
+      }
+    } catch (err) {
+      console.error(err);
+      setMessage({ type: "error", text: "Erro ao comunicar com o servidor." });
+    }
   };
 
   const handleEditSave = async (id) => {
@@ -229,16 +242,23 @@ export default function KnowledgeBase() {
     try {
       const res = await apiFetch(`/api/admin/knowledge/${id}`, {
         method: "PUT",
-        headers: { Authorization: `Bearer ${token}` },
         body: JSON.stringify({ content: editingContent.trim() })
       });
       if (res.ok) {
         setKnowledgeList(prev => prev.map(k => k.id === id ? { ...k, content: editingContent.trim() } : k));
         setEditingId(null);
         setEditingContent("");
+        setMessage({ type: "success", text: "Item atualizado com sucesso." });
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setMessage({ type: "error", text: errData.error || "Erro ao salvar alterações." });
       }
-    } catch (err) { console.error(err); }
-    finally { setIsSavingEdit(false); }
+    } catch (err) {
+      console.error(err);
+      setMessage({ type: "error", text: "Erro ao comunicar com o servidor." });
+    } finally {
+      setIsSavingEdit(false);
+    }
   };
 
   const handleDrop = (e) => {
@@ -409,25 +429,25 @@ export default function KnowledgeBase() {
                     onClick={() => document.getElementById("file-upload").click()}
                   >
                     {fileValue ? (
-                      <div className="flex flex-col items-center gap-2">
+                      <div className="flex flex-col items-center gap-2 relative group/preview">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFileValue(null);
+                          }}
+                          className="absolute -top-2 -right-2 bg-rose-500 hover:bg-rose-600 text-white rounded-full p-1 shadow-md transition-colors z-10 cursor-pointer"
+                          title="Remover arquivo"
+                        >
+                          <X size={12} />
+                        </button>
                         {previewUrl ? (
-                          <div className="relative group/preview my-1">
+                          <div className="my-1">
                             <img
                               src={previewUrl}
                               alt="File Preview"
                               className="max-h-28 rounded-lg object-contain border border-[var(--border-subtle)] shadow-sm bg-black/20"
                             />
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setFileValue(null);
-                              }}
-                              className="absolute -top-2 -right-2 bg-rose-500 hover:bg-rose-600 text-white rounded-full p-1 shadow-md transition-colors"
-                              title="Remover arquivo"
-                            >
-                              <X size={12} />
-                            </button>
                           </div>
                         ) : (
                           <FileIcon size={24} className="text-[var(--clr-primary)]" />
@@ -451,6 +471,7 @@ export default function KnowledgeBase() {
                   </div>
                   <input id="file-upload" type="file" className="hidden"
                     accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.webp"
+                    onClick={e => { e.target.value = ""; }}
                     onChange={e => setFileValue(e.target.files[0])} />
                 </div>
               )}

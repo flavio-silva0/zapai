@@ -7,7 +7,7 @@ import {
   Edit3, Save, X, RefreshCw, Calendar, Clock, DollarSign,
   Briefcase, CheckCircle2, AlertCircle, Plus, ChevronRight,
   ShieldCheck, ArrowUpRight, CheckCheck, ListTodo, FileText,
-  Building, MapPin, Mail, ThumbsUp, HelpCircle
+  Building, MapPin, Mail, ThumbsUp, HelpCircle, Trash2
 } from "lucide-react";
 
 // ── Utilitários ──────────────────────────────────────────────
@@ -53,6 +53,7 @@ const STAGES = [
   { id: "Novo", label: "1. Novos Leads", shortLabel: "Novos Leads", color: "slate" },
   { id: "Em Atendimento", label: "2. Em Atendimento", shortLabel: "Em Atendimento", color: "amber" },
   { id: "Agendado", label: "3. Agendados & Vendas", shortLabel: "Agendados / Ganho", color: "emerald" },
+  { id: "Finalizado", label: "4. Resolvidos & Finalizados", shortLabel: "Finalizados", color: "purple" },
 ];
 
 export default function ContactHubSpot({ contactId: propContactId, onBack: propOnBack }) {
@@ -344,6 +345,26 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
     });
   };
 
+  const handleDeleteNote = async (noteId) => {
+    const updatedList = notesList.filter((n) => n.id !== noteId);
+    const updatedMemory = { ...(patient?.ai_memory || {}), notes_list: updatedList };
+    setPatient((prev) => ({ ...prev, ai_memory: updatedMemory }));
+    await apiFetch(`/api/patients/${contactId}`, {
+      method: "PUT",
+      body: JSON.stringify({ ai_memory: updatedMemory }),
+    });
+  };
+
+  const handleDeleteTask = async (taskId) => {
+    const updatedTasks = tasksList.filter((t) => t.id !== taskId);
+    const updatedMemory = { ...(patient?.ai_memory || {}), tasks: updatedTasks };
+    setPatient((prev) => ({ ...prev, ai_memory: updatedMemory }));
+    await apiFetch(`/api/patients/${contactId}`, {
+      method: "PUT",
+      body: JSON.stringify({ ai_memory: updatedMemory }),
+    });
+  };
+
   // Envio de mensagem direta no WhatsApp
   const handleSendDirectMessage = async (textToSend) => {
     const content = (textToSend || directMsg).trim();
@@ -393,6 +414,23 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
     const clean = patient.telefone.replace(/\D/g, "");
     return `https://wa.me/${clean}`;
   }, [patient]);
+
+  const handleDeleteContact = async () => {
+    const contactName = patient?.nome || patient?.telefone || "este lead";
+    if (!window.confirm(`Tem certeza que deseja excluir permanentemente "${contactName}"? Esta ação removerá o contato, histórico e liberará capacidade no seu limite de leads.`)) {
+      return;
+    }
+    try {
+      const res = await apiFetch(`/api/patients/${contactId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Erro ao excluir contato");
+      }
+      handleBack();
+    } catch (err) {
+      alert(err.message);
+    }
+  };
 
   if (loading) {
     return (
@@ -530,7 +568,10 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
                       <Save size={14} />
                     </button>
                     <button
-                      onClick={() => setIsEditingName(false)}
+                      onClick={() => {
+                        setNameInput(patient.nome || "");
+                        setIsEditingName(false);
+                      }}
                       className="p-1.5 rounded-lg bg-[var(--bg-surface-hover)] text-[var(--text-muted)] cursor-pointer"
                     >
                       <X size={14} />
@@ -1076,10 +1117,19 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
                     <p className="text-xs text-[var(--text-muted)] italic text-center py-6">Nenhuma nota interna registrada.</p>
                   ) : (
                     notesList.map((nt) => (
-                      <div key={nt.id} className="p-3.5 rounded-2xl bg-[var(--bg-base)] border border-[var(--border-subtle)] space-y-1.5">
+                      <div key={nt.id} className="p-3.5 rounded-2xl bg-[var(--bg-base)] border border-[var(--border-subtle)] space-y-1.5 group">
                         <div className="flex items-center justify-between text-[11px]">
                           <span className="font-bold text-teal-600">{nt.author || "Equipe"}</span>
-                          <span className="text-[var(--text-muted)]">{new Date(nt.date).toLocaleString("pt-BR")}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[var(--text-muted)]">{new Date(nt.date).toLocaleString("pt-BR")}</span>
+                            <button
+                              onClick={() => handleDeleteNote(nt.id)}
+                              title="Excluir nota"
+                              className="text-[var(--text-muted)] hover:text-red-500 opacity-60 group-hover:opacity-100 p-1 cursor-pointer transition-opacity"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
                         </div>
                         <p className="text-xs text-[var(--text-primary)] leading-relaxed whitespace-pre-wrap">{nt.text}</p>
                       </div>
@@ -1115,8 +1165,7 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
                     tasksList.map((t) => (
                       <div
                         key={t.id}
-                        onClick={() => handleToggleTask(t.id)}
-                        className={`flex items-center gap-3 p-3 rounded-2xl border transition-all cursor-pointer ${
+                        className={`flex items-center gap-3 p-3 rounded-2xl border transition-all ${
                           t.completed
                             ? "bg-[var(--bg-base)]/50 border-[var(--border-subtle)] opacity-60"
                             : "bg-[var(--bg-base)] border-[var(--border-medium)] hover:border-teal-500"
@@ -1126,14 +1175,24 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
                           type="checkbox"
                           checked={t.completed}
                           onChange={() => handleToggleTask(t.id)}
-                          className="w-4 h-4 rounded text-teal-600 cursor-pointer"
+                          className="w-4 h-4 rounded text-teal-600 cursor-pointer shrink-0"
                         />
-                        <span className={`text-xs flex-1 ${t.completed ? "line-through text-[var(--text-muted)]" : "text-[var(--text-primary)] font-medium"}`}>
+                        <span
+                          onClick={() => handleToggleTask(t.id)}
+                          className={`text-xs flex-1 cursor-pointer ${t.completed ? "line-through text-[var(--text-muted)]" : "text-[var(--text-primary)] font-medium"}`}
+                        >
                           {t.title}
                         </span>
                         <span className="text-[10px] text-[var(--text-muted)]">
                           {new Date(t.created_at).toLocaleDateString("pt-BR")}
                         </span>
+                        <button
+                          onClick={() => handleDeleteTask(t.id)}
+                          title="Excluir tarefa"
+                          className="text-[var(--text-muted)] hover:text-red-500 p-1 cursor-pointer transition-colors"
+                        >
+                          <Trash2 size={12} />
+                        </button>
                       </div>
                     ))
                   )}
@@ -1216,7 +1275,7 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
 
               <div className="space-y-2">
                 <button
-                  onClick={() => navigate("/painel/chat")}
+                  onClick={() => navigate(`/painel/chat?patientId=${contactId}`)}
                   className="w-full py-2.5 px-3 rounded-xl bg-[var(--bg-base)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] text-xs font-semibold text-[var(--text-primary)] flex items-center justify-between cursor-pointer transition-colors"
                 >
                   <span className="flex items-center gap-2">
@@ -1235,6 +1294,17 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
                     Abrir em Nova Aba do Navegador
                   </span>
                   <ChevronRight size={13} className="text-[var(--text-muted)]" />
+                </button>
+
+                <button
+                  onClick={handleDeleteContact}
+                  className="w-full py-2.5 px-3 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-xs font-semibold text-red-500 flex items-center justify-between cursor-pointer transition-colors mt-2"
+                >
+                  <span className="flex items-center gap-2">
+                    <Trash2 size={13} className="text-red-500" />
+                    Excluir Lead permanentemente
+                  </span>
+                  <ChevronRight size={13} className="text-red-400" />
                 </button>
               </div>
             </div>

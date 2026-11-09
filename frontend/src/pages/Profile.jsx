@@ -162,7 +162,20 @@ export default function Profile() {
 
           <Field label="E-mail">
             {isEditing
-              ? <EditInput type="email" value={formData.email} onChange={f("email")} />
+              ? (
+                <div>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    disabled
+                    readOnly
+                    className="w-full input-premium opacity-60 cursor-not-allowed bg-[var(--bg-surface-hover)]"
+                  />
+                  <p className="text-[11px] text-[var(--text-muted)] mt-1.5">
+                    O e-mail é a chave de login e não pode ser alterado diretamente.
+                  </p>
+                </div>
+              )
               : (
                 <div className="flex items-center justify-between w-full rounded-xl px-4 py-3 text-[var(--text-primary)] bg-[var(--bg-surface)] border border-[var(--border-subtle)] text-sm">
                   {user.email}

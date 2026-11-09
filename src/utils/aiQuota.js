@@ -25,7 +25,7 @@ function quotaModel(client, tenantId, options) {
         if (name === 'startChat') return (...args) => wrap(value.apply(object, args));
         if (['generateContent', 'embedContent', 'sendMessage'].includes(name)) {
           return async (...args) => {
-            if (Buffer.byteLength(JSON.stringify(args), 'utf8') > 6 * 1024 * 1024) {
+            if (Buffer.byteLength(JSON.stringify(args), 'utf8') > 15 * 1024 * 1024) {
               throw Object.assign(new Error('Conteúdo excede o limite de entrada da IA.'), { statusCode: 413 });
             }
             await reserve(typeof tenantId === 'function' ? tenantId() : tenantId);

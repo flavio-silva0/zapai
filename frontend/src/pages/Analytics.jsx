@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   TrendingUp, MessageSquare, Clock, Star, Download,
   BarChart2, ArrowUp, ArrowDown, Users, Zap, RefreshCw, Activity
@@ -98,21 +98,33 @@ export default function Analytics() {
   const [stats, setStats] = useState(null);
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [referenceTime, setReferenceTime] = useState(0);
 
-  useEffect(() => {
+  const loadData = useCallback(async () => {
+    setRefreshing(true);
     setReferenceTime(Date.now());
-    Promise.all([
-      apiFetch("/api/stats").then((r) => r.json()).catch(() => null),
-      apiFetch("/api/patients").then((r) => r.json()).catch(() => []),
-    ])
-      .then(([statsData, patientsData]) => {
-        setStats(statsData);
-        setPatients(Array.isArray(patientsData) ? patientsData : []);
-      })
-      .catch((err) => console.error("Erro analytics:", err))
-      .finally(() => setLoading(false));
-  }, []);
+    try {
+      const days = period === "90 dias" ? 90 : period === "30 dias" ? 30 : 7;
+      const [statsRes, patientsRes] = await Promise.all([
+        apiFetch(`/api/stats?days=${days}`),
+        apiFetch("/api/patients"),
+      ]);
+      const statsData = statsRes.ok ? await statsRes.json() : null;
+      const patientsData = patientsRes.ok ? await patientsRes.json() : [];
+      setStats(statsData);
+      setPatients(Array.isArray(patientsData) ? patientsData : []);
+    } catch (err) {
+      console.error("Erro analytics:", err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [period]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const total = stats?.total || 0;
   const aiAtivo = stats?.aiAtivo || 0;
@@ -120,28 +132,57 @@ export default function Analytics() {
   const totalMensagens = stats?.totalMensagens || 0;
 
   const periodDays = period === "90 dias" ? 90 : period === "30 dias" ? 30 : 7;
-  const chartBarsCount = Math.min(periodDays, 14);
 
-  const { dailyCounts, periodTotalConversations, maxVolume } = useMemo(() => {
+  const chartData = useMemo(() => {
     const baseTime = referenceTime || 0;
-    const counts = Array.from({ length: chartBarsCount }, (_, idx) => {
-      if (!baseTime) return 0;
-      const d = new Date(baseTime);
-      d.setDate(d.getDate() - (chartBarsCount - 1 - idx));
-      const dateStr = d.toISOString().split("T")[0];
-      return patients.filter((p) => p.created_at && p.created_at.startsWith(dateStr)).length;
-    });
-    const total = patients.filter((p) => {
-      if (!p.created_at || !baseTime) return false;
-      const diffDays = (baseTime - new Date(p.created_at).getTime()) / (1000 * 60 * 60 * 24);
+    let numBars = 7;
+    let daysPerBar = 1;
+    if (period === "30 dias") {
+      numBars = 10;
+      daysPerBar = 3;
+    } else if (period === "90 dias") {
+      numBars = 10;
+      daysPerBar = 9;
+    }
+
+    const bars = [];
+    for (let i = numBars - 1; i >= 0; i--) {
+      const endOffsetDays = i * daysPerBar;
+      const startOffsetDays = (i + 1) * daysPerBar;
+      const barEndTime = (baseTime || 0) - endOffsetDays * 86400000;
+      const barStartTime = (baseTime || 0) - startOffsetDays * 86400000;
+
+      const dateObj = new Date(barEndTime || Date.now());
+      const label = `${String(dateObj.getDate()).padStart(2, "0")}/${String(dateObj.getMonth() + 1).padStart(2, "0")}`;
+
+      const count = baseTime ? patients.filter((p) => {
+        if (!p.created_at) return false;
+        const t = new Date(p.created_at).getTime();
+        return t >= barStartTime && t < barEndTime;
+      }).length : 0;
+
+      bars.push({ label, count });
+    }
+
+    const counts = bars.map((b) => b.count);
+    const maxCount = Math.max(...counts, 1);
+    const periodTotal = baseTime ? patients.filter((p) => {
+      if (!p.created_at) return false;
+      const diffDays = (baseTime - new Date(p.created_at).getTime()) / 86400000;
       return diffDays <= periodDays;
-    }).length;
+    }).length : 0;
+
     return {
-      dailyCounts: counts,
-      periodTotalConversations: total,
-      maxVolume: Math.max(...counts, 1),
+      bars,
+      counts,
+      maxCount,
+      periodTotal,
     };
-  }, [patients, periodDays, chartBarsCount, referenceTime]);
+  }, [patients, period, periodDays, referenceTime]);
+
+  const dailyCounts = chartData.counts;
+  const periodTotalConversations = chartData.periodTotal;
+  const maxVolume = chartData.maxCount;
 
   const handleExportCSV = () => {
     const headers = ["ID", "Nome", "Telefone", "Status Kanban", "IA Ativa", "Criado Em"];
@@ -167,11 +208,16 @@ export default function Analytics() {
     window.print();
   };
 
-  // Kanban status segments (UX-005: separar dimensões claramente)
+  // Kanban status segments (separar dimensões claramente)
   const agendadosCount = patients.filter((p) => {
     const s = String(p.status_kanban || "").toLowerCase();
-    return s.includes("agendad") || s.includes("convertid") || s.includes("concluid");
+    return s.includes("agendad") || s.includes("convertid");
   }).length || stats?.agendado || 0;
+
+  const finalizadosCount = patients.filter((p) => {
+    const s = String(p.status_kanban || "").toLowerCase();
+    return s.includes("finaliz") || s.includes("resolvid") || s.includes("concluid");
+  }).length || 0;
 
   const agendamentoRate = total > 0 ? Math.round((agendadosCount / total) * 100) : 0;
 
@@ -190,8 +236,8 @@ export default function Analytics() {
   const statusSegments = [
     { label: "Novos Contatos", value: novosCount, color: "#10b981" },
     { label: "Em Atendimento", value: emAtendimentoCount, color: "#06b6d4" },
-    { label: "Agendados", value: agendadosCount, color: "#8b5cf6" },
-    { label: "Atendimento Humano", value: humanoCount, color: "#f59e0b" },
+    { label: "Agendados / Convertidos", value: agendadosCount, color: "#8b5cf6" },
+    { label: "Finalizados", value: finalizadosCount, color: "#64748b" },
   ];
 
   const metrics = [
@@ -249,7 +295,7 @@ export default function Analytics() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap no-print">
           {/* Period selector */}
           <div className="flex gap-1 p-1 rounded-xl bg-[var(--bg-surface-active)] border border-[var(--border-medium)]">
             {PERIODS.map(p => (
@@ -260,6 +306,17 @@ export default function Analytics() {
               </button>
             ))}
           </div>
+
+          <button
+            type="button"
+            onClick={loadData}
+            disabled={refreshing}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold transition-all bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-medium)] text-[var(--text-secondary)] disabled:opacity-50"
+            title="Atualizar métricas"
+          >
+            <RefreshCw size={13} className={refreshing ? "animate-spin" : ""} />
+            Atualizar
+          </button>
 
           {/* Export buttons */}
           <button
@@ -304,26 +361,28 @@ export default function Analytics() {
 
         {/* Bar chart */}
         <div className="flex items-end gap-1.5 h-40">
-          {dailyCounts.map((v, i) => {
-            const pct = (v / maxVolume) * 100;
+          {chartData.bars.map((b, i) => {
+            const pct = (b.count / chartData.maxCount) * 100;
             return (
               <div key={i} className="flex-1 flex flex-col items-center gap-1 group cursor-pointer">
                 <span className="text-[9px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity text-[var(--clr-primary)]">
-                  {v}
+                  {b.count}
                 </span>
                 <div className="w-full relative group-hover:scale-y-105 transition-transform origin-bottom">
                   <div
                     className="rounded-t-lg w-full overflow-hidden relative bg-[var(--border-subtle)]"
                     style={{ height: `${Math.max(pct, 6)}%`, minHeight: 4 }}
                   >
-                    {v > 0 && (
+                    {b.count > 0 && (
                       <div
                         className="absolute inset-0 bg-gradient-to-t from-[var(--clr-info)] to-[var(--clr-primary)]"
                       />
                     )}
                   </div>
                 </div>
-                <span className="text-[9px] text-[var(--text-muted)]">D{i + 1}</span>
+                <span className="text-[9px] text-[var(--text-muted)] truncate max-w-[36px]" title={b.label}>
+                  {b.label}
+                </span>
               </div>
             );
           })}
@@ -344,7 +403,25 @@ export default function Analytics() {
             <MessageSquare size={16} className="text-[var(--text-muted)]" />
           </div>
 
-          {total > 0 ? (
+          {stats?.topQuestions && stats.topQuestions.length > 0 ? (
+            <div className="space-y-3">
+              {stats.topQuestions.map((q, i) => {
+                const maxCount = Math.max(...stats.topQuestions.map(item => item.count), 1);
+                const pct = Math.round((q.count / maxCount) * 100);
+                return (
+                  <div key={i} className="p-3.5 rounded-xl bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)]">
+                    <div className="flex items-center justify-between text-xs mb-1.5">
+                      <span className="font-semibold text-[var(--text-primary)]">{q.question}</span>
+                      <span className="font-bold text-[var(--clr-primary)]">{q.count} {q.count === 1 ? "interação" : "interações"}</span>
+                    </div>
+                    <div className="w-full bg-[var(--border-subtle)] h-1.5 rounded-full overflow-hidden">
+                      <div className="bg-[var(--clr-primary)] h-full rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : total > 0 ? (
             <div className="space-y-3">
               <div className="p-3.5 rounded-xl bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)]">
                 <div className="flex items-center justify-between text-xs mb-1">
@@ -404,6 +481,12 @@ export default function Analytics() {
                   </span>
                 </div>
               ))}
+
+              {/* AI vs Human breakdown */}
+              <div className="mt-4 pt-3 border-t border-[var(--border-subtle)] flex items-center justify-between text-xs text-[var(--text-muted)]">
+                <span>Condução IA: <strong className="text-emerald-400">{aiAtivo}</strong></span>
+                <span>Intervenção Humana: <strong className="text-amber-400">{humanoCount}</strong></span>
+              </div>
             </div>
           </div>
         </div>

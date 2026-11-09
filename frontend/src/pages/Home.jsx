@@ -3,8 +3,7 @@ import { Link } from "react-router-dom";
 import { apiFetch } from "../api";
 import {
   Users, MessageSquare, Activity, TrendingUp,
-  ArrowRight, CheckCircle2, Clock, Bot,
-  MoreHorizontal, PhoneCall, MessageCircle
+  ArrowRight, CheckCircle2, Clock, Bot, MessageCircle
 } from "lucide-react";
 
 // SVG Bar Chart Component
@@ -84,7 +83,10 @@ function ConvoItem({ patient }) {
   const statusConfig = {
     Novo: { label: "Novo", color: "badge-brand" },
     "Em Atendimento": { label: "Em Atend.", color: "badge-warning" },
-    Agendado: { label: "Resolvido", color: "badge-success" },
+    Agendado: { label: "Agendado", color: "badge-success" },
+    Convertido: { label: "Convertido", color: "badge-success" },
+    Finalizado: { label: "Finalizado", color: "badge-neutral" },
+    Resolvido: { label: "Resolvido", color: "badge-neutral" },
   };
   const s = statusConfig[patient.status_kanban] || statusConfig["Novo"];
   const isAiActive = patient.is_ai_active;
@@ -128,8 +130,10 @@ export default function Home() {
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [animateIn, setAnimateIn] = useState(false);
+  const [referenceTime, setReferenceTime] = useState(0);
 
   useEffect(() => {
+    setReferenceTime(Date.now());
     Promise.all([
       apiFetch("/api/stats").then((r) => r.json()).catch(() => null),
       apiFetch("/api/patients").then((r) => r.json()).catch(() => []),
@@ -224,12 +228,15 @@ export default function Home() {
     },
   ];
 
-  // Real weekly volume calculation from real patients
+  // Real weekly volume calculation from real patients within the last 7 days
+  const baseTime = referenceTime || 0;
+  const sevenDaysAgo = baseTime ? baseTime - 7 * 24 * 60 * 60 * 1000 : 0;
   const chartData = WEEKDAYS.map((label, i) => {
     const targetDay = DAY_MAP[i];
     const count = patients.filter((p) => {
       if (!p.created_at) return false;
       const d = new Date(p.created_at);
+      if (d.getTime() < sevenDaysAgo) return false;
       return d.getDay() === targetDay;
     }).length;
     return { label, value: count };
@@ -253,7 +260,7 @@ export default function Home() {
             Visão Geral
           </h1>
           <p className="text-sm text-[var(--text-secondary)]">
-            {stats?.clinica ? `Painel de ${stats.clinica}` : "Painel de Atendimento"} · Dados em tempo real
+            {stats?.clinica || stats?.nome || "Painel de Atendimento"} · Dados em tempo real
           </p>
         </div>
 

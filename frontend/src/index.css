@@ -467,3 +467,24 @@ h1, h2, h3, h4, h5, h6 {
   outline: 2px solid var(--land-accent);
   outline-offset: 2px;
 }
+
+/* ─── Print / PDF Report Styles ─────────────────────────── */
+@media print {
+  aside,
+  header.sticky,
+  .no-print {
+    display: none !important;
+  }
+  body,
+  main,
+  #root,
+  .h-\[100dvh\],
+  .overflow-hidden,
+  .overflow-auto {
+    height: auto !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+}
+

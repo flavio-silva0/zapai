@@ -222,12 +222,14 @@ export default function Channels() {
     wa_access_token: "",
     has_token: false,
     token_preview: null,
-    webhook_url: `${window.location.origin}/webhook`,
+    webhook_url: `${window.location.origin}/webhook/whatsapp`,
+    verify_token: "",
   });
   const [savingWa, setSavingWa] = useState(false);
   const [testingWa, setTestingWa] = useState(false);
   const [waMessage, setWaMessage] = useState({ type: "", text: "" });
   const [webhookCopied, setWebhookCopied] = useState(false);
+  const [verifyCopied, setVerifyCopied] = useState(false);
 
   const loadWhatsAppConfig = useCallback(async () => {
     try {
@@ -238,9 +240,10 @@ export default function Channels() {
           ...prev,
           clinic_phone: data.clinic_phone || "",
           phone_number_id: data.phone_number_id || "",
-          has_token: Boolean(data.has_token),
+          has_token: Boolean(data.has_token || data.has_access_token),
           token_preview: data.token_preview || null,
-          webhook_url: data.webhook_url || `${window.location.origin}/webhook`,
+          webhook_url: data.webhook_url || `${window.location.origin}/webhook/whatsapp`,
+          verify_token: data.verify_token || "",
         }));
       }
     } catch (_) {}
@@ -250,7 +253,10 @@ export default function Channels() {
     loadWhatsAppConfig();
   }, [loadWhatsAppConfig]);
 
-  const isConnected = Boolean(waConfig.phone_number_id || tenant?.phone_number_id || tenant?.clinic_phone);
+  const isConnected = Boolean(
+    (waConfig.phone_number_id || tenant?.phone_number_id) &&
+    (waConfig.has_token || tenant?.wa_access_token)
+  );
 
   const formatPhone = (phone) => {
     if (!phone) return "";
@@ -338,6 +344,37 @@ export default function Channels() {
     navigator.clipboard.writeText(waConfig.webhook_url).catch(() => {});
     setWebhookCopied(true);
     setTimeout(() => setWebhookCopied(false), 2000);
+  };
+
+  const handleCopyVerifyToken = () => {
+    if (!waConfig.verify_token) return;
+    navigator.clipboard.writeText(waConfig.verify_token).catch(() => {});
+    setVerifyCopied(true);
+    setTimeout(() => setVerifyCopied(false), 2000);
+  };
+
+  const handleDisconnectWhatsApp = async () => {
+    if (!window.confirm("Deseja realmente desconectar o WhatsApp oficial desta conta? As mensagens deixarão de ser processadas via Meta Cloud API.")) return;
+    setSavingWa(true);
+    try {
+      const res = await apiFetch("/api/tenant/whatsapp", {
+        method: "PUT",
+        body: JSON.stringify({ phone_number_id: "", wa_access_token: "" }),
+      });
+      if (!res.ok) throw new Error("Erro ao desconectar WhatsApp.");
+      setWaConfig((prev) => ({
+        ...prev,
+        phone_number_id: "",
+        has_token: false,
+        token_preview: null,
+      }));
+      setWaMessage({ type: "success", text: "WhatsApp desconectado com sucesso." });
+      setTimeout(() => setWaMessage({ type: "", text: "" }), 4000);
+    } catch (err) {
+      setWaMessage({ type: "error", text: err.message || "Erro ao desconectar" });
+    } finally {
+      setSavingWa(false);
+    }
   };
 
   return (
@@ -527,45 +564,80 @@ export default function Channels() {
               </div>
             </div>
 
-            {/* Webhook URL helper */}
-            <div className="p-3.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold text-[var(--text-primary)]">
-                  URL de Callback do Webhook (para colar no Meta for Developers):
-                </p>
-                <code className="text-[11px] text-cyan-400 font-mono break-all">
-                  {waConfig.webhook_url}
-                </code>
-              </div>
-              <button
-                type="button"
-                onClick={handleCopyWebhook}
-                className="btn-ghost text-xs py-1.5 px-3 flex items-center gap-1.5 self-start sm:self-center shrink-0"
-              >
-                {webhookCopied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
-                {webhookCopied ? "URL Copiada!" : "Copiar Webhook URL"}
-              </button>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
-              {waConfig.phone_number_id && (
+            {/* Webhook & Verify Token helpers */}
+            <div className="space-y-3">
+              <div className="p-3.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold text-[var(--text-primary)]">
+                    URL de Callback do Webhook (para colar no Meta for Developers):
+                  </p>
+                  <code className="text-[11px] text-cyan-400 font-mono break-all">
+                    {waConfig.webhook_url}
+                  </code>
+                </div>
                 <button
                   type="button"
-                  disabled={testingWa}
-                  onClick={handleTestWhatsApp}
-                  className="btn-ghost text-xs py-2 px-4 flex items-center gap-1.5"
+                  onClick={handleCopyWebhook}
+                  className="btn-ghost text-xs py-1.5 px-3 flex items-center gap-1.5 self-start sm:self-center shrink-0"
                 >
-                  <Wifi size={13} />
-                  {testingWa ? "Testando API Meta..." : "Testar Conexão com a Meta"}
+                  {webhookCopied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                  {webhookCopied ? "URL Copiada!" : "Copiar Webhook URL"}
                 </button>
+              </div>
+
+              {waConfig.verify_token && (
+                <div className="p-3.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold text-[var(--text-primary)]">
+                      Token de Verificação do Webhook (Verify Token):
+                    </p>
+                    <code className="text-[11px] text-cyan-400 font-mono break-all">
+                      {waConfig.verify_token}
+                    </code>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCopyVerifyToken}
+                    className="btn-ghost text-xs py-1.5 px-3 flex items-center gap-1.5 self-start sm:self-center shrink-0"
+                  >
+                    {verifyCopied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                    {verifyCopied ? "Token Copiado!" : "Copiar Verify Token"}
+                  </button>
+                </div>
               )}
-              <button
-                type="submit"
-                disabled={savingWa}
-                className="btn-primary text-xs py-2.5 px-5"
-              >
-                {savingWa ? "Salvando Credenciais..." : "Salvar e Ativar WhatsApp"}
-              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+              {isConnected ? (
+                <button
+                  type="button"
+                  disabled={savingWa}
+                  onClick={handleDisconnectWhatsApp}
+                  className="px-3.5 py-2 text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition border border-red-500/20"
+                >
+                  Desconectar WhatsApp
+                </button>
+              ) : <div />}
+              <div className="flex items-center gap-2">
+                {waConfig.phone_number_id && (
+                  <button
+                    type="button"
+                    disabled={testingWa}
+                    onClick={handleTestWhatsApp}
+                    className="btn-ghost text-xs py-2 px-4 flex items-center gap-1.5"
+                  >
+                    <Wifi size={13} />
+                    {testingWa ? "Testando API Meta..." : "Testar Conexão com a Meta"}
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  disabled={savingWa}
+                  className="btn-primary text-xs py-2.5 px-5"
+                >
+                  {savingWa ? "Salvando Credenciais..." : "Salvar e Ativar WhatsApp"}
+                </button>
+              </div>
             </div>
           </form>
         )}

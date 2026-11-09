@@ -173,8 +173,8 @@ router.post("/change-password", requireAuth, async (req, res) => {
     return res.status(403).json({ error: "Conta inativa." });
   }
 
-  if (user.auth_user_id) return res.status(400).json({ error: "Use a recuperação de senha por e-mail na tela de login." });
-  const matches = await bcrypt.compare(senhaAtual, user.password_hash);
+  if (user.auth_user_id && !user.password_hash) return res.status(400).json({ error: "Use a recuperação de senha por e-mail na tela de login." });
+  const matches = user.password_hash ? await bcrypt.compare(senhaAtual, user.password_hash) : false;
   if (!matches) {
     return res.status(401).json({ error: "A senha atual informada está incorreta." });
   }
@@ -210,14 +210,14 @@ router.put("/profile", requireAuth, forbidViewer, async (req, res) => {
       if (errUser) throw errUser;
     }
 
-    if (req.user.tenantId && req.user.role === "owner") {
+    if (req.user.tenantId && ["owner", "super_admin"].includes(req.user.role)) {
       const tenantUpdates = {};
       if (typeof tenant_nome === "string" && tenant_nome.trim()) {
         tenantUpdates.nome = tenant_nome.trim();
         tenantUpdates.clinic_name = tenant_nome.trim();
       }
       if (typeof clinic_phone === "string") {
-        tenantUpdates.clinic_phone = clinic_phone.trim();
+        tenantUpdates.clinic_phone = clinic_phone.replace(/\D/g, "");
       }
       if (typeof bot_name === "string" && bot_name.trim()) {
         tenantUpdates.bot_name = bot_name.trim();

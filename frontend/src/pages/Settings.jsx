@@ -146,6 +146,13 @@ export default function Settings() {
   });
   const [accountSaving, setAccountSaving] = useState(false);
   const [accountMsg, setAccountMsg] = useState({ type: "", text: "" });
+  const [copiedEndpoint, setCopiedEndpoint] = useState("");
+
+  const handleCopyEndpoint = (text, key) => {
+    navigator.clipboard.writeText(text).catch(() => {});
+    setCopiedEndpoint(key);
+    setTimeout(() => setCopiedEndpoint(""), 2000);
+  };
 
   useEffect(() => {
     setAccountForm({
@@ -253,6 +260,24 @@ export default function Settings() {
       alert(err.message);
     } finally {
       setOpeningPortal(false);
+    }
+  };
+
+  const [cancelingRenewal, setCancelingRenewal] = useState(false);
+
+  const handleCancelRenewal = async () => {
+    if (!window.confirm("Deseja realmente cancelar a renovação automática da sua assinatura? Seu plano continuará ativo até o fim do período já contratado.")) return;
+    setCancelingRenewal(true);
+    try {
+      const res = await apiFetch("/api/billing/cancel", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao cancelar renovação.");
+      alert(data.message || "Renovação automática cancelada com sucesso.");
+      await Promise.all([loadBillingSubscription(), refreshAuthSession()]);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setCancelingRenewal(false);
     }
   };
 
@@ -531,9 +556,19 @@ export default function Settings() {
                     <div className="flex items-center gap-2 mb-2">
                       <span className="badge badge-brand text-[10px]">Assinatura da Organização</span>
                       <span className={`badge text-[10px] ${
-                        tenant?.status === "active" ? "badge-success" : "badge-warning"
+                        ["ativo", "active"].includes(billingData?.tenant?.status || tenant?.status)
+                          ? "badge-success"
+                          : tenant?.status === "trial"
+                            ? "badge-warning"
+                            : "badge-danger"
                       }`}>
-                        {tenant?.status === "trial" ? "Período de Teste (Trial)" : "Assinatura Ativa"}
+                        {tenant?.status === "trial"
+                          ? "Período de Teste (Trial)"
+                          : billingData?.tenant?.subscription_status === "canceled_at_period_end"
+                            ? "Cancelamento Agendado"
+                            : ["ativo", "active"].includes(billingData?.tenant?.status || tenant?.status)
+                              ? "Assinatura Ativa"
+                              : (tenant?.status?.toUpperCase() || "Pendente")}
                       </span>
                     </div>
                     <h2 className="text-[var(--text-primary)] font-black text-2xl font-display flex items-center gap-2">
@@ -551,7 +586,7 @@ export default function Settings() {
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2 self-start md:self-center">
+                  <div className="flex items-center gap-2 self-start md:self-center flex-wrap">
                     {billingData?.tenant?.billing_customer_id && (
                       <button
                         type="button"
@@ -561,6 +596,16 @@ export default function Settings() {
                       >
                         <CreditCard size={13} />
                         {openingPortal ? "Abrindo..." : "Portal Stripe"}
+                      </button>
+                    )}
+                    {billingData?.tenant?.subscription_status !== "canceled_at_period_end" && ["ativo", "active"].includes(billingData?.tenant?.status || tenant?.status) && (
+                      <button
+                        type="button"
+                        onClick={handleCancelRenewal}
+                        disabled={cancelingRenewal}
+                        className="px-3 py-2 text-xs font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-xl transition border border-red-500/20 disabled:opacity-50"
+                      >
+                        {cancelingRenewal ? "Cancelando..." : "Cancelar Renovação"}
                       </button>
                     )}
                     <button
@@ -658,7 +703,7 @@ export default function Settings() {
               {/* 4 Plan Cards Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
                 {availablePlans.map((plan) => {
-                  const isCurrent = activePlanId === plan.id && tenant?.status === "active";
+                  const isCurrent = activePlanId === plan.id && ["ativo", "active"].includes(billingData?.tenant?.status || tenant?.status);
                   const price = billingCycle === "annual" ? plan.priceAnnualMonthly : plan.priceMonthly;
                   const isCustom = Boolean(plan.customPricing);
 
@@ -815,9 +860,25 @@ export default function Settings() {
                             </td>
                             <td className="py-3 px-3">
                               <span className={`badge text-[10px] ${
-                                inv.status === "paid" ? "badge-success" : inv.status === "pending" ? "badge-warning" : ""
+                                inv.status === "paid"
+                                  ? "badge-success"
+                                  : inv.status === "pending"
+                                    ? "badge-warning"
+                                    : ["canceled", "cancelled", "refunded", "failed", "overdue"].includes(inv.status)
+                                      ? "badge-danger"
+                                      : ""
                               }`}>
-                                {inv.status === "paid" ? "Pago" : inv.status === "pending" ? "Aguardando Pagamento" : inv.status}
+                                {inv.status === "paid"
+                                  ? "Pago"
+                                  : inv.status === "pending"
+                                    ? "Aguardando Pagamento"
+                                    : inv.status === "overdue"
+                                      ? "Vencido"
+                                      : inv.status === "canceled" || inv.status === "cancelled"
+                                        ? "Cancelado"
+                                        : inv.status === "refunded"
+                                          ? "Reembolsado"
+                                          : inv.status}
                               </span>
                             </td>
                             <td className="py-3 px-3 text-right">
@@ -1001,7 +1062,14 @@ export default function Settings() {
                   <div className="p-3.5 rounded-xl bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)]">
                     <div className="flex items-center justify-between mb-1">
                       <p className="font-semibold text-[var(--text-primary)]">Webhook Stripe (Oficial)</p>
-                      <span className="badge badge-brand text-[9px]">Stripe Subscriptions</span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyEndpoint(`${window.location.origin}/api/billing/webhooks/stripe`, "stripe")}
+                        className="btn-ghost text-[10px] py-1 px-2 flex items-center gap-1"
+                      >
+                        {copiedEndpoint === "stripe" ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
+                        {copiedEndpoint === "stripe" ? "Copiado" : "Copiar"}
+                      </button>
                     </div>
                     <code className="text-[11px] text-cyan-400 font-mono break-all">
                       {window.location.origin}/api/billing/webhooks/stripe
@@ -1010,14 +1078,39 @@ export default function Settings() {
                       Eventos suportados: <code>checkout.session.completed</code>, <code>invoice.paid</code>, <code>customer.subscription.deleted</code>
                     </p>
                   </div>
+
                   <div className="p-3.5 rounded-xl bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)]">
-                    <p className="font-semibold text-[var(--text-primary)] mb-1">Webhook Meta WhatsApp Cloud API</p>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="font-semibold text-[var(--text-primary)]">Webhook Meta WhatsApp Cloud API</p>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyEndpoint(`${window.location.origin}/webhook/whatsapp`, "whatsapp")}
+                        className="btn-ghost text-[10px] py-1 px-2 flex items-center gap-1"
+                      >
+                        {copiedEndpoint === "whatsapp" ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
+                        {copiedEndpoint === "whatsapp" ? "Copiado" : "Copiar"}
+                      </button>
+                    </div>
                     <code className="text-[11px] text-cyan-400 font-mono break-all">
-                      {window.location.origin}/webhook
+                      {window.location.origin}/webhook/whatsapp
                     </code>
+                    <p className="text-[10px] text-[var(--text-muted)] mt-1">
+                      Callback URL oficial para receber notificações de mensagens e status do WhatsApp.
+                    </p>
                   </div>
+
                   <div className="p-3.5 rounded-xl bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)]">
-                    <p className="font-semibold text-[var(--text-primary)] mb-1">Webhook Alternativo Asaas</p>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="font-semibold text-[var(--text-primary)]">Webhook Alternativo Asaas</p>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyEndpoint(`${window.location.origin}/api/billing/webhooks/asaas`, "asaas")}
+                        className="btn-ghost text-[10px] py-1 px-2 flex items-center gap-1"
+                      >
+                        {copiedEndpoint === "asaas" ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
+                        {copiedEndpoint === "asaas" ? "Copiado" : "Copiar"}
+                      </button>
+                    </div>
                     <code className="text-[11px] text-cyan-400 font-mono break-all">
                       {window.location.origin}/api/billing/webhooks/asaas
                     </code>

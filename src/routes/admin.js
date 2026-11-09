@@ -17,7 +17,7 @@ const router = express.Router();
 router.use((req, _res, next) => aiContext.run({ req }, next));
 router.use(["/magic-setup", "/knowledge"], (req, res, next) => {
   if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
-  return requireAuth(req, res, () => requireRole("owner")(req, res, next));
+  return requireAuth(req, res, () => forbidViewer(req, res, next));
 });
 function budgetedModel(options) {
   return quotaModel(genAI, () => {
@@ -36,9 +36,9 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const supabase = require("../utils/database")();
 
 const CONFIG = Object.freeze({
-  aiModel: process.env.GEMINI_MODEL || "gemini-3.5-flash-lite",
+  aiModel: process.env.GEMINI_MODEL || "gemini-2.5-flash-lite",
   aiFallbackModel: process.env.GEMINI_FALLBACK_MODEL || "gemini-2.5-flash",
-  embeddingModel: process.env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-2",
+  embeddingModel: process.env.GEMINI_EMBEDDING_MODEL || "text-embedding-004",
   embeddingDimensions: Number(process.env.EMBEDDING_DIMENSIONS || 768),
 
   geminiMaxRetries: Number(process.env.GEMINI_MAX_RETRIES || 3),
@@ -863,7 +863,7 @@ router.get("/tenants", asyncHandler(async (_req, res) => {
   const { data: tenants, error } = await supabase
     .from("tenants")
     .select(`
-      id, nome, nicho, status, plan,
+      id, nome, nicho, status, plan, max_leads,
       bot_name, bot_emoji, clinic_name, clinic_phone,
       phone_number_id, wa_access_token, prompt_text,
       trial_ends_at, created_at
@@ -937,6 +937,17 @@ router.put("/tenants/:id", asyncHandler(async (req, res) => {
   const update = pickAllowedFields(req.body, allowedFields);
   if (Object.keys(update).length === 0) throw new AppError(400, "Nenhum campo válido para atualizar.");
 
+  // Normalizar status para o padrão português do banco de dados
+  if (update.status) {
+    const statusMap = { active: "ativo", paused: "pausado", cancelled: "cancelado" };
+    if (statusMap[update.status]) update.status = statusMap[update.status];
+  }
+
+  // Normalizar strings vazias para null
+  if (update.phone_number_id === "") update.phone_number_id = null;
+  if (update.trial_ends_at === "") update.trial_ends_at = null;
+  if (update.max_leads === "") update.max_leads = null;
+
   // Se o token vier mascarado (••••), preserva o valor atual sem sobrescrever
   if (update.wa_access_token && update.wa_access_token.includes("••••")) {
     delete update.wa_access_token;
@@ -952,7 +963,12 @@ router.put("/tenants/:id", asyncHandler(async (req, res) => {
   if (error) throw error;
 
   console.log(`Admin atualizou tenant ${req.params.id}: ${JSON.stringify(Object.keys(update))}`);
-  res.json(data);
+  const safeData = {
+    ...data,
+    wa_access_token: maskToken(data?.wa_access_token),
+    has_wa_token: Boolean(data?.wa_access_token),
+  };
+  res.json(safeData);
 }));
 
 router.use((err, _req, res, _next) => {

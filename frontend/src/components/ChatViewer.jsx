@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useContext } from "react";
+import { Link } from "react-router-dom";
+import { ExternalLink } from "lucide-react";
 import { apiFetch } from "../api";
 import { AuthContext } from "../context/AuthContext";
 import { useConfig } from "../context/ConfigContext";
@@ -103,7 +105,9 @@ export default function ChatViewer({
   const fetchMessages = useCallback(async () => {
     try {
       const res = await apiFetch(`/api/patients/${patient.id}/messages`);
+      if (!res.ok) return;
       const data = await res.json();
+      if (!Array.isArray(data)) return;
       setMessages(data);
     } catch (err) {
       console.error("Erro ao buscar mensagens:", err);
@@ -146,6 +150,7 @@ export default function ChatViewer({
         method: "PUT",
         body: JSON.stringify({ status_kanban }),
       });
+      if (!res.ok) return;
       const data = await res.json();
       onPatientChange(data);
     } catch (err) {
@@ -160,6 +165,7 @@ export default function ChatViewer({
         method: "PUT",
         body: JSON.stringify({ is_ai_active: !patient.is_ai_active }),
       });
+      if (!res.ok) return;
       const data = await res.json();
       onPatientChange(data);
     } catch (err) {
@@ -176,14 +182,20 @@ export default function ChatViewer({
     setInputText("");
 
     try {
-      await apiFetch(`/api/patients/${patient.id}/send`, {
+      const res = await apiFetch(`/api/patients/${patient.id}/send`, {
         method: "POST",
         body: JSON.stringify({ texto }),
       });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Falha ao enviar mensagem");
+      }
+      onPatientChange({ ...patient, is_ai_active: false });
       await fetchMessages();
     } catch (err) {
       console.error("Erro ao enviar mensagem:", err);
       setInputText(texto); // Restaura o texto em caso de erro
+      alert(err.message || "Erro ao enviar mensagem no WhatsApp.");
     } finally {
       setSending(false);
     }
@@ -205,21 +217,29 @@ export default function ChatViewer({
       <div className="flex items-center gap-3 px-5 py-3.5 border-b border-[var(--border-medium)] bg-[var(--bg-surface)] flex-shrink-0">
         {/* Avatar */}
         <div className="w-10 h-10 rounded-full bg-teal-600 text-white font-bold flex items-center justify-center text-sm flex-shrink-0 shadow-xs">
-          {patient.nome.charAt(0).toUpperCase()}
+          {(patient.nome || patient.telefone || "C").charAt(0).toUpperCase()}
         </div>
 
         {/* Info do paciente */}
         <div className="flex-1 min-w-0">
           <h2 className="text-[var(--text-primary)] font-bold text-sm leading-none truncate">
-            {patient.nome}
+            {patient.nome || "Contato sem nome"}
           </h2>
           <p className="text-[var(--text-muted)] text-xs mt-1 truncate font-mono">
-            {patient.telefone.replace("@c.us", "")}
+            {patient.telefone ? patient.telefone.replace("@c.us", "") : ""}
           </p>
         </div>
 
         {/* Controles */}
         <div className="flex items-center gap-2 flex-shrink-0">
+          <Link
+            to={`/painel/crm/contato/${patient.id}`}
+            title="Abrir ficha completa no CRM"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-[var(--bg-base)] border border-[var(--border-medium)] text-[var(--text-secondary)] hover:text-teal-600 hover:border-teal-500 transition-colors"
+          >
+            <ExternalLink size={13} />
+            <span className="hidden sm:inline">CRM</span>
+          </Link>
 
           {/* Select de status Kanban */}
           <select

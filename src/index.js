@@ -1041,7 +1041,7 @@ app.use(
 );
 app.use(
   express.json({
-    limit: "10mb",
+    limit: "25mb",
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     },
@@ -1129,7 +1129,7 @@ app.get("/api/tenant/whatsapp", requireAuth, async (req, res) => {
     has_token: Boolean(tenant.wa_access_token),
     masked_token: masked,
     token_preview: masked || null,
-    webhook_url: `${baseUrl}/webhook`,
+    webhook_url: `${baseUrl}/webhook/whatsapp`,
     verify_token: process.env.META_VERIFY_TOKEN || "Configure META_VERIFY_TOKEN no servidor",
   });
 });
@@ -1227,37 +1227,108 @@ app.post("/api/tenant/whatsapp/test", requireAuth, forbidViewer, async (req, res
 
 app.get("/api/stats", requireAuth, async (req, res) => {
   const tenantId = getReqTenantId(req);
+  const daysParam = parseInt(req.query.days, 10);
+  const filterDays = Number.isFinite(daysParam) && daysParam > 0 ? daysParam : null;
+  const cutoffMs = filterDays ? Date.now() - filterDays * 24 * 60 * 60 * 1000 : null;
 
-  let patientsQuery = supabase.from("users_whatsapp").select("status_kanban, is_ai_active");
-  let messagesQuery = supabase.from("messages").select("*", { count: "exact", head: true });
+  let patientsQuery = supabase
+    .from("users_whatsapp")
+    .select("id, status_kanban, is_ai_active, created_at, ai_memory");
+  let messagesCountQuery = supabase.from("messages").select("*", { count: "exact", head: true });
+  let recentMessagesQuery = supabase
+    .from("messages")
+    .select("origin, texto, created_at")
+    .order("created_at", { ascending: false })
+    .limit(500);
   let tenantInfoQuery = supabase.from("tenants").select("id, nome, clinic_phone, plan, status, trial_ends_at");
 
   if (tenantId) {
     patientsQuery = patientsQuery.eq("tenant_id", tenantId);
-    messagesQuery = messagesQuery.eq("tenant_id", tenantId);
+    messagesCountQuery = messagesCountQuery.eq("tenant_id", tenantId);
+    recentMessagesQuery = recentMessagesQuery.eq("tenant_id", tenantId);
     tenantInfoQuery = tenantInfoQuery.eq("id", tenantId);
   } else {
     tenantInfoQuery = tenantInfoQuery.not("clinic_phone", "is", null).limit(1);
   }
 
-  const [{ data: patients = [] }, { count: totalMensagens }, { data: tenantInfo }] = await Promise.all([
+  const [
+    { data: allPatients = [] },
+    { count: totalMensagensCount },
+    { data: recentMessages = [] },
+    { data: tenantInfo },
+  ] = await Promise.all([
     patientsQuery,
-    messagesQuery,
+    messagesCountQuery,
+    recentMessagesQuery,
     tenantInfoQuery.maybeSingle(),
   ]);
 
+  const patients = cutoffMs
+    ? allPatients.filter((p) => !p.created_at || new Date(p.created_at).getTime() >= cutoffMs)
+    : allPatients;
+
+  const filteredMessages = cutoffMs
+    ? (recentMessages || []).filter((m) => !m.created_at || new Date(m.created_at).getTime() >= cutoffMs)
+    : (recentMessages || []);
+
+  const categories = [
+    { id: "preco", label: "Preços, Planos e Orçamentos", count: 0, regex: /\b(pre[cç]o|valor|valores|quanto\s+custa|or[cç]amento|plano|mensalidade|desconto|pagamento|pix|cart[aã]o)\b/i },
+    { id: "agendamento", label: "Agendamento e Disponibilidade", count: 0, regex: /\b(agendar|agendamento|hor[aá]rio|vaga|consulta|reuni[aã]o|marcar|amanh[aã]|semana|data|disponibilidade)\b/i },
+    { id: "servicos", label: "Funcionamento, Serviços e Produtos", count: 0, regex: /\b(como\s+funciona|servi[cç]o|produto|tratamento|procedimento|informa[cç][aã]o|d[uú]vida|explica|prazo|entrega)\b/i },
+    { id: "suporte", label: "Suporte e Atendimento Humano", count: 0, regex: /\b(humano|atendente|ajuda|suporte|problema|erro|reclama|falar\s+com|pessoa)\b/i },
+    { id: "geral", label: "Dúvidas Gerais de Atendimento", count: 0, regex: null },
+  ];
+
+  const userMsgs = filteredMessages.filter((m) => m.origin === "user" && m.texto);
+  for (const m of userMsgs) {
+    const txt = String(m.texto || "");
+    let matched = false;
+    for (const cat of categories) {
+      if (cat.regex && cat.regex.test(txt)) {
+        cat.count += 1;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) categories[categories.length - 1].count += 1;
+  }
+
+  if (userMsgs.length === 0 && patients.length > 0) {
+    for (const p of patients) {
+      const memStr = p.ai_memory ? JSON.stringify(p.ai_memory) : "";
+      let matched = false;
+      for (const cat of categories) {
+        if (cat.regex && cat.regex.test(memStr)) {
+          cat.count += 1;
+          matched = true;
+          break;
+        }
+      }
+      if (!matched) categories[categories.length - 1].count += 1;
+    }
+  }
+
+  const topQuestions = categories
+    .filter((c) => c.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .map(({ label, count }) => ({ label, count }));
+
   const numeroConectado = tenantInfo?.clinic_phone || "Cloud API";
-  const usage = buildTenantUsageSummary(tenantInfo, patients.length);
+  const usage = buildTenantUsageSummary(tenantInfo, allPatients.length);
 
   res.json({
-    total: patients.length,
+    total: allPatients.length,
+    periodTotal: patients.length,
     novo: patients.filter((p) => p.status_kanban === "Novo").length,
     emAtendimento: patients.filter((p) => p.status_kanban === "Em Atendimento").length,
-    agendado: patients.filter((p) => p.status_kanban === "Agendado").length,
-    finalizado: patients.filter((p) => p.status_kanban === "Finalizado").length,
-    aiAtivo: patients.filter((p) => p.is_ai_active).length,
-    aiPausado: patients.filter((p) => !p.is_ai_active).length,
-    totalMensagens: totalMensagens ?? 0,
+    agendado: patients.filter((p) => ["Agendado", "Convertido", "Concluído"].includes(p.status_kanban)).length,
+    finalizado: patients.filter((p) => ["Finalizado", "Resolvido"].includes(p.status_kanban)).length,
+    aiAtivo: patients.filter((p) => p.is_ai_active !== false).length,
+    aiPausado: patients.filter((p) => p.is_ai_active === false).length,
+    totalMensagens: totalMensagensCount ?? 0,
+    periodMensagens: filteredMessages.length,
+    topQuestions,
+    clinica: tenantInfo?.nome || null,
     whatsappStatus: "api_meta",
     zapaiNumero: numeroConectado,
     whatsappNumero: numeroConectado,
@@ -1551,6 +1622,25 @@ app.put("/api/patients/:id", requireAuth, forbidViewer, async (req, res) => {
   res.json(data);
 });
 
+app.delete("/api/patients/:id", requireAuth, forbidViewer, async (req, res) => {
+  const tenantId = getReqTenantId(req);
+  try {
+    let msgsQuery = supabase.from("messages").delete().eq("user_id", req.params.id);
+    if (tenantId) msgsQuery = msgsQuery.eq("tenant_id", tenantId);
+    await msgsQuery;
+
+    let patientQuery = supabase.from("users_whatsapp").delete().eq("id", req.params.id);
+    if (tenantId) patientQuery = patientQuery.eq("tenant_id", tenantId);
+    const { error } = await patientQuery;
+    if (error) throw error;
+
+    emitirEvento("patient_deleted", { id: Number(req.params.id) }, tenantId);
+    res.json({ success: true, id: Number(req.params.id) });
+  } catch (err) {
+    res.status(500).json({ error: err.message || "Erro ao excluir contato" });
+  }
+});
+
 // ── RETRY COM BACKOFF EXPONENCIAL ────────────────────────────
 const MAX_TENTATIVAS_META = 3;
 const BACKOFF_BASE_META_MS = 1000;
@@ -1784,6 +1874,7 @@ app.post("/api/patients/:id/send", requireAuth, forbidViewer, async (req, res) =
 
     // Pausa a IA automaticamente quando um operador humano intervém
     await supabase.from("users_whatsapp").update({ is_ai_active: false }).eq("id", patient.id);
+    emitirEvento("patient_updated", { ...patient, is_ai_active: false }, patient.tenant_id);
 
     emitirEvento("new_message", { ...msg, patient_id: patient.id }, patient.tenant_id);
     res.json(msg);
@@ -1843,7 +1934,7 @@ const DEBOUNCE_MS = parseInt(process.env.DEBOUNCE_MS ?? "7500", 10);
 const RECENT_TURN_TTL_MS = parseInt(process.env.RECENT_TURN_TTL_MS ?? "25000", 10);
 
 // Validação
-app.get("/webhook/whatsapp", (req, res) => {
+app.get(["/webhook", "/webhook/whatsapp"], (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
@@ -1857,7 +1948,7 @@ app.get("/webhook/whatsapp", (req, res) => {
 });
 
 // Recebimento
-app.post("/webhook/whatsapp", async (req, res) => {
+app.post(["/webhook", "/webhook/whatsapp"], async (req, res) => {
   const body = req.body;
 
   // Validação de assinatura HMAC SHA-256 da Meta (WA-001)

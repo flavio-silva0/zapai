@@ -98,16 +98,38 @@ function TenantCard({ tenant, onUpdate }) {
 
   const update = (f) => (e) => setForm((p) => ({ ...p, [f]: e.target.value }));
 
+  const [saveError, setSaveError] = useState("");
+
   const salvar = async () => {
     setSaving(true);
-    const body = { ...form };
-    if (!body.wa_access_token) delete body.wa_access_token;
-    if (body.max_leads === "") delete body.max_leads;
-    else body.max_leads = Number(body.max_leads);
-    const res  = await apiFetch(`/api/admin/tenants/${tenant.id}`, { method: "PUT", body: JSON.stringify(body) });
-    const data = await res.json();
-    if (res.ok) { onUpdate(data); setEditing(false); }
-    setSaving(false);
+    setSaveError("");
+    try {
+      const body = { ...form };
+      if (!body.wa_access_token) delete body.wa_access_token;
+      if (body.max_leads === "" || body.max_leads === null) {
+        body.max_leads = null;
+      } else {
+        body.max_leads = Number(body.max_leads);
+      }
+      if (!body.phone_number_id) body.phone_number_id = null;
+      if (!body.trial_ends_at) body.trial_ends_at = null;
+      if (body.status === "active") body.status = "ativo";
+      if (body.status === "paused") body.status = "pausado";
+      if (body.status === "cancelled") body.status = "cancelado";
+
+      const res = await apiFetch(`/api/admin/tenants/${tenant.id}`, {
+        method: "PUT",
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao salvar alterações do tenant.");
+      onUpdate(data);
+      setEditing(false);
+    } catch (err) {
+      setSaveError(err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const temWhats  = !!tenant.phone_number_id;
@@ -188,6 +210,12 @@ function TenantCard({ tenant, onUpdate }) {
           {/* Edit form */}
           {editing ? (
             <div className="space-y-4">
+              {saveError && (
+                <div className="p-3 rounded-xl text-xs flex items-center gap-2 bg-red-500/10 border border-red-500/20 text-red-400">
+                  <ShieldAlert size={14} className="shrink-0" />
+                  <span>{saveError}</span>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3">
                 <AdminInput label="Nome do Negócio">
                   <StyledInput value={form.nome} onChange={update("nome")} />
@@ -213,8 +241,16 @@ function TenantCard({ tenant, onUpdate }) {
                   <StyledInput type="number" value={form.max_leads} onChange={update("max_leads")} placeholder="Auto por plano" mono />
                 </AdminInput>
                 <AdminInput label="Status">
-                  <StyledSelect value={form.status} onChange={update("status")}
-                    options={["trial","active","paused","cancelled"].map((s) => ({ value: s, label: s }))} />
+                  <StyledSelect
+                    value={form.status === "active" ? "ativo" : form.status === "paused" ? "pausado" : form.status === "cancelled" ? "cancelado" : form.status}
+                    onChange={update("status")}
+                    options={[
+                      { value: "ativo", label: "Ativo" },
+                      { value: "trial", label: "Período Trial" },
+                      { value: "pausado", label: "Pausado" },
+                      { value: "cancelado", label: "Cancelado" },
+                    ]}
+                  />
                 </AdminInput>
                 <AdminInput label="Data Fim Trial">
                   <input

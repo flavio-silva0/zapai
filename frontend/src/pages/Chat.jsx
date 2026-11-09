@@ -25,10 +25,14 @@ export default function Chat() {
   const [loading, setLoading]                 = useState(true);
   const [searchParams]                        = useSearchParams();
 
+  const [searchQuery, setSearchQuery]         = useState("");
+
   const fetchPatients = useCallback(async () => {
     try {
-      const res  = await apiFetch("/api/patients");
+      const res = await apiFetch("/api/patients");
+      if (!res.ok) return;
       const data = await res.json();
+      if (!Array.isArray(data)) return;
       setPatients(data);
       setSelectedPatient((prev) => {
         if (!prev) return null;
@@ -41,6 +45,15 @@ export default function Chat() {
       setLoading(false);
     }
   }, []);
+
+  const filteredPatients = patients.filter((p) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.trim().toLowerCase();
+    const digits = q.replace(/\D/g, "");
+    const nameMatch = (p.nome || "").toLowerCase().includes(q);
+    const phoneMatch = digits.length > 0 && (p.telefone || "").replace(/\D/g, "").includes(digits);
+    return nameMatch || phoneMatch;
+  });
 
   useEffect(() => { fetchPatients(); }, [fetchPatients]);
 
@@ -97,6 +110,17 @@ export default function Chat() {
           </div>
         </div>
 
+        {/* Busca de contatos */}
+        <div className="p-2 border-b border-[var(--border-medium)] bg-[var(--bg-surface)]">
+          <input
+            type="text"
+            placeholder="Buscar por nome ou número..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full text-xs px-3 py-1.5 rounded-lg bg-[var(--bg-base)] border border-[var(--border-subtle)] text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-hidden focus:border-teal-500"
+          />
+        </div>
+
         {/* List */}
         <div className="flex-1 overflow-y-auto p-3 bg-[var(--bg-base)]/40">
           {loading ? (
@@ -108,7 +132,7 @@ export default function Chat() {
             </div>
           ) : (
             <KanbanBoard
-              patients={patients}
+              patients={filteredPatients}
               selectedId={selectedPatient?.id}
               onSelect={setSelectedPatient}
             />

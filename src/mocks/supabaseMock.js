@@ -29,6 +29,7 @@ const users = [
     is_active: true
   }
 ];
+const knowledge_base = [];
 let messageIdCounter = 1;
 
 function tableRows(table) {
@@ -39,6 +40,7 @@ function tableRows(table) {
   if (table === "billing_invoices") return billing_invoices;
   if (table === "account_profiles") return account_profiles;
   if (table === "users") return users;
+  if (table === "knowledge_base") return knowledge_base;
   return [];
 }
 
@@ -131,6 +133,7 @@ function createInsertBuilder(table, payload) {
         nome: "Contato",
         is_ai_active: true,
         status_kanban: "Novo",
+        created_at: new Date().toISOString(),
         ...item,
       };
       users_whatsapp.push(row);
@@ -147,7 +150,7 @@ function createInsertBuilder(table, payload) {
       return row;
     }
 
-    const row = { id: tableRows(table).length + 1, ...item };
+    const row = { id: tableRows(table).length + 1, created_at: new Date().toISOString(), ...item };
     tableRows(table).push(row);
     return row;
   });
@@ -194,6 +197,43 @@ function createUpdateBuilder(table, payload) {
   return builder;
 }
 
+function createDeleteBuilder(table) {
+  const state = { filters: [] };
+
+  const builder = {
+    eq(field, value) {
+      state.filters.push({ op: "eq", field, value });
+      return builder;
+    },
+    select() {
+      return builder;
+    },
+    async single() {
+      const allRows = tableRows(table);
+      const matches = applyFilters(allRows, state.filters);
+      for (const row of matches) {
+        const idx = allRows.indexOf(row);
+        if (idx !== -1) allRows.splice(idx, 1);
+      }
+      return { data: matches[0] || null, error: null };
+    },
+    async execute() {
+      const allRows = tableRows(table);
+      const matches = applyFilters(allRows, state.filters);
+      for (const row of matches) {
+        const idx = allRows.indexOf(row);
+        if (idx !== -1) allRows.splice(idx, 1);
+      }
+      return { data: matches, error: null };
+    },
+    then(resolve, reject) {
+      return builder.execute().then(resolve, reject);
+    },
+  };
+
+  return builder;
+}
+
 function from(table) {
   return {
     select() {
@@ -204,6 +244,9 @@ function from(table) {
     },
     update(payload) {
       return createUpdateBuilder(table, payload);
+    },
+    delete() {
+      return createDeleteBuilder(table);
     },
   };
 }
@@ -219,6 +262,7 @@ function reset() {
   whatsapp_message_processing.length = 0;
   billing_invoices.length = 0;
   account_profiles.length = 0;
+  knowledge_base.length = 0;
   if (tenants[0]) {
     tenants[0].plan = "starter";
     tenants[0].status = "ativo";

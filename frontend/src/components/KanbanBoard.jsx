@@ -18,6 +18,12 @@ const COLUNAS = [
     badge: "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800",
     dot: "bg-emerald-500",
   },
+  {
+    status: "Finalizado",
+    border: "border-purple-200 dark:border-purple-800/80",
+    badge: "bg-purple-50 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800",
+    dot: "bg-purple-500",
+  },
 ];
 
 function formatarHora(isoString) {
@@ -76,7 +82,11 @@ export default function KanbanBoard({ patients, selectedId, onSelect }) {
   return (
     <div className="flex flex-col gap-4">
       {COLUNAS.map(({ status, border, badge, dot }) => {
-        const grupo = patients.filter((p) => p.status_kanban === status);
+        const grupo = patients.filter((p) => {
+          if (status === "Agendado") return ["Agendado", "Convertido", "Concluído"].includes(p.status_kanban);
+          if (status === "Finalizado") return ["Finalizado", "Resolvido"].includes(p.status_kanban);
+          return p.status_kanban === status || (!p.status_kanban && status === "Novo");
+        });
         return (
           <div key={status}>
             {/* Cabeçalho da coluna */}

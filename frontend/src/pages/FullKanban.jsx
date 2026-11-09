@@ -52,6 +52,19 @@ const COLUMNS = [
     countColor: "text-emerald-400",
     countBg: "bg-emerald-400/10",
   },
+  {
+    status: "Finalizado",
+    label: "Resolvidos & Finalizados",
+    subtitle: "Atendimento concluído",
+    dot: "bg-purple-400",
+    dotGlow: "shadow-purple-400/50",
+    headerGrad: "from-purple-500/10 via-purple-500/5 to-transparent",
+    borderColor: "rgba(192,132,252,0.25)",
+    borderActive: "rgba(192,132,252,0.6)",
+    dragBg: "rgba(192,132,252,0.05)",
+    countColor: "text-purple-400",
+    countBg: "bg-purple-400/10",
+  },
 ];
 
 // ── Utilitários de Formatação ───────────────────────────────
@@ -466,10 +479,11 @@ export default function FullKanban() {
     return patients.filter((p) => {
       // 1. Busca textual
       if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase();
+        const query = searchQuery.trim().toLowerCase();
+        const cleanDigits = query.replace(/\D/g, "");
         const nomeMatch = (p.nome || "").toLowerCase().includes(query);
-        const foneMatch = (p.telefone || "").replace(/\D/g, "").includes(query.replace(/\D/g, ""));
-        const tagMatch = (p.ai_memory?.tags || []).some((t) => t.toLowerCase().includes(query));
+        const foneMatch = cleanDigits.length > 0 && (p.telefone || "").replace(/\D/g, "").includes(cleanDigits);
+        const tagMatch = (p.ai_memory?.tags || []).some((t) => t.toLowerCase().includes(query.replace(/^#/, "")));
         if (!nomeMatch && !foneMatch && !tagMatch) return false;
       }
 
@@ -740,11 +754,13 @@ export default function FullKanban() {
             <p className="text-[var(--text-secondary)] text-sm font-medium">Carregando CRM & Funil...</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 h-full min-w-[850px] pb-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 h-full min-w-[1050px] pb-4">
             {COLUMNS.map((col) => {
-              const grupo = filteredPatients.filter(
-                (p) => (p.status_kanban || "Novo") === col.status
-              );
+              const grupo = filteredPatients.filter((p) => {
+                if (col.status === "Agendado") return ["Agendado", "Convertido", "Concluído"].includes(p.status_kanban);
+                if (col.status === "Finalizado") return ["Finalizado", "Resolvido"].includes(p.status_kanban);
+                return (p.status_kanban || "Novo") === col.status;
+              });
               const isDropZone = dragOver === col.status;
 
               return (

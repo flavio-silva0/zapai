@@ -71,7 +71,7 @@ function ToneSlider({ label, leftLabel, rightLabel, value, onChange, icon: Icon 
 }
 
 function generatePreviewMessages(sliders, magicForm) {
-  const name = magicForm?.nomeAgente?.trim() || "Beatriz";
+  const name = magicForm?.nomeAgente?.trim() || "ZapAI";
   const { formality = 50, empathy = 50, objectivity = 50 } = sliders;
   const objetivo = magicForm?.objetivo || "BDR/SDR";
 
@@ -196,9 +196,9 @@ export default function AiSetup() {
   const { user, tenant, login, loading } = useContext(AuthContext);
 
   const [magicForm, setMagicForm] = useState({
-    nomeAgente: tenant?.bot_name || "Beatriz",
+    nomeAgente: tenant?.bot_name || "ZapAI",
     emojiAgente: tenant?.bot_emoji || "🤖",
-    tipoNegocio: "Clinica Odontológica",
+    tipoNegocio: "Comércio e Serviços",
     nomeEmpresa: tenant?.clinic_name || "",
     whatsappContato: tenant?.clinic_phone || "",
     objetivo: "BDR/SDR",
@@ -278,13 +278,13 @@ export default function AiSetup() {
       const empathyDesc = getSliderDescriptor("Empatia", sliders.empathy);
       const objectivityDesc = getSliderDescriptor("Objetividade", sliders.objectivity);
 
-      let basePrompt = tenant?.prompt_text || `Você é ${magicForm.nomeAgente || "Beatriz"}, atendente virtual oficial.`;
+      let basePrompt = tenant?.prompt_text || `Você é ${magicForm.nomeAgente || "ZapAI"}, atendente virtual oficial.`;
       basePrompt = basePrompt.replace(/\n\n=== DIRETRIZES DE PERSONALIDADE & TOM ===[\s\S]*?(?=\n\n===|$)/g, "").trim();
 
-      const toneBlock = `\n\n=== DIRETRIZES DE PERSONALIDADE & TOM ===\n- Nome do Atendente: ${magicForm.nomeAgente || "Beatriz"}\n- Objetivo Principal: ${magicForm.objetivo}\n- Nível de Formalidade (${sliders.formality}%): ${formalityDesc}\n- Nível de Empatia (${sliders.empathy}%): ${empathyDesc}\n- Nível de Objetividade (${sliders.objectivity}%): ${objectivityDesc}\nInstrução: Adote com fidelidade este perfil de comunicação em todas as mensagens com os clientes.`;
+      const toneBlock = `\n\n=== DIRETRIZES DE PERSONALIDADE & TOM ===\n- Nome do Atendente: ${magicForm.nomeAgente || "ZapAI"}\n- Objetivo Principal: ${magicForm.objetivo}\n- Nível de Formalidade (${sliders.formality}%): ${formalityDesc}\n- Nível de Empatia (${sliders.empathy}%): ${empathyDesc}\n- Nível de Objetividade (${sliders.objectivity}%): ${objectivityDesc}\nInstrução: Adote com fidelidade este perfil de comunicação em todas as mensagens com os clientes.`;
 
       const newPrompt = basePrompt + toneBlock;
-      const botName = magicForm.nomeAgente ? magicForm.nomeAgente.trim() : (tenant?.bot_name || "Beatriz");
+      const botName = magicForm.nomeAgente ? magicForm.nomeAgente.trim() : (tenant?.bot_name || "ZapAI");
 
       const payload = {
         prompt_text: newPrompt,
