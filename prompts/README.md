@@ -12,7 +12,7 @@ O sistema lê o arquivo de prompt definido pela variável `PROMPT_FILE` no `.env
 ```env
 # No .env do projeto:
 PROMPT_FILE=dental-odontosorriso
-BOT_NAME=Sofia
+BOT_NAME=ZapAI
 ```
 
 O sistema vai carregar o arquivo `prompts/dental-odontosorriso.txt` automaticamente.
@@ -68,7 +68,7 @@ Abra o arquivo copiado e substitua todos os valores marcados com `[COLCHETES]`.
 Cada template já tem instruções de o que preencher em cada seção.
 
 Os campos mais importantes de qualquer prompt:
-- **Nome da atendente** (a persona da IA — pode ser sempre "Sofia" ou trocar por cliente)
+- **Nome da atendente** (a persona da IA — por padrão "ZapAI" ou o nome customizado pelo cliente)
 - **Nome do negócio**
 - **Endereço, telefone, horários**
 - **Lista de serviços e preços**
@@ -79,7 +79,7 @@ Os campos mais importantes de qualquer prompt:
 
 ```env
 PROMPT_FILE=dental-nome-da-clinica
-BOT_NAME=Sofia
+BOT_NAME=ZapAI
 CLINIC_NAME=Nome Oficial da Clínica
 CLINIC_PHONE=(11) 99999-9999
 ```
