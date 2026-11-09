@@ -1,11 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
-  Smartphone, Plug, CheckCircle2, AlertCircle, ExternalLink,
-  Plus, RefreshCw, Settings, Zap, ShoppingBag, Mail, Calendar,
-  BarChart2, MessageSquare, Globe, ArrowRight, ShieldCheck
+  CheckCircle2, AlertCircle, Plus, RefreshCw, Settings, Zap,
+  MessageSquare, ShieldCheck, Key, Copy, Check, Wifi
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { apiFetch } from "../api";
+import { apiFetch, getStoredAuthToken } from "../api";
 
 // Official Brand SVG Icons
 function WhatsAppIcon({ className = "w-6 h-6" }) {
@@ -211,11 +210,47 @@ const INTEGRATIONS = [
 ];
 
 export default function Channels() {
-  const { tenant, login } = useAuth();
+  const { user, tenant, login } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [refreshMessage, setRefreshMessage] = useState("");
 
-  const isConnected = Boolean(tenant?.phone_number_id || tenant?.clinic_phone);
+  // Self-service WhatsApp Cloud API Config State
+  const [showConfigForm, setShowConfigForm] = useState(false);
+  const [waConfig, setWaConfig] = useState({
+    clinic_phone: tenant?.clinic_phone || "",
+    phone_number_id: tenant?.phone_number_id || "",
+    wa_access_token: "",
+    has_token: false,
+    token_preview: null,
+    webhook_url: `${window.location.origin}/webhook`,
+  });
+  const [savingWa, setSavingWa] = useState(false);
+  const [testingWa, setTestingWa] = useState(false);
+  const [waMessage, setWaMessage] = useState({ type: "", text: "" });
+  const [webhookCopied, setWebhookCopied] = useState(false);
+
+  const loadWhatsAppConfig = useCallback(async () => {
+    try {
+      const res = await apiFetch("/api/tenant/whatsapp");
+      if (res.ok) {
+        const data = await res.json();
+        setWaConfig((prev) => ({
+          ...prev,
+          clinic_phone: data.clinic_phone || "",
+          phone_number_id: data.phone_number_id || "",
+          has_token: Boolean(data.has_token),
+          token_preview: data.token_preview || null,
+          webhook_url: data.webhook_url || `${window.location.origin}/webhook`,
+        }));
+      }
+    } catch (_) {}
+  }, []);
+
+  useEffect(() => {
+    loadWhatsAppConfig();
+  }, [loadWhatsAppConfig]);
+
+  const isConnected = Boolean(waConfig.phone_number_id || tenant?.phone_number_id || tenant?.clinic_phone);
 
   const formatPhone = (phone) => {
     if (!phone) return "";
@@ -229,19 +264,20 @@ export default function Channels() {
     return phone.startsWith("+") ? phone : `+${phone}`;
   };
 
-  const displayPhone = tenant?.clinic_phone 
-    ? formatPhone(tenant.clinic_phone) 
-    : (tenant?.phone_number_id ? `Phone ID: ${tenant.phone_number_id}` : "Nenhum número cadastrado");
+  const displayPhone = (waConfig.clinic_phone || tenant?.clinic_phone)
+    ? formatPhone(waConfig.clinic_phone || tenant?.clinic_phone)
+    : ((waConfig.phone_number_id || tenant?.phone_number_id) ? `Phone ID: ${waConfig.phone_number_id || tenant.phone_number_id}` : "Nenhum número cadastrado");
 
   const handleRefresh = async () => {
     setRefreshing(true);
     setRefreshMessage("");
     try {
+      await loadWhatsAppConfig();
       const res = await apiFetch("/api/auth/me");
       if (res.ok) {
         const data = await res.json();
         if (data.tenant && login) {
-          login(localStorage.getItem("sofia_token"), data.user, data.tenant);
+          login(getStoredAuthToken(), data.user, data.tenant);
         }
         setRefreshMessage("Status verificado com sucesso!");
       } else {
@@ -253,6 +289,55 @@ export default function Channels() {
       setRefreshing(false);
       setTimeout(() => setRefreshMessage(""), 4000);
     }
+  };
+
+  const handleSaveWhatsApp = async (e) => {
+    e.preventDefault();
+    setSavingWa(true);
+    setWaMessage({ type: "", text: "" });
+    try {
+      const res = await apiFetch("/api/tenant/whatsapp", {
+        method: "PUT",
+        body: JSON.stringify({
+          clinic_phone: waConfig.clinic_phone,
+          phone_number_id: waConfig.phone_number_id,
+          wa_access_token: waConfig.wa_access_token,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao salvar credenciais do WhatsApp.");
+      setWaConfig((prev) => ({ ...prev, wa_access_token: "" }));
+      await handleRefresh();
+      setWaMessage({ type: "success", text: data.message || "Credenciais salvas com sucesso!" });
+    } catch (err) {
+      setWaMessage({ type: "error", text: err.message });
+    } finally {
+      setSavingWa(false);
+    }
+  };
+
+  const handleTestWhatsApp = async () => {
+    setTestingWa(true);
+    setWaMessage({ type: "", text: "" });
+    try {
+      const res = await apiFetch("/api/tenant/whatsapp/test", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Falha ao testar conexão com a Meta Cloud API.");
+      setWaMessage({
+        type: "success",
+        text: `${data.message}${data.verified_name ? ` (${data.verified_name} - ${data.display_phone_number})` : ""}`,
+      });
+    } catch (err) {
+      setWaMessage({ type: "error", text: err.message });
+    } finally {
+      setTestingWa(false);
+    }
+  };
+
+  const handleCopyWebhook = () => {
+    navigator.clipboard.writeText(waConfig.webhook_url).catch(() => {});
+    setWebhookCopied(true);
+    setTimeout(() => setWebhookCopied(false), 2000);
   };
 
   return (
@@ -270,7 +355,7 @@ export default function Channels() {
           Canais & Integrações
         </h1>
         <p className="text-sm text-[var(--text-secondary)]">
-          Gerencie seus canais de comunicação e conecte ferramentas que já utiliza
+          Conecte seu número oficial do WhatsApp Business Cloud API e gerencie suas integrações
         </p>
       </header>
 
@@ -306,7 +391,7 @@ export default function Channels() {
               <p className="text-sm text-[var(--text-secondary)]">
                 {isConnected
                   ? "Canal de atendimento conectado via API oficial do WhatsApp (Meta Cloud API)"
-                  : "Canal oficial aguardando configuração de credenciais da Meta Cloud API"}
+                  : "Configure suas credenciais da Meta Cloud API abaixo para ativar seu atendimento automático"}
               </p>
             </div>
           </div>
@@ -322,16 +407,16 @@ export default function Channels() {
                 ) : (
                   <>
                     <AlertCircle size={14} className="text-amber-400" />
-                    <span className="text-[13px] font-semibold text-amber-400">Pendente de Onboarding</span>
+                    <span className="text-[13px] font-semibold text-amber-400">Aguardando Credenciais</span>
                   </>
                 )}
               </div>
               <p className="text-[13px] font-mono pl-5 font-semibold" style={{ color: isConnected ? "#6ee7b7" : "var(--text-muted)" }}>
                 {displayPhone}
               </p>
-              {tenant?.phone_number_id && tenant?.clinic_phone && (
+              {(waConfig.phone_number_id || tenant?.phone_number_id) && (
                 <p className="text-[10px] font-mono pl-5 text-[var(--text-muted)]">
-                  Phone Number ID: {tenant.phone_number_id}
+                  Phone Number ID: {waConfig.phone_number_id || tenant?.phone_number_id}
                 </p>
               )}
               {refreshMessage && (
@@ -339,8 +424,19 @@ export default function Channels() {
               )}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {user?.role !== "viewer" && (
+                <button
+                  type="button"
+                  onClick={() => setShowConfigForm((v) => !v)}
+                  className="btn-primary text-xs py-2 px-4 flex items-center gap-1.5"
+                >
+                  <Key size={13} />
+                  {showConfigForm ? "Fechar Configuração" : isConnected ? "Editar Credenciais" : "Conectar WhatsApp Agora"}
+                </button>
+              )}
               <button
+                type="button"
                 onClick={handleRefresh}
                 disabled={refreshing}
                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-semibold transition-all hover:opacity-80 disabled:opacity-50"
@@ -356,8 +452,126 @@ export default function Channels() {
           </div>
         </div>
 
+        {/* Self-Service Credentials Configuration Panel */}
+        {(showConfigForm || !isConnected) && user?.role !== "viewer" && (
+          <form
+            onSubmit={handleSaveWhatsApp}
+            className="relative mt-6 pt-6 border-t border-[var(--border-subtle)] space-y-4 animate-fade-scale"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h3 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
+                  <Key size={15} className="text-cyan-400" />
+                  Configuração Self-Service — Meta WhatsApp Cloud API
+                </h3>
+                <p className="text-xs text-[var(--text-muted)]">
+                  Insira o Phone Number ID e o Token Permanente gerados no painel Meta for Developers
+                </p>
+              </div>
+              {waConfig.has_token && (
+                <span className="badge badge-success text-[10px]">
+                  Token Criptografado ({waConfig.token_preview})
+                </span>
+              )}
+            </div>
+
+            {waMessage.text && (
+              <div className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
+                waMessage.type === "success"
+                  ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
+                  : "bg-red-500/10 border border-red-500/20 text-red-400"
+              }`}>
+                {waMessage.type === "success" ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
+                <span>{waMessage.text}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
+                  Número do WhatsApp (com DDI)
+                </label>
+                <input
+                  type="text"
+                  value={waConfig.clinic_phone}
+                  onChange={(e) => setWaConfig((c) => ({ ...c, clinic_phone: e.target.value }))}
+                  placeholder="Ex: 5511999999999"
+                  className="input-premium text-xs w-full font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
+                  Phone Number ID (Meta Cloud API)
+                </label>
+                <input
+                  type="text"
+                  value={waConfig.phone_number_id}
+                  onChange={(e) => setWaConfig((c) => ({ ...c, phone_number_id: e.target.value }))}
+                  placeholder="Ex: 105938475610293"
+                  className="input-premium text-xs w-full font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
+                  System User Access Token (EAAG...)
+                </label>
+                <input
+                  type="password"
+                  value={waConfig.wa_access_token}
+                  onChange={(e) => setWaConfig((c) => ({ ...c, wa_access_token: e.target.value }))}
+                  placeholder={waConfig.has_token ? "Deixe em branco para manter o token atual" : "Cole seu token permanente da Meta"}
+                  className="input-premium text-xs w-full font-mono"
+                />
+              </div>
+            </div>
+
+            {/* Webhook URL helper */}
+            <div className="p-3.5 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-subtle)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold text-[var(--text-primary)]">
+                  URL de Callback do Webhook (para colar no Meta for Developers):
+                </p>
+                <code className="text-[11px] text-cyan-400 font-mono break-all">
+                  {waConfig.webhook_url}
+                </code>
+              </div>
+              <button
+                type="button"
+                onClick={handleCopyWebhook}
+                className="btn-ghost text-xs py-1.5 px-3 flex items-center gap-1.5 self-start sm:self-center shrink-0"
+              >
+                {webhookCopied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                {webhookCopied ? "URL Copiada!" : "Copiar Webhook URL"}
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+              {waConfig.phone_number_id && (
+                <button
+                  type="button"
+                  disabled={testingWa}
+                  onClick={handleTestWhatsApp}
+                  className="btn-ghost text-xs py-2 px-4 flex items-center gap-1.5"
+                >
+                  <Wifi size={13} />
+                  {testingWa ? "Testando API Meta..." : "Testar Conexão com a Meta"}
+                </button>
+              )}
+              <button
+                type="submit"
+                disabled={savingWa}
+                className="btn-primary text-xs py-2.5 px-5"
+              >
+                {savingWa ? "Salvando Credenciais..." : "Salvar e Ativar WhatsApp"}
+              </button>
+            </div>
+          </form>
+        )}
+
         {/* Status / Checklist row */}
-        {isConnected ? (
+        {isConnected && (
           <div className="relative grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5 pt-5"
             style={{ borderTop: "1px solid rgba(37,211,102,0.15)" }}>
             {[
@@ -376,60 +590,8 @@ export default function Channels() {
               </div>
             ))}
           </div>
-        ) : (
-          <div className="relative mt-5 pt-5 border-t border-[var(--border-subtle)] space-y-3">
-            <p className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
-              Checklist de Conexão WhatsApp Business Cloud API:
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-              <div className="flex items-start gap-2 bg-[var(--bg-surface)] p-3 rounded-xl border border-[var(--border-subtle)]">
-                <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold shrink-0">1</span>
-                <div>
-                  <p className="font-semibold text-[var(--text-primary)]">Meta Developers</p>
-                  <p className="text-[var(--text-muted)] text-[11px]">Crie sua conta no Meta for Developers e adicione o produto WhatsApp.</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-2 bg-[var(--bg-surface)] p-3 rounded-xl border border-[var(--border-subtle)]">
-                <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold shrink-0">2</span>
-                <div>
-                  <p className="font-semibold text-[var(--text-primary)]">Phone Number ID</p>
-                  <p className="text-[var(--text-muted)] text-[11px]">Gere o Phone Number ID e o Token de Acesso Permanente (System User).</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-2 bg-[var(--bg-surface)] p-3 rounded-xl border border-[var(--border-subtle)]">
-                <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold shrink-0">3</span>
-                <div>
-                  <p className="font-semibold text-[var(--text-primary)]">Vincular Credenciais</p>
-                  <p className="text-[var(--text-muted)] text-[11px]">Insira o Phone Number ID e Token nas configurações da sua organização.</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-2 bg-[var(--bg-surface)] p-3 rounded-xl border border-[var(--border-subtle)]">
-                <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold shrink-0">4</span>
-                <div>
-                  <p className="font-semibold text-[var(--text-primary)]">Webhook de Entrada</p>
-                  <p className="text-[var(--text-muted)] text-[11px]">Configure a URL do webhook no Meta App com o seu Verify Token.</p>
-                </div>
-              </div>
-            </div>
-            <p className="text-[11px] text-[var(--text-muted)] italic">
-              * Métricas e volume de mensagens serão exibidos automaticamente assim que o canal for homologado e receber as primeiras mensagens.
-            </p>
-          </div>
         )}
       </div>
-
-      {/* ── Add New Channel CTA ── */}
-      <button className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl border-2 border-dashed transition-all hover:border-[rgba(124,58,237,0.4)] hover:bg-[rgba(124,58,237,0.04)]"
-        style={{ borderColor: "rgba(124,58,237,0.2)", color: "var(--text-secondary)" }}>
-        <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-          style={{ background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.25)" }}>
-          <Plus size={16} style={{ color: "#a78bfa" }} />
-        </div>
-        <div className="text-left">
-          <p className="text-[var(--text-primary)] font-semibold text-sm">+ Conectar Novo Canal</p>
-          <p className="text-[11px] text-[var(--text-muted)]">Instagram DM, Telegram, e-mail e mais</p>
-        </div>
-      </button>
 
       {/* ── Integrations Grid ── */}
       <div>

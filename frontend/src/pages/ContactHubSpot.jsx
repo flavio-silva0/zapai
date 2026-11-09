@@ -1000,7 +1000,7 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
                             </div>
                           </div>
                           <span className="text-[10px] text-[var(--text-muted)] mt-0.5 px-1">
-                            {isUser ? patient.nome || "Cliente" : msg.origin === "human" ? "Operador Humano" : "IA Sofia"}
+                            {isUser ? patient.nome || "Cliente" : msg.origin === "human" ? "Operador Humano" : "IA ZapAI"}
                           </span>
                         </div>
                       );

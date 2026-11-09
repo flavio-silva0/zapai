@@ -48,44 +48,30 @@ function payload(id, body) {
   };
 }
 
-function invokeApp(method, url, body, extraHeaders = {}) {
-  return new Promise((resolve, reject) => {
-    const rawBody = JSON.stringify(body);
-    const req = new Readable({
-      read() {
-        this.push(rawBody);
-        this.push(null);
-      },
-    });
+let testServer = null;
+let testBaseUrl = "";
 
-    req.method = method;
-    req.url = url;
-    req.headers = {
+async function ensureServer() {
+  if (testServer) return testBaseUrl;
+  testServer = app.listen(0, "127.0.0.1");
+  await new Promise((resolve) => testServer.once("listening", resolve));
+  testBaseUrl = `http://127.0.0.1:${testServer.address().port}`;
+  return testBaseUrl;
+}
+
+async function invokeApp(method, url, body, extraHeaders = {}) {
+  const base = await ensureServer();
+  const rawBody = JSON.stringify(body);
+  const response = await fetch(base + url, {
+    method,
+    headers: {
       "content-type": "application/json",
-      "content-length": Buffer.byteLength(rawBody),
       ...extraHeaders,
-    };
-
-    const res = new Writable({
-      write(_chunk, _encoding, callback) {
-        callback();
-      },
-    });
-
-    res.headers = {};
-    res.statusCode = 200;
-    res.setHeader = (key, value) => {
-      res.headers[key.toLowerCase()] = value;
-    };
-    res.getHeader = (key) => res.headers[key.toLowerCase()];
-    res.end = (chunk) => {
-      Writable.prototype.end.call(res, chunk);
-      resolve({ statusCode: res.statusCode, body: String(chunk || "") });
-    };
-    res.on("error", reject);
-
-    app.handle(req, res, reject);
+    },
+    body: rawBody,
   });
+  const text = await response.text();
+  return { statusCode: response.status, body: text };
 }
 
 async function postWebhook(id, text) {
@@ -202,6 +188,10 @@ async function run() {
     console.log("Webhook integration safety tests passed ✅");
   } finally {
     clearTestState();
+    if (testServer) {
+      testServer.closeAllConnections?.();
+      testServer.close();
+    }
   }
 }
 

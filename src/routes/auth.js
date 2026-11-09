@@ -75,10 +75,19 @@ router.post("/login", async (req, res) => {
   if (user.role !== "super_admin" && user.tenant_id) {
     const { data } = await supabase
       .from("tenants")
-      .select("id, nome, status, bot_name, bot_emoji, clinic_name, clinic_phone, trial_ends_at, prompt_text")
+      .select("id, nome, nicho, status, bot_name, bot_emoji, clinic_name, clinic_phone, trial_ends_at, prompt_text, phone_number_id, plan")
       .eq("id", user.tenant_id)
       .single();
     tenant = data;
+    if (tenant) {
+      const { buildTenantUsageSummary } = require("../utils/plans");
+      const { data: leadsData, count } = await supabase
+        .from("users_whatsapp")
+        .select("id", { count: "exact" })
+        .eq("tenant_id", user.tenant_id);
+      const leadsCount = typeof count === "number" ? count : (Array.isArray(leadsData) ? leadsData.length : 0);
+      tenant.usage = buildTenantUsageSummary(tenant, leadsCount);
+    }
   }
 
   const token = criarToken({
@@ -113,13 +122,22 @@ router.get("/me", requireAuth, async (req, res) => {
   if (user.tenant_id) {
     const { data, error } = await supabase
       .from("tenants")
-      .select("id, nome, status, bot_name, bot_emoji, clinic_name, clinic_phone, trial_ends_at, prompt_text, phone_number_id, plan")
+      .select("id, nome, nicho, status, bot_name, bot_emoji, clinic_name, clinic_phone, trial_ends_at, prompt_text, phone_number_id, plan")
       .eq("id", user.tenant_id)
       .single();
     if (error) {
       console.error("[AUTH] Erro ao buscar tenant no /me:", error.message || error);
     }
     tenant = data;
+    if (tenant) {
+      const { buildTenantUsageSummary } = require("../utils/plans");
+      const { data: leadsData, count } = await supabase
+        .from("users_whatsapp")
+        .select("id", { count: "exact" })
+        .eq("tenant_id", user.tenant_id);
+      const leadsCount = typeof count === "number" ? count : (Array.isArray(leadsData) ? leadsData.length : 0);
+      tenant.usage = buildTenantUsageSummary(tenant, leadsCount);
+    }
   }
 
   res.json({ user, tenant });
@@ -183,29 +201,39 @@ router.put("/profile", requireAuth, forbidViewer, async (req, res) => {
     if (!current || (email && email.trim().toLowerCase() !== current.email)) {
       return res.status(400).json({ error: "A alteração de e-mail exige uma nova confirmação e não está disponível neste formulário." });
     }
-    // 1. Atualizar user
-    const { error: errUser } = await supabase
-      .from("users")
-      .update({ nome })
-      .eq("id", req.user.userId);
 
-    if (errUser) throw errUser;
-
-    // 2. Atualizar tenant (se não for admin global)
-    if (req.user.tenantId && req.user.role === "owner") {
-      const { error: errTenant } = await supabase
-        .from("tenants")
-        .update({
-          nome: tenant_nome,
-          clinic_phone: clinic_phone,
-          bot_name: bot_name
-        })
-        .eq("id", req.user.tenantId);
-
-      if (errTenant) throw errTenant;
+    if (typeof nome === "string" && nome.trim()) {
+      const { error: errUser } = await supabase
+        .from("users")
+        .update({ nome: nome.trim() })
+        .eq("id", req.user.userId);
+      if (errUser) throw errUser;
     }
 
-    res.json({ message: "Perfil atualizado com sucesso" });
+    if (req.user.tenantId && req.user.role === "owner") {
+      const tenantUpdates = {};
+      if (typeof tenant_nome === "string" && tenant_nome.trim()) {
+        tenantUpdates.nome = tenant_nome.trim();
+        tenantUpdates.clinic_name = tenant_nome.trim();
+      }
+      if (typeof clinic_phone === "string") {
+        tenantUpdates.clinic_phone = clinic_phone.trim();
+      }
+      if (typeof bot_name === "string" && bot_name.trim()) {
+        tenantUpdates.bot_name = bot_name.trim();
+      }
+
+      if (Object.keys(tenantUpdates).length > 0) {
+        const { error: errTenant } = await supabase
+          .from("tenants")
+          .update(tenantUpdates)
+          .eq("id", req.user.tenantId);
+
+        if (errTenant) throw errTenant;
+      }
+    }
+
+    res.json({ success: true, message: "Perfil atualizado com sucesso." });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

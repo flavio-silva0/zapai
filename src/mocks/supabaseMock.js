@@ -15,6 +15,8 @@ const tenants = [
 const users_whatsapp = [];
 const messages = [];
 const whatsapp_message_processing = [];
+const billing_invoices = [];
+const account_profiles = [];
 const users = [
   {
     id: 1,
@@ -34,6 +36,8 @@ function tableRows(table) {
   if (table === "users_whatsapp") return users_whatsapp;
   if (table === "messages") return messages;
   if (table === "whatsapp_message_processing") return whatsapp_message_processing;
+  if (table === "billing_invoices") return billing_invoices;
+  if (table === "account_profiles") return account_profiles;
   if (table === "users") return users;
   return [];
 }
@@ -213,7 +217,25 @@ function reset() {
   users_whatsapp.length = 0;
   messages.length = 0;
   whatsapp_message_processing.length = 0;
+  billing_invoices.length = 0;
+  account_profiles.length = 0;
+  if (tenants[0]) {
+    tenants[0].plan = "starter";
+    tenants[0].status = "ativo";
+    tenants[0].max_leads = 150;
+    delete tenants[0].trial_ends_at;
+  }
   messageIdCounter = 1;
 }
 
-module.exports = { from, messages, reset, rpc, tenants, users_whatsapp, whatsapp_message_processing };
+module.exports = {
+  from,
+  messages,
+  reset,
+  rpc,
+  tenants,
+  users_whatsapp,
+  whatsapp_message_processing,
+  billing_invoices,
+  account_profiles,
+};

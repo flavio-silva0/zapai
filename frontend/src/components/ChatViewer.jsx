@@ -3,7 +3,7 @@ import { apiFetch } from "../api";
 import { AuthContext } from "../context/AuthContext";
 import { useConfig } from "../context/ConfigContext";
 
-const STATUS_OPTIONS = ["Novo", "Em Atendimento", "Agendado"];
+const STATUS_OPTIONS = ["Novo", "Em Atendimento", "Agendado", "Finalizado"];
 
 // Estilos por origem da mensagem com contraste ideal e estética WhatsApp/ZapAI
 const BUBBLE_STYLES = {
@@ -125,8 +125,12 @@ export default function ChatViewer({
         fetchMessages();
       }
     };
+    window.addEventListener("zapai:new_message", handler);
     window.addEventListener("dentistai:new_message", handler);
-    return () => window.removeEventListener("dentistai:new_message", handler);
+    return () => {
+      window.removeEventListener("zapai:new_message", handler);
+      window.removeEventListener("dentistai:new_message", handler);
+    };
   }, [patient.id, fetchMessages]);
 
   // Scroll automático para o final quando chegam mensagens novas

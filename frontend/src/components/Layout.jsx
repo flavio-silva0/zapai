@@ -5,7 +5,7 @@ import {
   LayoutDashboard, MessageSquare, LogOut,
   Smartphone, User, ShieldAlert, ChevronRight,
   Settings, TrendingUp, Users, Plug, BookOpen,
-  Menu, X, Zap, Sparkles, Bell, Search, KanbanSquare
+  Menu, X, Zap, Sparkles, Bell, Search, KanbanSquare, Bot
 } from "lucide-react";
 import { apiFetch } from "../api";
 import ThemeToggle from "./ThemeToggle";
@@ -20,13 +20,13 @@ export default function Layout() {
   const botEmoji = tenant?.bot_emoji || "✨";
   const clinica  = isSuperAdmin ? "Sistema Master" : (tenant?.nome || user?.nome || "Painel");
 
-  const [sofiaNumero, setSofiaNumero] = useState(null);
+  const [whatsappNumero, setWhatsappNumero] = useState(null);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   useEffect(() => {
     apiFetch("/api/stats")
       .then((r) => r.json())
-      .then((d) => setSofiaNumero(d.sofiaNumero ?? null))
+      .then((d) => setWhatsappNumero(d.whatsappNumero ?? d.zapaiNumero ?? d.sofiaNumero ?? null))
       .catch(() => {});
   }, []);
 
@@ -48,6 +48,7 @@ export default function Layout() {
       items: [
         { to: "/painel/ia",       icon: Sparkles,        label: "Personalidade",     desc: "Configure o atendente" },
         { to: "/painel/treinamento", icon: BookOpen,     label: "Base de Conhecimento", desc: "FAQs e documentos" },
+        { to: "/painel/test",     icon: Bot,             label: "Simulador / Teste", desc: "Simulação do atendente" },
         { to: "/painel/canais",   icon: Plug,            label: "Canais & Integrações", desc: "WhatsApp e outros" },
       ]
     },
@@ -63,11 +64,11 @@ export default function Layout() {
 
   const phoneDisplay = tenant?.clinic_phone
     ? `+${tenant.clinic_phone}`
-    : sofiaNumero
-    ? `+${sofiaNumero}`
+    : whatsappNumero
+    ? `+${whatsappNumero}`
     : "Conectando...";
 
-  const isConnected = !!(tenant?.clinic_phone || sofiaNumero);
+  const isConnected = !!(tenant?.clinic_phone || whatsappNumero);
 
   return (
     <div className="flex h-[100dvh] overflow-hidden bg-[var(--bg-base)] text-[var(--text-primary)]">

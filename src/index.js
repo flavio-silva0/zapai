@@ -498,7 +498,37 @@ function shouldSkipRecentTurn(patientId, text) {
 }
 
 // ── 5. FUNÇÕES SUPABASE ──────────────────────────────────────
-async function getOrCreatePatient(telefone, nome = "Contato", tenantId = null) {
+const { getPlanConfig, getTenantMaxLeads, buildTenantUsageSummary } = require("./utils/plans");
+
+async function checkTenantLeadLimit(tenantId, explicitTenant = null) {
+  let tenant = explicitTenant;
+  if (!tenant && tenantId) {
+    const { data } = await supabase
+      .from("tenants")
+      .select("id, plan, status, trial_ends_at")
+      .eq("id", tenantId)
+      .maybeSingle();
+    tenant = data;
+  }
+  const planConfig = getPlanConfig(tenant?.plan);
+  const maxLeads = getTenantMaxLeads(tenant);
+  if (maxLeads === null) {
+    return { allowed: true, currentLeads: 0, maxLeads: null, planConfig };
+  }
+  const { data: rows, count } = await supabase
+    .from("users_whatsapp")
+    .select("id", { count: "exact" })
+    .eq("tenant_id", tenantId);
+  const currentLeads = typeof count === "number" ? count : (Array.isArray(rows) ? rows.length : 0);
+  return {
+    allowed: currentLeads < maxLeads,
+    currentLeads,
+    maxLeads,
+    planConfig,
+  };
+}
+
+async function getOrCreatePatient(telefone, nome = "Contato", tenantId = null, options = {}) {
   if (!tenantId) throw new Error("Tenant obrigatório para criar contato");
   // Busca pela combinação de telefone + tenant_id (se houver isolamento por número)
   let query = supabase.from("users_whatsapp").select("*").eq("telefone", telefone);
@@ -507,9 +537,38 @@ async function getOrCreatePatient(telefone, nome = "Contato", tenantId = null) {
   const { data } = await query.limit(1).maybeSingle();
   if (data) return data;
 
+  // Contato novo: verifica limite de leads do plano (150 / 300 / 500 / Enterprise)
+  const capacity = await checkTenantLeadLimit(tenantId, options.tenant || null);
+  if (!capacity.allowed) {
+    if (options.enforceHardLimit) {
+      throw Object.assign(
+        new Error(
+          `Limite de ${capacity.maxLeads} leads do plano ${capacity.planConfig.name} atingido (${capacity.currentLeads}/${capacity.maxLeads}). Faça upgrade de plano para cadastrar mais leads.`
+        ),
+        {
+          statusCode: 402,
+          code: "LEAD_LIMIT_REACHED",
+          currentLeads: capacity.currentLeads,
+          maxLeads: capacity.maxLeads,
+          plan: capacity.planConfig.id,
+        }
+      );
+    }
+  }
+
+  const insertPayload = {
+    telefone,
+    nome,
+    tenant_id: tenantId,
+  };
+  if (!capacity.allowed) {
+    // Em webhook WhatsApp, preserva o contato no CRM com IA pausada para não perder a mensagem do cliente
+    insertPayload.is_ai_active = false;
+  }
+
   const { data: novo, error } = await supabase
     .from("users_whatsapp")
-    .insert({ telefone, nome, tenant_id: tenantId })
+    .insert(insertPayload)
     .select()
     .single();
 
@@ -532,6 +591,21 @@ async function getOrCreatePatient(telefone, nome = "Contato", tenantId = null) {
     }
 
     throw new Error(`Erro ao criar lead: ${error.message}`);
+  }
+
+  if (!capacity.allowed && novo) {
+    novo._leadLimitReached = true;
+    emitirEvento(
+      "lead_limit_reached",
+      {
+        tenantId,
+        currentLeads: capacity.currentLeads + 1,
+        maxLeads: capacity.maxLeads,
+        plan: capacity.planConfig.id,
+        patientId: novo.id,
+      },
+      tenantId
+    );
   }
   return novo;
 }
@@ -609,7 +683,7 @@ Regras:
 4. Se a conversa recente não tiver nenhuma informação nova ou relevante, retorne exatamente o JSON da Memória Existente.
 `;
 
-    const abstractor = quotaModel(genAI, patient.tenant_id, { model: process.env.GEMINI_MODEL || "gemini-3.5-flash-lite" });
+    const abstractor = quotaModel(genAI, patient.tenant_id, { model: process.env.GEMINI_MODEL || "gemini-2.5-flash-lite" });
     const result = await abstractor.generateContent(promptMemoria);
     let textResult = result.response.text().trim();
     // Limpeza de blocos de código se vierem acidentalmente
@@ -727,7 +801,7 @@ async function consultarGeminiDinamicamente(historico, payloadObject, tenant, pa
     }
     return { text: "Resposta final limpa e natural.", ragUsed: false, possibleHallucination: false };
   }
-  let prompt = tenant.prompt_text || "Você é a Sofia, uma assistente prestativa.";
+  let prompt = tenant.prompt_text || "Você é a assistente virtual da ZapAI, prestativa e eficiente.";
   let ragContext = "";
 
   if (patientMemory && typeof patientMemory === "object" && Object.keys(patientMemory).length > 0) {
@@ -745,7 +819,7 @@ Não mencione que você possui uma memória interna.`;
 
   // --- INJEÇÃO RAG (BASE DE CONHECIMENTO VETORIAL) ---
   try {
-    const embeddingModel = quotaModel(genAI, tenant.id, { model: process.env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-2" });
+    const embeddingModel = quotaModel(genAI, tenant.id, { model: process.env.GEMINI_EMBEDDING_MODEL || "text-embedding-004" });
     const queryResult = await embeddingModel.embedContent(payloadObject.textoUsuario);
     const queryVector = queryResult.embedding.values.slice(0, 768);
     const vectorString = `[${queryVector.join(",")}]`;
@@ -845,7 +919,7 @@ Se não houver nomes específicos na base:
 `;
 
   const modeloPrincipal = quotaModel(genAI, tenant.id, {
-    model: process.env.GEMINI_MODEL || "gemini-3.5-flash-lite",
+    model: process.env.GEMINI_MODEL || "gemini-2.5-flash-lite",
     systemInstruction: prompt,
   });
 
@@ -1018,6 +1092,7 @@ app.get("/health/ready", async (_req, res) => {
 });
 
 app.use("/api/auth", authRouter);
+app.use("/api/billing", require("./routes/billing").router);
 app.use("/api/notifications", require("./routes/notifications").router);
 app.use("/api/admin", adminRouter);
 
@@ -1025,10 +1100,129 @@ app.use("/api/admin", adminRouter);
 app.get("/api/config", (req, res) => {
   res.json({
     clinica: "ZapAI",
-    botName: "Sofia",
+    botName: "ZapAI",
     botEmoji: "🤖",
     promptFile: "geral"
   });
+});
+
+// ── Self-Service WhatsApp Cloud API para o Tenant Owner ───────
+app.get("/api/tenant/whatsapp", requireAuth, async (req, res) => {
+  const tenantId = getReqTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "Tenant não identificado." });
+  const { data: tenant, error } = await supabase
+    .from("tenants")
+    .select("id, nome, clinic_phone, phone_number_id, wa_access_token, bot_name")
+    .eq("id", tenantId)
+    .maybeSingle();
+  if (error || !tenant) return res.status(404).json({ error: "Organização não encontrada." });
+
+  const baseUrl = process.env.BACKEND_PUBLIC_URL || `${req.protocol}://${req.get("host")}`;
+  const masked = tenant.wa_access_token
+    ? "••••••••" + String(tenant.wa_access_token).slice(-4)
+    : "";
+  res.json({
+    connected: Boolean(tenant.phone_number_id && tenant.wa_access_token),
+    clinic_phone: tenant.clinic_phone || "",
+    phone_number_id: tenant.phone_number_id || "",
+    has_access_token: Boolean(tenant.wa_access_token),
+    has_token: Boolean(tenant.wa_access_token),
+    masked_token: masked,
+    token_preview: masked || null,
+    webhook_url: `${baseUrl}/webhook`,
+    verify_token: process.env.META_VERIFY_TOKEN || "Configure META_VERIFY_TOKEN no servidor",
+  });
+});
+
+app.put("/api/tenant/whatsapp", requireAuth, forbidViewer, async (req, res) => {
+  const tenantId = getReqTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "Tenant não identificado." });
+  if (!["owner", "super_admin"].includes(req.user.role)) {
+    return res.status(403).json({ error: "Apenas o proprietário da conta pode alterar as credenciais do WhatsApp." });
+  }
+
+  const { clinic_phone, phone_number_id, wa_access_token } = req.body || {};
+  const updates = {};
+
+  if (clinic_phone !== undefined) {
+    updates.clinic_phone = String(clinic_phone || "").replace(/\D/g, "") || null;
+  }
+  if (phone_number_id !== undefined) {
+    updates.phone_number_id = String(phone_number_id || "").trim() || null;
+  }
+  if (wa_access_token !== undefined && String(wa_access_token).trim() !== "" && !String(wa_access_token).includes("••••")) {
+    updates.wa_access_token = String(wa_access_token).trim();
+  }
+
+  const { data, error } = await supabase
+    .from("tenants")
+    .update(updates)
+    .eq("id", tenantId)
+    .select("id, nome, status, bot_name, bot_emoji, clinic_name, clinic_phone, trial_ends_at, prompt_text, phone_number_id, plan")
+    .single();
+
+  if (error) {
+    if (error.code === "23505") {
+      return res.status(409).json({ error: "Este Phone Number ID já está vinculado a outra conta." });
+    }
+    return res.status(500).json({ error: "Não foi possível salvar as credenciais do WhatsApp." });
+  }
+
+  res.json({
+    success: true,
+    message: "Credenciais do WhatsApp Business Cloud API atualizadas com sucesso!",
+    tenant: data,
+  });
+});
+
+app.post("/api/tenant/whatsapp/test", requireAuth, forbidViewer, async (req, res) => {
+  const tenantId = getReqTenantId(req);
+  if (!tenantId) return res.status(400).json({ error: "Tenant não identificado." });
+  const { data: tenant } = await supabase
+    .from("tenants")
+    .select("id, nome, phone_number_id, wa_access_token, clinic_phone")
+    .eq("id", tenantId)
+    .maybeSingle();
+
+  if (!tenant || !tenant.phone_number_id || !tenant.wa_access_token) {
+    return res.status(400).json({
+      ok: false,
+      error: "Configure o Phone Number ID e o Access Token Permanente antes de testar a conexão.",
+    });
+  }
+
+  if (process.env.TEST_MODE === "1" || process.env.TEST_MODE === "true") {
+    return res.json({
+      ok: true,
+      verified_name: tenant.nome || "ZapAI Business",
+      display_phone_number: tenant.clinic_phone || "+55 11 99999-9999",
+      quality_rating: "GREEN",
+      message: "Conexão homologada com sucesso (Ambiente de Teste)!",
+    });
+  }
+
+  try {
+    const metaResp = await axios.get(
+      `https://graph.facebook.com/v20.0/${encodeURIComponent(tenant.phone_number_id)}?fields=verified_name,display_phone_number,quality_rating`,
+      {
+        headers: { Authorization: `Bearer ${tenant.wa_access_token}` },
+        timeout: 12000,
+      }
+    );
+    return res.json({
+      ok: true,
+      verified_name: metaResp.data?.verified_name || tenant.nome,
+      display_phone_number: metaResp.data?.display_phone_number || tenant.clinic_phone,
+      quality_rating: metaResp.data?.quality_rating || "GREEN",
+      message: "Conexão com a API Oficial da Meta validada com sucesso!",
+    });
+  } catch (err) {
+    const metaErr = err.response?.data?.error?.message || err.message;
+    return res.status(422).json({
+      ok: false,
+      error: `A Meta recusou as credenciais informadas: ${metaErr}`,
+    });
+  }
 });
 
 app.get("/api/stats", requireAuth, async (req, res) => {
@@ -1036,7 +1230,7 @@ app.get("/api/stats", requireAuth, async (req, res) => {
 
   let patientsQuery = supabase.from("users_whatsapp").select("status_kanban, is_ai_active");
   let messagesQuery = supabase.from("messages").select("*", { count: "exact", head: true });
-  let tenantInfoQuery = supabase.from("tenants").select("clinic_phone");
+  let tenantInfoQuery = supabase.from("tenants").select("id, nome, clinic_phone, plan, status, trial_ends_at");
 
   if (tenantId) {
     patientsQuery = patientsQuery.eq("tenant_id", tenantId);
@@ -1053,17 +1247,22 @@ app.get("/api/stats", requireAuth, async (req, res) => {
   ]);
 
   const numeroConectado = tenantInfo?.clinic_phone || "Cloud API";
+  const usage = buildTenantUsageSummary(tenantInfo, patients.length);
 
   res.json({
     total: patients.length,
     novo: patients.filter((p) => p.status_kanban === "Novo").length,
     emAtendimento: patients.filter((p) => p.status_kanban === "Em Atendimento").length,
     agendado: patients.filter((p) => p.status_kanban === "Agendado").length,
+    finalizado: patients.filter((p) => p.status_kanban === "Finalizado").length,
     aiAtivo: patients.filter((p) => p.is_ai_active).length,
     aiPausado: patients.filter((p) => !p.is_ai_active).length,
     totalMensagens: totalMensagens ?? 0,
     whatsappStatus: "api_meta",
+    zapaiNumero: numeroConectado,
+    whatsappNumero: numeroConectado,
     sofiaNumero: numeroConectado,
+    usage,
   });
 });
 
@@ -1246,7 +1445,7 @@ Retorne ESTRITAMENTE um objeto JSON válido (sem markdown, sem tags, sem crases)
       };
     } else {
       const model = quotaModel(genAI, patient.tenant_id, {
-        model: process.env.GEMINI_MODEL || "gemini-3.5-flash-lite",
+        model: process.env.GEMINI_MODEL || "gemini-2.5-flash-lite",
         generationConfig: { responseMimeType: "application/json", maxOutputTokens: 2048, temperature: 0.3 },
       });
       const resp = await model.generateContent(systemPrompt);
@@ -1279,7 +1478,9 @@ app.post("/api/patients", requireAuth, forbidViewer, async (req, res) => {
   try {
     const rawTelefone = String(telefone).replace(/\D/g, "");
     const cleanTelefone = rawTelefone.startsWith("55") ? rawTelefone : `55${rawTelefone}`;
-    const patient = await getOrCreatePatient(cleanTelefone, nome || "Novo Lead", tenantId);
+    const patient = await getOrCreatePatient(cleanTelefone, nome || "Novo Lead", tenantId, {
+      enforceHardLimit: true,
+    });
     const updates = {};
     if (status_kanban && patient.status_kanban !== status_kanban) {
       updates.status_kanban = status_kanban;
@@ -1300,7 +1501,14 @@ app.post("/api/patients", requireAuth, forbidViewer, async (req, res) => {
     emitirEvento("patient_updated", patient, tenantId);
     res.status(201).json(patient);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    const status = err.statusCode || 500;
+    res.status(status).json({
+      error: err.message,
+      code: err.code || undefined,
+      currentLeads: err.currentLeads,
+      maxLeads: err.maxLeads,
+      plan: err.plan,
+    });
   }
 });
 
@@ -1774,7 +1982,7 @@ async function processIncomingMessage(change, paramMsg) {
       textoParaGemini = `O usuário enviou um formato (${paramMsg.type}) que você não suporta ler no momento. Diga educadamente que só consegue entender textos, imagens e áudios.`;
     }
 
-    const patient = await getOrCreatePatient(telefoneUsuario, nomeContato, tenant.id);
+    const patient = await getOrCreatePatient(telefoneUsuario, nomeContato, tenant.id, { tenant });
 
     // Atualiza nome/tenant do paciente caso estivesse incompleto
     if (patient.nome !== nomeContato || !patient.tenant_id) {
@@ -1937,9 +2145,9 @@ async function processIncomingMessage(change, paramMsg) {
             continue;
           }
 
-          const respostaSofia = respostaObj?.text || "";
+          const respostaAi = respostaObj?.text || "";
           const finalResult = await finalizeAssistantResponse({
-            candidateText: respostaSofia,
+            candidateText: respostaAi,
             historico,
             tenant,
             payloadObject: payloadModel,
@@ -1949,12 +2157,12 @@ async function processIncomingMessage(change, paramMsg) {
           logSanitization("model_response_finalized", safetyReport, { patientId: patient.id, tenantId: tenant.id });
 
           // Divide a resposta para WhatsApp (prioriza mensagem única para evitar cortes por falha parcial de envio)
-          const mensagensSofia = dividirMensagensWhatsApp(finalResult.text, WHATSAPP_MAX_CHARS, WHATSAPP_MAX_MESSAGES, {
+          const mensagensAi = dividirMensagensWhatsApp(finalResult.text, WHATSAPP_MAX_CHARS, WHATSAPP_MAX_MESSAGES, {
             contextText: combinedTexto,
             fallback: getSafeFallback(combinedTexto),
           });
 
-          if (mensagensSofia.length === 0) {
+          if (mensagensAi.length === 0) {
             console.warn(`⚠️  [WEBHOOK] Nenhuma mensagem foi gerada após dividir. Enviando fallback...`);
             try {
               await sendAndSaveBotMessage({
@@ -1974,13 +2182,13 @@ async function processIncomingMessage(change, paramMsg) {
           }
 
           // Atraso de digitação simulado baseado no conteúdo completo
-          const textoCompletoSofia = mensagensSofia.join("\n\n");
-          const delay = calcularDelayRestante(textoCompletoSofia, inicioMs);
+          const textoCompletoAi = mensagensAi.join("\n\n");
+          const delay = calcularDelayRestante(textoCompletoAi, inicioMs);
           if (delay > 0) await sleep(delay);
 
           // Envia e salva cada mensagem separadamente com melhor tratamento de erro
           let envioCompleto = true;
-          for (const mensagem of mensagensSofia) {
+          for (const mensagem of mensagensAi) {
             try {
               await sendAndSaveBotMessage({
                 patient,
@@ -2005,7 +2213,7 @@ async function processIncomingMessage(change, paramMsg) {
           });
 
           // Atualiza memória em background
-          atualizarMemoriaLongoPrazo({ ...patient, ai_memory: patient.ai_memory }, historico, textoCompletoSofia).catch((err) => {
+          atualizarMemoriaLongoPrazo({ ...patient, ai_memory: patient.ai_memory }, historico, textoCompletoAi).catch((err) => {
             console.warn(`⚠️  [WEBHOOK] Erro ao atualizar memória: ${err.message}`);
           });
 
@@ -2056,7 +2264,7 @@ app.use((err, _req, res, _next) => {
 // ── 10. INICIAÇÃO ────────────────────────────────────────────
 if (require.main === module) {
   app.listen(PORT, () => {
-    console.log(`\n🚀 SofiaAI SaaS v3.0.0 (API Oficial Meta) em http://localhost:${PORT}`);
+    console.log(`\n🚀 ZapAI SaaS v3.0.0 (API Oficial Meta) em http://localhost:${PORT}`);
   });
 }
 

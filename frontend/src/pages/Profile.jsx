@@ -1,7 +1,7 @@
 import { useContext, useState, useEffect } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { User, Building, Phone, CheckCircle, Edit2, Save, X, Shield } from "lucide-react";
-import { apiFetch } from "../api";
+import { apiFetch, getStoredAuthToken } from "../api";
 
 function Field({ label, children }) {
   return (
@@ -74,7 +74,7 @@ export default function Profile() {
       const updatedTenant = tenant
         ? { ...tenant, nome: formData.tenant_nome, clinic_phone: formData.clinic_phone, bot_name: formData.bot_name }
         : null;
-      const token = localStorage.getItem("sofia_token");
+      const token = getStoredAuthToken();
       login(token, updatedUser, updatedTenant);
       setIsEditing(false);
     } catch (err) {

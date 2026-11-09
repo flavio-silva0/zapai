@@ -1,17 +1,17 @@
-import { useState, useContext, useEffect } from "react";
+import { useState, useContext, useEffect, useCallback } from "react";
 import {
-  User, CreditCard, Users, Shield, Key, Bell, ChevronRight,
-  Eye, EyeOff, Copy, Check, Zap, Globe, LogOut, Trash2,
-  Lock, AlertCircle, X, ShieldAlert
+  User, CreditCard, Users, Shield, Key, Bell,
+  Copy, Check, Zap, Lock, AlertCircle, X, ShieldAlert,
+  Sparkles, Crown, Building2, CheckCircle2, QrCode, ExternalLink, RefreshCw
 } from "lucide-react";
 import { AuthContext } from "../context/AuthContext";
-import { apiFetch } from "../api";
+import { apiFetch, getStoredAuthToken } from "../api";
 import { useSearchParams } from "react-router-dom";
 import { useNotifications } from "../context/NotificationContext";
 
 function SettingRow({ label, description, children }) {
   return (
-    <div className="flex items-start justify-between gap-6 py-4 border-b border-[var(--border-subtle)]">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-6 py-4 border-b border-[var(--border-subtle)]">
       <div className="flex-1 min-w-0">
         <p className="text-[13px] font-semibold text-[var(--text-primary)]">{label}</p>
         {description && <p className="text-[11px] mt-0.5 text-[var(--text-muted)]">{description}</p>}
@@ -41,14 +41,283 @@ const SECTIONS = [
   { id: "api", label: "API & Integrações", icon: Key },
 ];
 
+const DEFAULT_PLANS = [
+  {
+    id: "starter",
+    name: "Starter",
+    tagline: "Até 150 leads ativos",
+    leadRangeLabel: "Até 150 leads",
+    maxLeads: 150,
+    priceMonthly: 69.90,
+    priceAnnualMonthly: 59.90,
+    dailyAiQuota: 500,
+    features: [
+      "Até 150 leads no CRM & WhatsApp",
+      "Atendente IA 24/7 (Gemini Flash)",
+      "Integração oficial Meta Cloud API",
+      "Kanban CRM + Histórico em tempo real",
+      "Até 500 respostas de IA/dia",
+    ],
+  },
+  {
+    id: "growth",
+    name: "Growth",
+    tagline: "De 151 até 300 leads ativos",
+    leadRangeLabel: "151 a 300 leads",
+    maxLeads: 300,
+    priceMonthly: 119.90,
+    priceAnnualMonthly: 99.90,
+    dailyAiQuota: 1200,
+    popular: true,
+    features: [
+      "De 151 até 300 leads no CRM & WhatsApp",
+      "Atendente IA 24/7 + RAG Avançado",
+      "Qualificação e agendamento automático",
+      "Transbordo humano inteligente",
+      "Até 1.200 respostas de IA/dia",
+    ],
+  },
+  {
+    id: "pro",
+    name: "Profissional",
+    tagline: "De 301 até 500 leads ativos",
+    leadRangeLabel: "301 a 500 leads",
+    maxLeads: 500,
+    priceMonthly: 169.90,
+    priceAnnualMonthly: 144.90,
+    dailyAiQuota: 2000,
+    features: [
+      "De 301 até 500 leads no CRM & WhatsApp",
+      "Atendente IA 24/7 + Múltiplos documentos RAG",
+      "Relatórios avançados e exportação CSV/PDF",
+      "Prioridade na fila de processamento IA",
+      "Até 2.000 respostas de IA/dia",
+    ],
+  },
+  {
+    id: "enterprise",
+    name: "Enterprise",
+    tagline: "Acima de 500 leads (Personalizado)",
+    leadRangeLabel: "Acima de 500 leads",
+    maxLeads: 100000,
+    priceMonthly: 249.90,
+    priceAnnualMonthly: 219.90,
+    customPricing: true,
+    dailyAiQuota: 5000,
+    features: [
+      "Volume personalizado acima de 500 leads",
+      "Múltiplos números de WhatsApp Cloud API",
+      "Cota de IA de alta capacidade (5.000+/dia)",
+      "Onboarding assistido + Gerente dedicado",
+      "SLA de disponibilidade prioritário",
+    ],
+  },
+];
+
 export default function Settings() {
-  const { user, tenant, logout } = useContext(AuthContext);
-  const [searchParams] = useSearchParams();
-  const [activeSection, setActiveSection] = useState(searchParams.get("section") === "notifications" ? "notifications" : "account");
-  useEffect(() => { if (searchParams.get("section") === "notifications") setActiveSection("notifications"); }, [searchParams]);
-  const [apiVisible, setApiVisible] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const { user, tenant, login, logout } = useContext(AuthContext);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialSection = ["account", "billing", "team", "notifications", "security", "api"].includes(searchParams.get("section"))
+    ? searchParams.get("section")
+    : "account";
+  const [activeSection, setActiveSection] = useState(initialSection);
+
+  useEffect(() => {
+    const sec = searchParams.get("section");
+    if (sec && ["account", "billing", "team", "notifications", "security", "api"].includes(sec)) {
+      setActiveSection(sec);
+    }
+  }, [searchParams]);
+
+  const handleSelectSection = (id) => {
+    setActiveSection(id);
+    setSearchParams({ section: id }, { replace: true });
+  };
+
   const { preferences: notifications, updatePreference, storageError } = useNotifications();
+
+  // ── Account Profile Form State ──
+  const [accountForm, setAccountForm] = useState({
+    nome: user?.nome || "",
+    email: user?.email || "",
+    tenant_nome: tenant?.nome || "",
+    clinic_phone: tenant?.clinic_phone || "",
+    bot_name: tenant?.bot_name || "ZapAI",
+  });
+  const [accountSaving, setAccountSaving] = useState(false);
+  const [accountMsg, setAccountMsg] = useState({ type: "", text: "" });
+
+  useEffect(() => {
+    setAccountForm({
+      nome: user?.nome || "",
+      email: user?.email || "",
+      tenant_nome: tenant?.nome || "",
+      clinic_phone: tenant?.clinic_phone || "",
+      bot_name: tenant?.bot_name || "ZapAI",
+    });
+  }, [user, tenant]);
+
+  const refreshAuthSession = useCallback(async () => {
+    try {
+      const res = await apiFetch("/api/auth/me");
+      if (res.ok) {
+        const data = await res.json();
+        if (login) {
+          login(getStoredAuthToken(), data.user, data.tenant);
+        }
+      }
+    } catch (_) {}
+  }, [login]);
+
+  const handleSaveAccount = async (e) => {
+    e.preventDefault();
+    setAccountSaving(true);
+    setAccountMsg({ type: "", text: "" });
+    try {
+      const res = await apiFetch("/api/auth/profile", {
+        method: "PUT",
+        body: JSON.stringify({
+          nome: accountForm.nome,
+          tenant_nome: accountForm.tenant_nome,
+          clinic_phone: accountForm.clinic_phone,
+          bot_name: accountForm.bot_name,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao salvar alterações.");
+      await refreshAuthSession();
+      setAccountMsg({ type: "success", text: "Dados da conta atualizados com sucesso!" });
+    } catch (err) {
+      setAccountMsg({ type: "error", text: err.message });
+    } finally {
+      setAccountSaving(false);
+    }
+  };
+
+  // ── Billing & Subscription State ──
+  const [billingData, setBillingData] = useState(null);
+  const [billingLoading, setBillingLoading] = useState(false);
+  const [billingCycle, setBillingCycle] = useState("monthly");
+  const [checkoutModal, setCheckoutModal] = useState(null); // { plan }
+  const [checkoutMethod, setCheckoutMethod] = useState("PIX");
+  const [checkoutCpfCnpj, setCheckoutCpfCnpj] = useState("");
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutResult, setCheckoutResult] = useState(null);
+  const [checkoutError, setCheckoutError] = useState("");
+  const [pixCopied, setPixCopied] = useState(false);
+  const [confirmingSandbox, setConfirmingSandbox] = useState(false);
+
+  const loadBillingSubscription = useCallback(async () => {
+    setBillingLoading(true);
+    try {
+      const res = await apiFetch("/api/billing/subscription");
+      if (res.ok) {
+        const data = await res.json();
+        setBillingData(data);
+        if (data.tenant?.billing_cycle === "annual") {
+          setBillingCycle("annual");
+        }
+      }
+    } catch (_) {
+      // Fallback to tenant context if offline
+    } finally {
+      setBillingLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeSection === "billing") {
+      loadBillingSubscription();
+    }
+  }, [activeSection, loadBillingSubscription]);
+
+  const handleOpenCheckout = (plan) => {
+    setCheckoutModal(plan);
+    setCheckoutResult(null);
+    setCheckoutError("");
+    setPixCopied(false);
+  };
+
+  const [openingPortal, setOpeningPortal] = useState(false);
+
+  const handleOpenStripePortal = async () => {
+    setOpeningPortal(true);
+    try {
+      const res = await apiFetch("/api/billing/stripe/portal", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Não foi possível abrir o portal da Stripe.");
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setOpeningPortal(false);
+    }
+  };
+
+  const handleStartCheckout = async (e) => {
+    e.preventDefault();
+    if (!checkoutModal) return;
+    setCheckoutLoading(true);
+    setCheckoutError("");
+    try {
+      const res = await apiFetch("/api/billing/checkout", {
+        method: "POST",
+        body: JSON.stringify({
+          planId: checkoutModal.id,
+          billingCycle,
+          paymentMethod: checkoutMethod,
+          cpfCnpj: checkoutCpfCnpj,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Não foi possível iniciar o checkout.");
+      setCheckoutResult(data);
+      if (data.checkoutUrl && !data.sandbox) {
+        window.location.href = data.checkoutUrl;
+        return;
+      }
+      await loadBillingSubscription();
+    } catch (err) {
+      setCheckoutError(err.message);
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
+
+  const handleConfirmPayment = async (invoiceId) => {
+    setConfirmingSandbox(true);
+    setCheckoutError("");
+    try {
+      const res = await apiFetch("/api/billing/confirm-sandbox", {
+        method: "POST",
+        body: JSON.stringify({
+          invoiceId: invoiceId || checkoutResult?.invoiceId,
+          planId: checkoutModal?.id,
+          billingCycle,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao confirmar pagamento.");
+      await Promise.all([loadBillingSubscription(), refreshAuthSession()]);
+      setCheckoutResult((prev) => ({
+        ...prev,
+        confirmed: true,
+        message: data.message || "Plano ativado com sucesso!",
+      }));
+    } catch (err) {
+      setCheckoutError(err.message);
+    } finally {
+      setConfirmingSandbox(false);
+    }
+  };
+
+  const handleCopyPix = (code) => {
+    navigator.clipboard.writeText(code).catch(() => {});
+    setPixCopied(true);
+    setTimeout(() => setPixCopied(false), 2500);
+  };
 
   // Password change state
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -101,16 +370,23 @@ export default function Settings() {
     }
   };
 
-  const MOCK_API_KEY = "sk-zapai-em-breve";
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(MOCK_API_KEY).catch(() => {});
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const usage = billingData?.usage || tenant?.usage || {
+    planId: tenant?.plan === "basic" ? "starter" : (tenant?.plan || "starter"),
+    planName: tenant?.plan === "growth" ? "Growth" : tenant?.plan === "pro" ? "Profissional" : tenant?.plan === "enterprise" ? "Enterprise" : "Starter",
+    leadRangeLabel: "Até 150 leads",
+    currentLeads: 0,
+    maxLeads: 150,
+    remainingLeads: 150,
+    usagePercent: 0,
+    limitReached: false,
+    nearLimit: false,
   };
+  const availablePlans = billingData?.availablePlans || DEFAULT_PLANS;
+  const invoices = billingData?.invoices || [];
+  const activePlanId = usage.planId;
 
   return (
-    <div className="p-6 lg:p-8 space-y-6 max-w-5xl">
+    <div className="p-6 lg:p-8 space-y-6 max-w-6xl">
 
       {/* ── Header ── */}
       <header>
@@ -124,7 +400,7 @@ export default function Settings() {
           Configurações
         </h1>
         <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-          Gerencie sua conta, equipe, faturamento e preferências do sistema
+          Gerencie sua conta, planos, limite de leads, faturamento e segurança
         </p>
       </header>
 
@@ -136,7 +412,7 @@ export default function Settings() {
             {SECTIONS.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
-                onClick={() => setActiveSection(id)}
+                onClick={() => handleSelectSection(id)}
                 className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] transition-all mb-0.5 ${
                   activeSection === id
                     ? "bg-[var(--clr-primary)]/12 text-[var(--clr-primary)] font-semibold shadow-xs"
@@ -155,101 +431,422 @@ export default function Settings() {
 
           {/* Account */}
           {activeSection === "account" && (
-            <div className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl p-6 space-y-1 animate-fade-scale">
-              <h2 className="text-[var(--text-primary)] font-bold text-base mb-5">Informações da Conta</h2>
+            <form onSubmit={handleSaveAccount} className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl p-6 space-y-1 animate-fade-scale">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-[var(--text-primary)] font-bold text-base">Informações da Conta</h2>
+                <span className="badge badge-brand text-[10px]">
+                  {user?.role === "owner" ? "Proprietário" : user?.role === "super_admin" ? "Super Admin" : "Membro"}
+                </span>
+              </div>
+
+              {accountMsg.text && (
+                <div className={`p-3 rounded-xl text-xs flex items-center gap-2 mb-3 ${
+                  accountMsg.type === "success"
+                    ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
+                    : "bg-red-500/10 border border-red-500/20 text-red-400"
+                }`}>
+                  {accountMsg.type === "success" ? <Check size={14} /> : <AlertCircle size={14} />}
+                  <span>{accountMsg.text}</span>
+                </div>
+              )}
 
               {/* Avatar */}
               <div className="flex items-center gap-4 py-4 mb-2 border-b border-[var(--border-subtle)]">
                 <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-black text-white bg-gradient-to-br from-[var(--clr-primary)] to-[var(--clr-info)]">
-                  {user?.nome?.charAt(0)?.toUpperCase() || "U"}
+                  {accountForm.nome?.charAt(0)?.toUpperCase() || "U"}
                 </div>
                 <div>
-                  <p className="text-[var(--text-primary)] font-bold">{user?.nome || "Usuário"}</p>
-                  <p className="text-[12px] text-[var(--text-muted)]">{user?.email || "email@exemplo.com"}</p>
-                  <button className="text-[11px] font-semibold mt-1 transition-colors text-[var(--clr-primary)] hover:opacity-80">
-                    Alterar foto
+                  <p className="text-[var(--text-primary)] font-bold">{accountForm.nome || "Usuário"}</p>
+                  <p className="text-[12px] text-[var(--text-muted)]">{accountForm.email || "email@exemplo.com"}</p>
+                  <p className="text-[11px] text-cyan-400 font-medium mt-0.5">
+                    Plano {usage.planName} · {usage.currentLeads}/{usage.maxLeads} leads utilizados
+                  </p>
+                </div>
+              </div>
+
+              <SettingRow label="Seu Nome" description="Nome exibido para sua equipe no painel">
+                <input
+                  value={accountForm.nome}
+                  onChange={e => setAccountForm(f => ({ ...f, nome: e.target.value }))}
+                  className="input-premium text-[12px]"
+                  style={{ width: 240 }}
+                  required
+                />
+              </SettingRow>
+
+              <SettingRow label="E-mail de Acesso" description="Endereço de e-mail autenticado da conta">
+                <input
+                  value={accountForm.email}
+                  disabled
+                  className="input-premium text-[12px] opacity-60 cursor-not-allowed"
+                  style={{ width: 240 }}
+                />
+              </SettingRow>
+
+              <SettingRow label="Nome da Empresa / Clínica" description="Identificação da sua organização no ZapAI">
+                <input
+                  value={accountForm.tenant_nome}
+                  onChange={e => setAccountForm(f => ({ ...f, tenant_nome: e.target.value }))}
+                  className="input-premium text-[12px]"
+                  style={{ width: 240 }}
+                />
+              </SettingRow>
+
+              <SettingRow label="WhatsApp Comercial" description="Telefone principal de atendimento (ex: 5511999999999)">
+                <input
+                  value={accountForm.clinic_phone}
+                  onChange={e => setAccountForm(f => ({ ...f, clinic_phone: e.target.value }))}
+                  placeholder="5511999999999"
+                  className="input-premium text-[12px]"
+                  style={{ width: 240 }}
+                />
+              </SettingRow>
+
+              <SettingRow label="Nome do Assistente IA" description="Como a IA se apresenta nas conversas do WhatsApp">
+                <input
+                  value={accountForm.bot_name}
+                  onChange={e => setAccountForm(f => ({ ...f, bot_name: e.target.value }))}
+                  placeholder="Ex: ZapAI ou Maria"
+                  className="input-premium text-[12px]"
+                  style={{ width: 240 }}
+                />
+              </SettingRow>
+
+              <div className="pt-4 flex justify-end">
+                <button type="submit" disabled={accountSaving} className="btn-primary text-sm px-5 py-2.5">
+                  {accountSaving ? "Salvando..." : "Salvar Alterações"}
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* Billing & Plans */}
+          {activeSection === "billing" && (
+            <div className="space-y-6 animate-fade-scale">
+
+              {/* Current Plan & Lead Usage Card */}
+              <div className="bg-gradient-to-br from-[var(--clr-primary)]/12 via-[var(--bg-surface)] to-[var(--clr-info)]/8 border border-[var(--clr-primary)]/25 rounded-2xl p-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="badge badge-brand text-[10px]">Assinatura da Organização</span>
+                      <span className={`badge text-[10px] ${
+                        tenant?.status === "active" ? "badge-success" : "badge-warning"
+                      }`}>
+                        {tenant?.status === "trial" ? "Período de Teste (Trial)" : "Assinatura Ativa"}
+                      </span>
+                    </div>
+                    <h2 className="text-[var(--text-primary)] font-black text-2xl font-display flex items-center gap-2">
+                      Plano {usage.planName}
+                      <span className="text-xs font-semibold text-cyan-400 bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-0.5 rounded-full">
+                        {usage.leadRangeLabel}
+                      </span>
+                    </h2>
+                    <p className="text-[12px] mt-1 text-[var(--text-secondary)]">
+                      {tenant?.status === "trial" && tenant?.trial_ends_at
+                        ? `Seu período de avaliação vai até ${new Date(tenant.trial_ends_at).toLocaleDateString("pt-BR")}. Contrate um plano abaixo para garantir atendimento contínuo.`
+                        : billingData?.tenant?.current_period_end
+                          ? `Próxima renovação em ${new Date(billingData.tenant.current_period_end).toLocaleDateString("pt-BR")}`
+                          : "Integração oficial Meta Cloud API + IA Gemini 24/7 ativa."}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-start md:self-center">
+                    {billingData?.tenant?.billing_customer_id && (
+                      <button
+                        type="button"
+                        onClick={handleOpenStripePortal}
+                        disabled={openingPortal}
+                        className="btn-ghost text-xs flex items-center gap-1.5 py-2 px-3 border border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/10"
+                      >
+                        <CreditCard size={13} />
+                        {openingPortal ? "Abrindo..." : "Portal Stripe"}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={loadBillingSubscription}
+                      disabled={billingLoading}
+                      className="btn-ghost text-xs flex items-center gap-1.5 py-2 px-3"
+                    >
+                      <RefreshCw size={13} className={billingLoading ? "animate-spin" : ""} />
+                      Atualizar Uso
+                    </button>
+                  </div>
+                </div>
+
+                {/* Lead Usage Bar */}
+                <div className="mt-6 p-4 rounded-xl bg-[var(--bg-surface)]/90 border border-[var(--border-subtle)] space-y-2.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                      <Users size={14} className="text-cyan-400" />
+                      Consumo de Leads no CRM & WhatsApp
+                    </span>
+                    <span className="font-mono font-bold text-[var(--text-primary)]">
+                      {usage.currentLeads} / {usage.maxLeads} leads ({usage.usagePercent}%)
+                    </span>
+                  </div>
+
+                  <div className="w-full h-3 rounded-full bg-slate-800 overflow-hidden p-0.5 border border-white/5">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        usage.limitReached
+                          ? "bg-red-500"
+                          : usage.nearLimit
+                            ? "bg-amber-500"
+                            : "bg-gradient-to-r from-cyan-400 to-emerald-400"
+                      }`}
+                      style={{ width: `${Math.min(100, Math.max(2, usage.usagePercent || 0))}%` }}
+                    />
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-[11px] text-[var(--text-muted)]">
+                    <span>
+                      {usage.limitReached
+                        ? "⚠️ Limite de leads atingido! Faça upgrade abaixo para liberar a IA para novos contatos."
+                        : `Restam ${usage.remainingLeads} leads disponíveis no seu plano atual.`}
+                    </span>
+                    {usage.recommendedUpgradePlanId && usage.recommendedUpgradePlanId !== activePlanId && (
+                      <span className="text-amber-400 font-semibold">
+                        Recomendado: Upgrade para {usage.recommendedUpgradePlanId.toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Plan Selector Header + Cycle Toggle */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2">
+                <div>
+                  <h3 className="text-[var(--text-primary)] font-bold text-lg">
+                    Escolha o Plano Ideal para sua Operação
+                  </h3>
+                  <p className="text-xs text-[var(--text-muted)]">
+                    Upgrade imediato com liberação instantânea de limite de leads e cota de IA
+                  </p>
+                </div>
+
+                <div className="inline-flex items-center p-1 rounded-xl bg-[var(--bg-surface)] border border-[var(--border-medium)] self-start">
+                  <button
+                    type="button"
+                    onClick={() => setBillingCycle("monthly")}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      billingCycle === "monthly"
+                        ? "bg-cyan-500 text-slate-950 shadow"
+                        : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                    }`}
+                  >
+                    Mensal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBillingCycle("annual")}
+                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                      billingCycle === "annual"
+                        ? "bg-cyan-500 text-slate-950 shadow"
+                        : "text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                    }`}
+                  >
+                    Anual
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-extrabold">
+                      -15%
+                    </span>
                   </button>
                 </div>
               </div>
 
-              <SettingRow label="Nome" description="Seu nome exibido no sistema">
-                <input defaultValue={user?.nome || ""} className="input-premium text-[12px]" style={{ width: 200 }} />
-              </SettingRow>
+              {/* 4 Plan Cards Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+                {availablePlans.map((plan) => {
+                  const isCurrent = activePlanId === plan.id && tenant?.status === "active";
+                  const price = billingCycle === "annual" ? plan.priceAnnualMonthly : plan.priceMonthly;
+                  const isCustom = Boolean(plan.customPricing);
 
-              <SettingRow label="E-mail" description="Seu endereço de e-mail de acesso">
-                <input defaultValue={user?.email || ""} className="input-premium text-[12px]" style={{ width: 200 }} />
-              </SettingRow>
-
-              <SettingRow label="Empresa / Tenant" description="Nome da sua organização no sistema">
-                <input defaultValue={tenant?.nome || ""} className="input-premium text-[12px]" style={{ width: 200 }} />
-              </SettingRow>
-
-              <SettingRow label="Idioma" description="Idioma preferido da interface">
-                <select className="input-premium text-[12px] appearance-none" style={{ width: 200 }}>
-                  <option className="bg-[var(--bg-surface)]">Português (BR)</option>
-                  <option className="bg-[var(--bg-surface)]">English</option>
-                  <option className="bg-[var(--bg-surface)]">Español</option>
-                </select>
-              </SettingRow>
-
-              <div className="pt-4 flex justify-end">
-                <button className="btn-primary text-sm">Salvar Alterações</button>
-              </div>
-            </div>
-          )}
-
-          {/* Billing */}
-          {activeSection === "billing" && (
-            <div className="space-y-4 animate-fade-scale">
-              <div className="bg-gradient-to-br from-[var(--clr-primary)]/10 to-[var(--clr-info)]/5 border border-[var(--clr-primary)]/20 rounded-2xl p-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <span className="badge badge-brand text-[10px] mb-2">Plano da Organização</span>
-                    <h2 className="text-[var(--text-primary)] font-black text-xl font-display">
-                      Plano {tenant?.plan ? tenant.plan.toUpperCase() : "PRO"}
-                    </h2>
-                    <p className="text-[13px] mt-1 text-[var(--text-secondary)]">
-                      Status: <span className="font-semibold text-emerald-400 capitalize">{tenant?.status || "ativo"}</span>
-                      {tenant?.trial_ends_at && tenant?.status === "trial" && (
-                        <span> · Período de teste até {new Date(tenant.trial_ends_at).toLocaleDateString("pt-BR")}</span>
+                  return (
+                    <div
+                      key={plan.id}
+                      className={`rounded-2xl p-5 flex flex-col justify-between border transition-all relative ${
+                        plan.popular
+                          ? "bg-gradient-to-b from-cyan-500/10 to-[var(--bg-surface)] border-cyan-500/40 shadow-lg shadow-cyan-500/5"
+                          : isCurrent
+                            ? "bg-[var(--bg-surface)] border-emerald-500/40"
+                            : "bg-[var(--bg-surface)] border-[var(--border-medium)]"
+                      }`}
+                    >
+                      {plan.popular && (
+                        <div className="absolute -top-3 right-4 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-cyan-400 text-slate-950 shadow">
+                          Mais Escolhido
+                        </div>
                       )}
+
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <span className="text-xs font-bold uppercase tracking-wider text-cyan-400">
+                            {plan.leadRangeLabel}
+                          </span>
+                          {isCurrent && (
+                            <span className="badge badge-success text-[9px]">Plano Atual</span>
+                          )}
+                        </div>
+
+                        <h4 className="text-lg font-black text-[var(--text-primary)] font-display">
+                          {plan.name}
+                        </h4>
+                        <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                          {plan.tagline}
+                        </p>
+
+                        <div className="my-4 pt-3 border-t border-[var(--border-subtle)]">
+                          {isCustom ? (
+                            <div>
+                              <span className="text-[11px] text-[var(--text-muted)] block">A partir de</span>
+                              <span className="text-2xl font-black text-[var(--text-primary)] font-display">
+                                R$ {price.toFixed(2).replace(".", ",")}
+                              </span>
+                              <span className="text-xs text-[var(--text-muted)]">/mês</span>
+                            </div>
+                          ) : (
+                            <div>
+                              <span className="text-2xl font-black text-[var(--text-primary)] font-display">
+                                R$ {price.toFixed(2).replace(".", ",")}
+                              </span>
+                              <span className="text-xs text-[var(--text-muted)]">/mês</span>
+                              {billingCycle === "annual" && (
+                                <p className="text-[10px] text-emerald-400 mt-0.5 font-semibold">
+                                  Economia no ciclo anual
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        <ul className="space-y-2 text-xs text-[var(--text-secondary)] mb-5">
+                          {(plan.features || []).slice(0, 5).map((feat, idx) => (
+                            <li key={idx} className="flex items-start gap-2">
+                              <CheckCircle2 size={13} className="text-emerald-400 shrink-0 mt-0.5" />
+                              <span>{feat}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {isCustom ? (
+                        <div className="space-y-2">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenCheckout(plan)}
+                            className="w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all bg-purple-500/20 text-purple-300 border border-purple-500/30 hover:bg-purple-500/30"
+                          >
+                            Contratar Enterprise
+                          </button>
+                          <a
+                            href="https://wa.me/5511999999999?text=Ol%C3%A1!%20Quero%20cotar%20o%20plano%20Enterprise%20acima%20de%20500%20leads%20no%20ZapAI"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block text-center text-[11px] text-[var(--text-muted)] hover:text-cyan-400"
+                          >
+                            Ou falar com consultor →
+                          </a>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleOpenCheckout(plan)}
+                          className={`w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all ${
+                            isCurrent
+                              ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/25"
+                              : plan.popular
+                                ? "bg-cyan-400 text-slate-950 hover:bg-cyan-300 shadow"
+                                : "btn-primary"
+                          }`}
+                        >
+                          {isCurrent ? "Renovar / Alterar Ciclo" : "Contratar Plano"}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Invoices History */}
+              <div className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-[var(--text-primary)] font-bold text-base">Histórico de Faturas & Pagamentos</h3>
+                    <p className="text-xs text-[var(--text-muted)]">
+                      Pagamentos processados via PIX, Boleto ou Cartão de Crédito (Asaas / Stripe)
                     </p>
                   </div>
-                  <div className="text-right">
-                    <span className="badge badge-brand text-xs font-mono">
-                      {tenant?.status === "trial" ? "TRIAL ATIVO" : "CONTRATUAL"}
-                    </span>
+                </div>
+
+                {invoices.length === 0 ? (
+                  <div className="p-6 text-center rounded-xl bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)]">
+                    <p className="text-xs text-[var(--text-muted)]">
+                      Nenhuma fatura gerada até o momento. Escolha um dos planos acima para iniciar sua assinatura.
+                    </p>
                   </div>
-                </div>
-
-                <div className="mt-5 pt-5 border-t border-[var(--border-subtle)] text-xs text-[var(--text-muted)] space-y-1">
-                  <p>• Suporte dedicado e integração oficial Meta Cloud API inclusa.</p>
-                  <p>• Faturamento mensal por contrato corporativo ou ordem de serviço.</p>
-                </div>
-              </div>
-
-              <div className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl p-6 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-[var(--text-primary)] font-bold text-base">Faturamento & Cobrança</h2>
-                  <span className="badge badge-warning text-[10px]">Em breve: Checkout Online</span>
-                </div>
-                <SettingRow label="Modelo de Cobrança" description="Gestão contratual de pagamentos">
-                  <span className="text-xs text-[var(--text-secondary)]">Boleto / PIX Corporativo</span>
-                </SettingRow>
-                <SettingRow label="Emissão de Notas Fiscais" description="Enviadas mensalmente para o e-mail cadastrado">
-                  <span className="text-xs text-emerald-400 font-semibold">Ativo</span>
-                </SettingRow>
-                <div className="pt-2 flex justify-between items-center">
-                  <p className="text-[11px] text-[var(--text-muted)]">
-                    Deseja alterar seu plano ou adicionar mais números? Fale com nosso suporte comercial.
-                  </p>
-                  <a
-                    href="mailto:contato@zapai.com.br?subject=Upgrade%20de%20Plano%20ZapAI"
-                    className="btn-primary text-xs py-2 px-4 inline-block text-center"
-                  >
-                    Solicitar Upgrade
-                  </a>
-                </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="border-b border-[var(--border-subtle)] text-[var(--text-muted)]">
+                          <th className="py-2.5 px-3">Data</th>
+                          <th className="py-2.5 px-3">Plano</th>
+                          <th className="py-2.5 px-3">Método</th>
+                          <th className="py-2.5 px-3">Valor</th>
+                          <th className="py-2.5 px-3">Status</th>
+                          <th className="py-2.5 px-3 text-right">Ação</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[var(--border-subtle)]">
+                        {invoices.map((inv) => (
+                          <tr key={inv.id}>
+                            <td className="py-3 px-3 text-[var(--text-secondary)]">
+                              {inv.created_at ? new Date(inv.created_at).toLocaleDateString("pt-BR") : "-"}
+                            </td>
+                            <td className="py-3 px-3 font-semibold text-[var(--text-primary)] uppercase">
+                              {inv.plan} ({inv.billing_cycle === "annual" ? "Anual" : "Mensal"})
+                            </td>
+                            <td className="py-3 px-3 text-[var(--text-secondary)] uppercase">
+                              {inv.payment_method || "PIX"}
+                            </td>
+                            <td className="py-3 px-3 font-mono font-bold text-[var(--text-primary)]">
+                              R$ {(typeof inv.amount_brl === "number" ? inv.amount_brl : ((inv.amount_cents || 0) / 100)).toFixed(2).replace(".", ",")}
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className={`badge text-[10px] ${
+                                inv.status === "paid" ? "badge-success" : inv.status === "pending" ? "badge-warning" : ""
+                              }`}>
+                                {inv.status === "paid" ? "Pago" : inv.status === "pending" ? "Aguardando Pagamento" : inv.status}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 text-right">
+                              {inv.status === "pending" && inv.provider === "sandbox" && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleConfirmPayment(inv.id)}
+                                  className="text-xs font-bold text-cyan-400 hover:underline"
+                                >
+                                  Confirmar Pagamento
+                                </button>
+                              )}
+                              {inv.invoice_url && inv.provider !== "sandbox" && (
+                                <a
+                                  href={inv.invoice_url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex items-center gap-1 text-xs font-bold text-cyan-400 hover:underline"
+                                >
+                                  Abrir Fatura <ExternalLink size={11} />
+                                </a>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -391,20 +988,40 @@ export default function Settings() {
                       <Key size={18} className="text-[var(--clr-primary)]" />
                     </div>
                     <div>
-                      <h2 className="text-[var(--text-primary)] font-bold text-base">API Pública REST</h2>
+                      <h2 className="text-[var(--text-primary)] font-bold text-base">API Pública REST & Webhooks de Pagamento</h2>
                       <p className="text-[11px] text-[var(--text-muted)]">
-                        Integração externa via token seguro para desenvolvedores
+                        Endpoints oficiais para integração de cobrança e webhooks
                       </p>
                     </div>
                   </div>
-                  <span className="badge badge-warning text-[10px]">Em breve</span>
+                  <span className="badge badge-success text-[10px]">Ativo</span>
                 </div>
 
-                <div className="p-4 rounded-xl flex items-center gap-3 bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)]">
-                  <ShieldAlert size={18} className="text-amber-400 shrink-0" />
-                  <p className="text-xs text-[var(--text-secondary)]">
-                    A API pública do ZapAI e o suporte a webhooks externos customizados estão em fase de homologação. O acesso programático será liberado em breve para contas corporativas.
-                  </p>
+                <div className="space-y-3 text-xs">
+                  <div className="p-3.5 rounded-xl bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)]">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="font-semibold text-[var(--text-primary)]">Webhook Stripe (Oficial)</p>
+                      <span className="badge badge-brand text-[9px]">Stripe Subscriptions</span>
+                    </div>
+                    <code className="text-[11px] text-cyan-400 font-mono break-all">
+                      {window.location.origin}/api/billing/webhooks/stripe
+                    </code>
+                    <p className="text-[10px] text-[var(--text-muted)] mt-1">
+                      Eventos suportados: <code>checkout.session.completed</code>, <code>invoice.paid</code>, <code>customer.subscription.deleted</code>
+                    </p>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)]">
+                    <p className="font-semibold text-[var(--text-primary)] mb-1">Webhook Meta WhatsApp Cloud API</p>
+                    <code className="text-[11px] text-cyan-400 font-mono break-all">
+                      {window.location.origin}/webhook
+                    </code>
+                  </div>
+                  <div className="p-3.5 rounded-xl bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)]">
+                    <p className="font-semibold text-[var(--text-primary)] mb-1">Webhook Alternativo Asaas</p>
+                    <code className="text-[11px] text-cyan-400 font-mono break-all">
+                      {window.location.origin}/api/billing/webhooks/asaas
+                    </code>
+                  </div>
                 </div>
               </div>
             </div>
@@ -412,6 +1029,185 @@ export default function Settings() {
 
         </div>
       </div>
+
+      {/* ── Checkout Modal ── */}
+      {checkoutModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs animate-fade-in">
+          <div className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl w-full max-w-lg p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="badge badge-brand text-[10px] mb-1">Stripe Checkout Oficial</span>
+                <h3 className="font-bold text-lg text-[var(--text-primary)]">
+                  Assinar Plano {checkoutModal.name} ({checkoutModal.leadRangeLabel})
+                </h3>
+              </div>
+              <button
+                onClick={() => setCheckoutModal(null)}
+                className="p-1.5 rounded-lg hover:bg-[var(--bg-surface-hover)] text-[var(--text-muted)]"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {checkoutError && (
+              <div className="p-3 rounded-xl text-xs flex items-center gap-2 bg-red-500/10 border border-red-500/20 text-red-400">
+                <AlertCircle size={14} className="shrink-0" />
+                <span>{checkoutError}</span>
+              </div>
+            )}
+
+            {!checkoutResult ? (
+              <form onSubmit={handleStartCheckout} className="space-y-4">
+                <div className="p-4 rounded-xl bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-[var(--text-primary)]">
+                      Plano {checkoutModal.name} · Ciclo {billingCycle === "annual" ? "Anual (-15%)" : "Mensal"}
+                    </p>
+                    <p className="text-[11px] text-[var(--text-muted)]">
+                      Capacidade: {checkoutModal.leadRangeLabel} · {checkoutModal.dailyAiQuota} msg IA/dia
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-lg font-black text-cyan-400 font-display">
+                      R$ {(billingCycle === "annual" ? checkoutModal.priceAnnualMonthly : checkoutModal.priceMonthly).toFixed(2).replace(".", ",")}
+                      <span className="text-[11px] font-normal text-[var(--text-muted)]">/mês</span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-cyan-500/10 border border-cyan-500/20 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
+                      <Shield size={14} className="text-cyan-400" />
+                      Pagamento Seguro via Stripe
+                    </span>
+                    <span className="text-[10px] font-mono text-cyan-400/80 uppercase">Oficial</span>
+                  </div>
+                  <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
+                    Você será direcionado para o Stripe Checkout oficial. Aceita <strong>Cartão de Crédito</strong>, <strong>PIX</strong>, <strong>Apple Pay</strong> e <strong>Google Pay</strong> com faturamento transparente em BRL (R$).
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-[var(--text-secondary)] mb-1">
+                    CPF ou CNPJ do Titular (Opcional — para Nota Fiscal)
+                  </label>
+                  <input
+                    type="text"
+                    value={checkoutCpfCnpj}
+                    onChange={(e) => setCheckoutCpfCnpj(e.target.value)}
+                    placeholder="000.000.000-00 ou 00.000.000/0001-00"
+                    className="input-premium text-xs w-full"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setCheckoutModal(null)}
+                    className="btn-ghost text-xs py-2.5 px-4"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={checkoutLoading}
+                    className="btn-primary text-xs py-2.5 px-5 flex items-center gap-1.5"
+                  >
+                    {checkoutLoading ? "Conectando ao Stripe..." : "Prosseguir para Stripe Checkout →"}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-4">
+                {checkoutResult.confirmed ? (
+                  <div className="p-5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-center space-y-3">
+                    <CheckCircle2 size={36} className="text-emerald-400 mx-auto" />
+                    <h4 className="font-bold text-base text-emerald-300">
+                      {checkoutResult.message}
+                    </h4>
+                    <p className="text-xs text-[var(--text-secondary)]">
+                      Seu limite de leads e cota diária de IA já foram atualizados em toda a plataforma.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setCheckoutModal(null)}
+                      className="btn-primary text-xs py-2 px-6 mx-auto"
+                    >
+                      Concluir
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="p-4 rounded-xl bg-[var(--bg-surface-hover)] border border-[var(--border-subtle)] space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-[var(--text-primary)] flex items-center gap-1.5">
+                          <QrCode size={15} className="text-cyan-400" />
+                          Cobrança Gerada ({checkoutResult.provider?.toUpperCase()})
+                        </span>
+                        <span className="font-mono font-bold text-sm text-emerald-400">
+                          {checkoutResult.amountFormatted}
+                        </span>
+                      </div>
+
+                      {checkoutResult.pixCopyPaste && (
+                        <div className="space-y-1.5">
+                          <p className="text-[11px] text-[var(--text-muted)]">Código PIX Copia e Cola:</p>
+                          <div className="flex items-center gap-2">
+                            <input
+                              readOnly
+                              value={checkoutResult.pixCopyPaste}
+                              className="input-premium text-[11px] font-mono flex-1"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleCopyPix(checkoutResult.pixCopyPaste)}
+                              className="btn-ghost text-xs py-2 px-3 flex items-center gap-1"
+                            >
+                              {pixCopied ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
+                              {pixCopied ? "Copiado" : "Copiar"}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {checkoutResult.checkoutUrl && !checkoutResult.sandbox && (
+                        <a
+                          href={checkoutResult.checkoutUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn-primary text-xs py-2.5 px-4 w-full flex items-center justify-center gap-1.5 text-center font-bold"
+                        >
+                          Pagar com Stripe Checkout Seguro <ExternalLink size={13} />
+                        </a>
+                      )}
+                    </div>
+
+                    {checkoutResult.sandbox && (
+                      <div className="p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/25 space-y-2.5">
+                        <p className="text-xs text-cyan-200 font-semibold">
+                          Ambiente de Homologação / Sandbox Ativo
+                        </p>
+                        <p className="text-[11px] text-[var(--text-secondary)]">
+                          Você pode confirmar o pagamento instantaneamente abaixo para ativar o plano <strong>{checkoutModal.name}</strong> na conta de teste.
+                        </p>
+                        <button
+                          type="button"
+                          disabled={confirmingSandbox}
+                          onClick={() => handleConfirmPayment(checkoutResult.invoiceId)}
+                          className="w-full py-2.5 px-4 rounded-xl text-xs font-extrabold bg-emerald-400 text-slate-950 hover:bg-emerald-300 transition-all shadow"
+                        >
+                          {confirmingSandbox ? "Ativando Plano..." : "Confirmar Pagamento e Ativar Plano Agora"}
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Modal Alterar Senha (AUTH-004) ── */}
       {showPasswordModal && (

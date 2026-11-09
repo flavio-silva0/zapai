@@ -31,7 +31,7 @@ const fs = require('fs');
   await page.screenshot({path:`docs/qa-registration/step-3-${width}.png`,fullPage:true});
   await page.click('button[type=submit]'); await page.waitForFunction(()=>document.body.textContent.includes('Confira seu e-mail'));
   await page.screenshot({path:`docs/qa-registration/confirmation-${width}.png`,fullPage:true});
-  if(await page.evaluate(()=>localStorage.getItem('sofia_token'))) throw new Error('Unconfirmed session created');
+  if(await page.evaluate(()=>localStorage.getItem('zapai_token') || localStorage.getItem('sofia_token'))) throw new Error('Unconfirmed session created');
  }
  if(errors.length) throw new Error(errors.join('\n'));
  await browser.close(); console.log('UI passed at 1440px and 390px: all steps, invalid CPF, email confirmation, no premature session, no overflow or JS errors. API response simulated; no emails sent.');

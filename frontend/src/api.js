@@ -13,6 +13,10 @@ const BASE_URL = import.meta.env.VITE_API_URL ?? "";
  * Constrói a URL completa da API
  * @param {string} path - Ex: "/api/stats" ou "/api/patients"
  */
+export function getStoredAuthToken() {
+  return localStorage.getItem("zapai_token") || localStorage.getItem("sofia_token");
+}
+
 export function apiUrl(path) {
   return `${BASE_URL}${path}`;
 }
@@ -27,7 +31,7 @@ const inFlightGets = new Map();
  */
 export async function apiFetch(path, options = {}) {
   const method = (options.method || "GET").toUpperCase();
-  const token = localStorage.getItem("sofia_token");
+  const token = getStoredAuthToken();
 
   // In-flight deduplication apenas para GET
   const isGet = method === "GET" && !options.body;

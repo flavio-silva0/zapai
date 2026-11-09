@@ -1,4 +1,4 @@
-import { apiUrl } from "./api";
+import { apiUrl, getStoredAuthToken } from "./api";
 
 // EventSource cannot send Authorization; use fetch so session tokens never enter URLs.
 export function createEventStream() {
@@ -16,7 +16,7 @@ export function createEventStream() {
   };
   async function connect() {
     if (controller.signal.aborted) return;
-    const token = localStorage.getItem("sofia_token");
+    const token = getStoredAuthToken();
     if (!token) return;
     try {
       const response = await fetch(apiUrl("/api/events"), {

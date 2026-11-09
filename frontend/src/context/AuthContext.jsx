@@ -8,8 +8,15 @@ import { apiFetch } from "../api";
 
 export const AuthContext = createContext({});
 
+const TOKEN_KEY = "zapai_token";
+const LEGACY_TOKEN_KEY = "sofia_token";
+
+function getStoredToken() {
+  return localStorage.getItem(TOKEN_KEY) || localStorage.getItem(LEGACY_TOKEN_KEY);
+}
+
 export function AuthProvider({ children }) {
-  const [token,   setToken]   = useState(localStorage.getItem("sofia_token"));
+  const [token,   setToken]   = useState(getStoredToken());
   const [user,    setUser]    = useState(null);
   const [tenant,  setTenant]  = useState(null);
   const [loading, setLoading] = useState(true);
@@ -33,7 +40,8 @@ export function AuthProvider({ children }) {
         setToken(null);
         setUser(null);
         setTenant(null);
-        localStorage.removeItem("sofia_token");
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(LEGACY_TOKEN_KEY);
       })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
@@ -41,7 +49,7 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const onStorage = (event) => {
-      if (event.key !== "sofia_token") return;
+      if (event.key !== TOKEN_KEY && event.key !== LEGACY_TOKEN_KEY) return;
       setUser(null);
       setTenant(null);
       setLoading(Boolean(event.newValue));
@@ -52,14 +60,16 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = (newToken, userData, tenantData = null) => {
-    localStorage.setItem("sofia_token", newToken);
+    localStorage.setItem(TOKEN_KEY, newToken);
+    localStorage.removeItem(LEGACY_TOKEN_KEY);
     setToken(newToken);
     setUser(userData);
     setTenant(tenantData);
   };
 
   const logout = () => {
-    localStorage.removeItem("sofia_token");
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(LEGACY_TOKEN_KEY);
     localStorage.removeItem("sandbox_history");
     if (tenant?.id) {
       localStorage.removeItem(`sandbox_history_${tenant.id}`);

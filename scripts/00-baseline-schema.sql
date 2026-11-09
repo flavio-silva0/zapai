@@ -18,7 +18,7 @@ create table if not exists tenants (
                   check (status in ('trial', 'ativo', 'pausado', 'cancelado')),
 
   -- Identidade e personalização do Atendente IA
-  bot_name        text not null default 'Sofia',
+  bot_name        text not null default 'ZapAI',
   bot_emoji       text not null default '🤖',
   clinic_name     text,
   clinic_phone    text,
@@ -31,14 +31,22 @@ create table if not exists tenants (
   phone_number_id text unique,        -- DB-003: Unicidade de número oficial Meta
   wa_access_token text,               -- Token permanente de acesso
 
-  -- Assinatura e ciclo de vida
-  trial_ends_at   timestamptz not null default (now() + interval '7 days'),
-  plan            text not null default 'basic'
-                  check (plan in ('basic', 'pro', 'enterprise')),
-  is_sandbox      boolean not null default false,
+  -- Assinatura, limites de leads e ciclo de vida
+  trial_ends_at           timestamptz not null default (now() + interval '7 days'),
+  plan                    text not null default 'starter'
+                          check (plan in ('basic', 'starter', 'growth', 'pro', 'enterprise')),
+  max_leads               integer default 150,
+  billing_provider        text,
+  billing_customer_id     text,
+  billing_subscription_id text,
+  billing_cycle           text not null default 'monthly'
+                          check (billing_cycle in ('monthly', 'annual')),
+  subscription_status     text not null default 'trialing',
+  current_period_end      timestamptz,
+  is_sandbox              boolean not null default false,
 
-  created_at      timestamptz not null default now(),
-  updated_at      timestamptz not null default now()
+  created_at              timestamptz not null default now(),
+  updated_at              timestamptz not null default now()
 );
 
 -- ── 3. TABELA: USERS (Usuários e Operadores do Painel) ───────

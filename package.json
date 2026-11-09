@@ -1,7 +1,7 @@
 {
-  "name": "sofiaai",
+  "name": "zapai",
   "version": "3.0.0",
-  "description": "SofiaAI — Plataforma SaaS Multi-Tenant de Atendimento Inteligente via WhatsApp",
+  "description": "ZapAI — Plataforma SaaS Multi-Tenant de Atendimento Inteligente via WhatsApp",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",

@@ -211,7 +211,7 @@ export default function TestZapAi() {
                 </div>
               </div>
               <div className="text-center">
-                <p className="text-[var(--text-primary)] font-semibold mb-1">{displayBotName} está pronta!</p>
+                <p className="text-[var(--text-primary)] font-semibold mb-1">{displayBotName} online e pronto para responder!</p>
                 <p className="text-[var(--text-muted)] text-sm max-w-xs">
                   Envie uma mensagem para simular o atendimento. Você pode mandar várias seguidas.
                 </p>

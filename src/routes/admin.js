@@ -928,6 +928,7 @@ router.put("/tenants/:id", asyncHandler(async (req, res) => {
     "clinic_name",
     "clinic_phone",
     "plan",
+    "max_leads",
     "nicho",
     "nome",
     "trial_ends_at",

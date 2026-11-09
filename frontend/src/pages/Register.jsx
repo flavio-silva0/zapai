@@ -21,6 +21,7 @@ function mask(value, kind) {
 export default function Register() {
   const navigate = useNavigate(); const { login } = useAuth(); const [params] = useSearchParams();
   const google = params.get("completar") === "1";
+  const planParam = params.get("plan");
   const [step, setStep] = useState(1); const [loading, setLoading] = useState(false); const [error, setError] = useState(""); const [notice, setNotice] = useState("");
   const [sent, setSent] = useState(false); const [show, setShow] = useState(false); const [cooldown, setCooldown] = useState(0);
   const [form, setForm] = useState({ nome:"", email:"", cpf:"", phone:"", birthDate:"", password:"", confirmPassword:"", cep:"", street:"", number:"", complement:"", district:"", city:"", state:"", businessName:"", nicho:"", acceptPrivacy:false });
@@ -86,6 +87,11 @@ export default function Register() {
       <div className="w-full max-w-xl mx-auto">
         <Link to="/" className="inline-block mb-8"><img src="/zapai-logo-dark.png" alt="ZapAI" className="h-12 dark:hidden"/><img src="/zapai-logo-light.png" alt="ZapAI" className="h-12 hidden dark:block"/></Link>
         <h1 className="text-3xl font-black tracking-tight">{sent ? "Confira seu e-mail" : google ? "Complete seu cadastro" : "Crie sua conta"}</h1>
+        {planParam && !sent && (
+          <div className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-semibold bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20">
+            <span>Plano pré-selecionado: <strong>{planParam === "pro" ? "Profissional (301 a 500 leads)" : planParam === "growth" ? "Growth (151 a 300 leads)" : "Starter (Até 150 leads)"}</strong> · 7 dias grátis</span>
+          </div>
+        )}
         <p className="text-[var(--text-secondary)] mt-2 mb-6 text-sm">{sent ? "Falta só confirmar que esse e-mail é seu." : "Seu atendimento inteligente começa aqui. Sem cartão de crédito."}</p>
         {error && <div role="alert" className="p-4 mb-5 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-500 text-sm">{error}</div>}
         {notice && <p role="status" className="text-sm text-teal-600 mb-4">{notice}</p>}

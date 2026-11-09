@@ -27,7 +27,8 @@ begin
   if not found or account.status not in ('trial', 'ativo') then return false; end if;
   if account.status = 'trial' and (account.trial_ends_at is null or account.trial_ends_at <= now()) then return false; end if;
   daily_limit := case when account.status = 'trial' then 100
-    when account.plan = 'basic' then 500 when account.plan = 'pro' then 2000
+    when account.plan in ('basic', 'starter') then 500 when account.plan = 'growth' then 1200
+    when account.plan = 'pro' then 2000
     when account.plan = 'enterprise' then 5000 else 0 end;
   if daily_limit = 0 then return false; end if;
   insert into public.ai_usage(tenant_id, day, calls, minute, minute_calls)

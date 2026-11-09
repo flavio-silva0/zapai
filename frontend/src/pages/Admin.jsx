@@ -9,8 +9,11 @@ import {
 
 const STATUS_STYLES = {
   trial:     { bg: "rgba(245,158,11,0.12)", border: "rgba(245,158,11,0.3)",  text: "#fbbf24", label: "Trial",     icon: Clock },
+  active:    { bg: "rgba(16,185,129,0.12)", border: "rgba(16,185,129,0.3)",  text: "#34d399", label: "Ativo",     icon: CheckCircle },
   ativo:     { bg: "rgba(16,185,129,0.12)", border: "rgba(16,185,129,0.3)",  text: "#34d399", label: "Ativo",     icon: CheckCircle },
+  paused:    { bg: "rgba(100,116,139,0.12)", border: "rgba(100,116,139,0.3)", text: "#94a3b8", label: "Pausado",   icon: XCircle },
   pausado:   { bg: "rgba(100,116,139,0.12)", border: "rgba(100,116,139,0.3)", text: "#94a3b8", label: "Pausado",   icon: XCircle },
+  cancelled: { bg: "rgba(239,68,68,0.12)",  border: "rgba(239,68,68,0.3)",   text: "#f87171", label: "Cancelado", icon: XCircle },
   cancelado: { bg: "rgba(239,68,68,0.12)",  border: "rgba(239,68,68,0.3)",   text: "#f87171", label: "Cancelado", icon: XCircle },
 };
 
@@ -82,7 +85,8 @@ function TenantCard({ tenant, onUpdate }) {
   const [form, setForm] = useState({
     nome:            tenant.nome            ?? "",
     nicho:           tenant.nicho           ?? "",
-    plan:            tenant.plan            ?? "basic",
+    plan:            tenant.plan            ?? "starter",
+    max_leads:       tenant.max_leads       ?? "",
     trial_ends_at:   tenant.trial_ends_at ? new Date(tenant.trial_ends_at).toISOString().split("T")[0] : "",
     status:          tenant.status,
     phone_number_id: tenant.phone_number_id ?? "",
@@ -98,6 +102,8 @@ function TenantCard({ tenant, onUpdate }) {
     setSaving(true);
     const body = { ...form };
     if (!body.wa_access_token) delete body.wa_access_token;
+    if (body.max_leads === "") delete body.max_leads;
+    else body.max_leads = Number(body.max_leads);
     const res  = await apiFetch(`/api/admin/tenants/${tenant.id}`, { method: "PUT", body: JSON.stringify(body) });
     const data = await res.json();
     if (res.ok) { onUpdate(data); setEditing(false); }
@@ -165,7 +171,7 @@ function TenantCard({ tenant, onUpdate }) {
           {/* Quick info */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4">
             {[
-              { label: "Plano",      value: tenant.plan },
+              { label: "Plano",      value: `${tenant.plan || "starter"} (${tenant.max_leads || 150} leads)` },
               { label: "Bot",        value: `${tenant.bot_emoji} ${tenant.bot_name}` },
               { label: "Trial até",  value: tenant.trial_ends_at ? new Date(tenant.trial_ends_at).toLocaleDateString("pt-BR") : "—" },
               { label: "Criado em",  value: new Date(tenant.created_at).toLocaleDateString("pt-BR") },
@@ -192,14 +198,23 @@ function TenantCard({ tenant, onUpdate }) {
                 </AdminInput>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <AdminInput label="Plano">
                   <StyledSelect value={form.plan} onChange={update("plan")}
-                    options={["basic","pro","premium"].map((p) => ({ value: p, label: p }))} />
+                    options={[
+                      { value: "starter", label: "Starter (150 leads)" },
+                      { value: "basic", label: "Basic (150 leads)" },
+                      { value: "growth", label: "Growth (300 leads)" },
+                      { value: "pro", label: "Profissional (500 leads)" },
+                      { value: "enterprise", label: "Enterprise (500+ leads)" },
+                    ]} />
+                </AdminInput>
+                <AdminInput label="Limite de Leads">
+                  <StyledInput type="number" value={form.max_leads} onChange={update("max_leads")} placeholder="Auto por plano" mono />
                 </AdminInput>
                 <AdminInput label="Status">
                   <StyledSelect value={form.status} onChange={update("status")}
-                    options={["trial","ativo","pausado","cancelado"].map((s) => ({ value: s, label: s }))} />
+                    options={["trial","active","paused","cancelled"].map((s) => ({ value: s, label: s }))} />
                 </AdminInput>
                 <AdminInput label="Data Fim Trial">
                   <input

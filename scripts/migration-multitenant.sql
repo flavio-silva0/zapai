@@ -1,5 +1,5 @@
 -- ============================================================
---  SofiaAI — Migration Multi-Tenant (Fase 1)
+--  ZapAI — Migration Multi-Tenant (Fase 1)
 --  Execute este arquivo no Supabase → SQL Editor
 --  Ordem de execução: top → bottom
 -- ============================================================
@@ -13,7 +13,7 @@ create table if not exists tenants (
                   check (status in ('trial', 'ativo', 'pausado', 'cancelado')),
 
   -- Identidade do agente
-  bot_name        text not null default 'Sofia',
+  bot_name        text not null default 'ZapAI',
   bot_emoji       text not null default '🤖',
   clinic_name     text,
   clinic_phone    text,

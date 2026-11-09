@@ -10,437 +10,520 @@ import {
   ExternalLink,
   Cpu,
   CheckCircle2,
+  Sparkles,
+  Users,
+  CreditCard,
 } from "lucide-react";
 import PublicEyebrow from "../components/PublicEyebrow";
 
+const PLANS_DATA = [
+  {
+    id: "starter",
+    name: "Starter",
+    badge: "Até 150 leads",
+    leadRange: "1 a 150 leads",
+    maxLeads: 150,
+    priceMonthly: 69.90,
+    priceAnnual: 59.90,
+    description:
+      "Para autônomos, consultórios e pequenos negócios que querem atendimento automático 24/7 com o menor custo do mercado.",
+    popular: false,
+    features: [
+      "Até 150 leads ativos no CRM & WhatsApp",
+      "1 número de WhatsApp Oficial (Meta Cloud API)",
+      "Atendente IA 24/7 (Texto e Áudio)",
+      "Base de Conhecimento RAG (FAQs e Documentos)",
+      "Funil CRM Kanban (4 etapas) + Handoff Humano",
+      "Suporte via WhatsApp em horário comercial",
+    ],
+    ctaLabel: "Começar com até 150 leads",
+    ctaLink: "/cadastro?plan=starter",
+  },
+  {
+    id: "growth",
+    name: "Growth",
+    badge: "151 a 300 leads",
+    leadRange: "151 a 300 leads",
+    maxLeads: 300,
+    priceMonthly: 119.90,
+    priceAnnual: 99.90,
+    description:
+      "Ideal para clínicas, salões, lojas e imobiliárias em crescimento que precisam de memória contínua e leitura de imagens/áudios.",
+    popular: true,
+    features: [
+      "De 151 até 300 leads ativos no CRM & WhatsApp",
+      "1 número de WhatsApp Oficial + até 3 operadores",
+      "IA Multimodal (Texto, Áudio e Leitura de Imagens)",
+      "Memória de Longo Prazo automática por cliente",
+      "Treinamento com PDF, DOCX e importação de Site",
+      "Ficha estilo HubSpot + Exportação CSV/PDF",
+      "Suporte prioritário via WhatsApp",
+    ],
+    ctaLabel: "Testar plano Growth grátis",
+    ctaLink: "/cadastro?plan=growth",
+  },
+  {
+    id: "pro",
+    name: "Profissional",
+    badge: "301 a 500 leads",
+    leadRange: "301 a 500 leads",
+    maxLeads: 500,
+    priceMonthly: 169.90,
+    priceAnnual: 144.90,
+    description:
+      "Para operações comerciais aceleradas que exigem análise preditiva de fechamento (Lead Score), sentimento e múltiplos operadores.",
+    popular: false,
+    features: [
+      "De 301 até 500 leads ativos no CRM & WhatsApp",
+      "Até 2 números de WhatsApp Oficial + 10 operadores",
+      "Análise Comercial IA (Lead Score, Sentimento e 5 Passos)",
+      "Memória Contínua + RAG Vetorial de Alta Precisão",
+      "Simulador Sandbox de Treinamento em Tempo Real",
+      "Prioridade máxima de processamento na fila de IA",
+      "Suporte VIP prioritário",
+    ],
+    ctaLabel: "Começar no Profissional",
+    ctaLink: "/cadastro?plan=pro",
+  },
+];
+
 const COMPARISON_ROWS = [
   {
-    feature: "Números de WhatsApp",
+    feature: "Limite de Leads no CRM",
+    starter: "Até 150 leads",
+    growth: "151 a 300 leads",
+    pro: "301 a 500 leads",
+    enterprise: "Acima de 500 (Sob medida)",
+  },
+  {
+    feature: "Investimento Mensal",
+    starter: "R$ 69,90/mês",
+    growth: "R$ 119,90/mês",
+    pro: "R$ 169,90/mês",
+    enterprise: "Sob consulta",
+  },
+  {
+    feature: "Números de WhatsApp Oficial",
     starter: "1 número",
-    pro: "Até 3 números",
+    growth: "1 número",
+    pro: "Até 2 números",
+    enterprise: "Múltiplos números",
+  },
+  {
+    feature: "Atendentes na Equipe",
+    starter: "1 operador",
+    growth: "Até 3 operadores",
+    pro: "Até 10 operadores",
     enterprise: "Ilimitados",
   },
   {
-    feature: "Volume de conversas",
-    starter: "Até 500/mês",
-    pro: "Ilimitadas",
-    enterprise: "Ilimitadas sob medida",
+    feature: "Capacidade Diária de IA",
+    starter: "500 interações/dia",
+    growth: "1.200 interações/dia",
+    pro: "2.000 interações/dia",
+    enterprise: "5.000+ interações/dia",
   },
   {
     feature: "API Oficial Meta (Cloud API)",
     starter: true,
+    growth: true,
     pro: true,
     enterprise: true,
   },
   {
-    feature: "Contexto de IA & RAG",
-    starter: "FAQ básico",
-    pro: "Memória contínua + RAG vetorial",
-    enterprise: "RAG dedicado + Custom tuning",
-  },
-  {
-    feature: "Painel & CRM de Atendimento",
-    starter: "Básico",
-    pro: "Kanban CRM + Métricas ao vivo",
-    enterprise: "Multi-equipes avançado",
-  },
-  {
-    feature: "Transferência para Humano (Handoff)",
+    feature: "Compreensão de Áudio e Texto",
     starter: true,
+    growth: true,
     pro: true,
     enterprise: true,
   },
   {
-    feature: "Integração via API & Webhooks",
+    feature: "Leitura de Imagens + Memória de Longo Prazo",
+    starter: "Básica",
+    growth: "Completa automática",
+    pro: "Avançada + Lead Score",
+    enterprise: "Dedicada + Custom",
+  },
+  {
+    feature: "Painel CRM Kanban + Handoff Humano",
+    starter: true,
+    growth: true,
+    pro: true,
+    enterprise: true,
+  },
+  {
+    feature: "Exportação de Relatórios (CSV / PDF)",
     starter: "—",
-    pro: "Webhooks padrão",
-    enterprise: "API REST + Webhooks custom",
+    growth: true,
+    pro: true,
+    enterprise: true,
   },
   {
-    feature: "SLA de Disponibilidade",
-    starter: "Melhor esforço",
-    pro: "Prioritário comercial",
-    enterprise: "99.9% contratual",
-  },
-  {
-    feature: "Suporte",
-    starter: "WhatsApp (horário com.)",
-    pro: "Canal prioritário",
-    enterprise: "Gerente dedicado (CSM)",
+    feature: "Suporte e Onboarding",
+    starter: "WhatsApp comercial",
+    growth: "Prioritário",
+    pro: "VIP prioritário",
+    enterprise: "Implantação assistida + CSM",
   },
 ];
 
 const FAQS = [
   {
-    q: "Preciso de cartão de crédito para criar a conta?",
-    a: "Não. A criação de conta e os testes de configuração da plataforma não exigem nenhum dado de pagamento.",
+    q: "Como funciona o limite de leads em cada plano?",
+    a: "Cada plano é dimensionado pelo volume de contatos únicos (leads) na sua base: o Starter atende até 150 leads, o Growth de 151 a 300 leads, o Profissional de 301 a 500 leads e o Enterprise operações acima de 500 leads. Dentro do seu limite de leads, sua atendente IA conversa 24 horas por dia sem cobrar taxa por mensagem enviada.",
   },
   {
-    q: "A ZapAI usa a API Oficial do WhatsApp?",
-    a: "Sim. Toda a infraestrutura roda através da API oficial da Meta (Cloud API), garantindo estabilidade e minimizando riscos de bloqueio numérico.",
+    q: "Por que a ZapAI consegue ter o preço mais acessível do mercado?",
+    a: "Nossa arquitetura combina os modelos mais eficientes de IA de última geração com a API Oficial da Meta (onde conversas receptivas de atendimento iniciadas pelo cliente dentro da janela de 24h têm tarifa zero da Meta). Repassamos essa eficiência diretamente para você.",
   },
   {
-    q: "Quando os preços comerciais definitivos serão publicados?",
-    a: "Estamos concluindo a fase de homologação com clientes selecionados. Criando sua conta gratuita agora, você ganha acesso antecipado e condições diferenciadas quando a tabela de preços comerciais for aberta.",
+    q: "Quais formas de pagamento são aceitas para contratar?",
+    a: "Os pagamentos são processados com a segurança global da Stripe. Aceitamos Cartão de Crédito (com renovação simplificada), PIX instantâneo, Boleto Bancário, Apple Pay e Google Pay nos ciclos mensal ou anual (com desconto). Você também tem acesso ao Portal do Cliente Stripe para gerenciar faturas e assinaturas com autonomia.",
   },
   {
-    q: "Posso mudar de plano depois que os valores forem anunciados?",
-    a: "Sim. A transição entre planos pode ser feita diretamente pelo painel a qualquer momento, sem interromper seus atendimentos em andamento.",
+    q: "Preciso de cartão de crédito para começar o teste grátis de 7 dias?",
+    a: "Não! Você cria sua conta gratuitamente, configura sua atendente digital, treina a base de conhecimento e testa no simulador sem informar dados de pagamento. Você só escolhe e paga seu plano quando decidir ativar sua operação.",
   },
   {
-    q: "E se minha equipe precisar assumir uma conversa da IA?",
-    a: "A qualquer momento, qualquer atendente humano pode clicar no botão 'Assumir Atendimento' no painel Kanban. A Zap pausa o atendimento automático na hora e entrega todo o histórico formatado para o operador.",
+    q: "O que acontece se minha empresa crescer e passar do limite de leads do plano?",
+    a: "Você nunca perde nenhuma mensagem! O painel avisa quando você atingir 85% da capacidade e, ao chegar em 100%, novos contatos continuam sendo salvos no seu CRM para atendimento manual até que você faça o upgrade com 1 clique no painel.",
   },
 ];
 
+function formatPrice(val) {
+  return val.toFixed(2).replace(".", ",");
+}
+
 export default function LandingPlanos() {
   const [openFaq, setOpenFaq] = useState(null);
+  const [billingCycle, setBillingCycle] = useState("monthly");
+  const [selectedTierIdx, setSelectedTierIdx] = useState(1);
 
   useEffect(() => {
-    document.title = "Planos & Escala — ZapAI";
+    document.title = "Planos & Preços por Volume de Leads — ZapAI";
   }, []);
 
   const toggleFaq = (index) => {
     setOpenFaq(openFaq === index ? null : index);
   };
 
+  const tierSimulation = [
+    { label: "Até 150 leads", plan: "Starter", price: billingCycle === "annual" ? 59.90 : 69.90, perLead: "R$ 0,46" },
+    { label: "151 a 300 leads", plan: "Growth", price: billingCycle === "annual" ? 99.90 : 119.90, perLead: "R$ 0,39" },
+    { label: "301 a 500 leads", plan: "Profissional", price: billingCycle === "annual" ? 144.90 : 169.90, perLead: "R$ 0,33" },
+    { label: "Acima de 500 leads", plan: "Enterprise", price: null, perLead: "Sob medida" },
+  ];
+
+  const activeSim = tierSimulation[selectedTierIdx];
+
   return (
     <div className="font-body selection:bg-teal-100 selection:text-teal-900 bg-[#FAFAF8] text-[#1a1a1a]">
       {/* ══════════════════════════════════════════════════════
-          HERO — Alinhado com a Landing Page (Clara, Humana, Editorial)
+          HERO — Posicionamento Transparente por Faixa de Leads
       ══════════════════════════════════════════════════════ */}
-      <section className="relative pt-28 lg:pt-40 pb-20 lg:pb-28 bg-[#FAFAF8]">
+      <section className="relative pt-28 lg:pt-36 pb-16 lg:pb-24 bg-[#FAFAF8]">
         <div className="max-w-6xl mx-auto px-5 flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-16">
-          {/* Lado Esquerdo: Mensagem e Posicionamento */}
           <div className="flex-1 text-left">
             <PublicEyebrow className="mb-6">
-              Planos & Escala
+              Planos & Preços Transparentes
             </PublicEyebrow>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-[#1a1a1a] leading-[1.08] tracking-tight">
-              Infraestrutura desenhada para crescer com sua empresa.
+              O melhor custo-benefício do Brasil para atender no WhatsApp com IA.
             </h1>
 
             <p className="text-lg lg:text-xl text-[#555] mt-6 max-w-xl leading-relaxed">
-              Da primeira triagem com inteligência artificial à operação multi-canal com CRM integrado. Sem taxas ocultas por mensagem.
+              Pague apenas pelo tamanho da sua operação de leads — de{" "}
+              <strong className="text-[#1a1a1a]">R$ 69,90/mês</strong> (até 150 leads) ao{" "}
+              <strong className="text-[#1a1a1a]">Enterprise</strong> para grandes volumes. Sem cobrança extra por mensagem da IA.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-4">
               <Link
                 to="/cadastro"
-                className="inline-flex items-center gap-2 bg-teal-600 text-white px-6 py-3 rounded-full font-medium hover:bg-teal-700 transition-colors"
+                className="inline-flex items-center gap-2 bg-teal-600 text-white px-6 py-3.5 rounded-full font-semibold hover:bg-teal-700 transition-colors shadow-sm"
               >
-                Criar conta gratuita <ArrowRight size={20} />
+                Começar 7 dias grátis <ArrowRight size={20} />
               </Link>
               <a
                 href="#estrutura-planos"
-                className="inline-flex items-center gap-2 bg-white border border-[#e8e5e0] text-[#1a1a1a] px-6 py-3 rounded-full font-medium hover:bg-[#f8f7f5] transition-colors"
+                className="inline-flex items-center gap-2 bg-white border border-[#e8e5e0] text-[#1a1a1a] px-6 py-3.5 rounded-full font-medium hover:bg-[#f8f7f5] transition-colors"
               >
-                Ver comparativo
+                Ver tabela de planos
               </a>
             </div>
 
             <div className="mt-8 flex flex-wrap items-center gap-4 text-xs text-[#666]">
               <div className="flex items-center gap-2">
                 <Shield size={16} className="text-teal-600" />
-                <span>API Oficial Meta</span>
+                <span>API Oficial Meta (Zero risco de ban)</span>
               </div>
               <span className="text-[#ccc]">·</span>
               <div className="flex items-center gap-2">
-                <Cpu size={16} className="text-teal-600" />
-                <span>Multi-Tenant Isolado</span>
+                <CreditCard size={16} className="text-teal-600" />
+                <span>Stripe Oficial (Cartão, PIX ou Boleto)</span>
               </div>
               <span className="text-[#ccc]">·</span>
               <div className="flex items-center gap-2">
                 <Zap size={16} className="text-teal-600" />
-                <span>Handoff Humano Imediato</span>
+                <span>Sem fidelidade no plano mensal</span>
               </div>
             </div>
           </div>
 
-          {/* Lado Direito: Representação do Sistema Integrado (Card de Operação) */}
-          <div className="w-full lg:w-96 shrink-0">
-            <div className="bg-white rounded-2xl shadow-lg border border-[#e8e5e0] overflow-hidden w-full">
-              <div className="bg-[#1a1a1a] text-white px-5 py-3.5 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span className="text-xs font-semibold tracking-wider uppercase">
-                    Console da Operação
-                  </span>
-                </div>
-                <span className="text-[11px] font-medium text-teal-400 bg-teal-950/80 px-2.5 py-0.5 rounded-full border border-teal-800/80">
-                  Ativo
+          {/* Simulador Rápido de Faixa de Leads */}
+          <div className="w-full lg:w-[420px] shrink-0">
+            <div className="bg-white rounded-2xl shadow-lg border border-[#e8e5e0] overflow-hidden w-full p-6">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-xs font-bold uppercase tracking-wider text-teal-700 flex items-center gap-1.5">
+                  <Sparkles size={14} /> Simulador de Investimento
+                </span>
+                <span className="text-[11px] font-semibold bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                  Economia de 92% vs Recepção
                 </span>
               </div>
 
-              <div className="p-5 space-y-3.5 text-xs text-[#1a1a1a]">
-                <div className="flex justify-between items-center py-1.5 border-b border-[#e8e5e0]">
-                  <span className="text-[#666] uppercase text-[10px] font-semibold">Canal Primário</span>
-                  <span className="font-semibold text-[#1a1a1a]">WhatsApp Cloud API</span>
+              <p className="text-sm font-bold text-[#1a1a1a] mb-3">
+                Quantos leads sua empresa atende no WhatsApp?
+              </p>
+
+              <div className="grid grid-cols-2 gap-2 mb-5">
+                {tierSimulation.map((item, idx) => (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={() => setSelectedTierIdx(idx)}
+                    className={`px-3 py-2.5 rounded-xl text-xs font-semibold border text-left transition-all ${
+                      selectedTierIdx === idx
+                        ? "bg-teal-600 text-white border-teal-600 shadow-xs"
+                        : "bg-[#f8f7f5] text-[#444] border-[#e8e5e0] hover:border-teal-500/40"
+                    }`}
+                  >
+                    <div className="font-bold">{item.label}</div>
+                    <div className={`text-[10px] mt-0.5 ${selectedTierIdx === idx ? "text-teal-100" : "text-[#777]"}`}>
+                      Plano {item.plan}
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <div className="bg-[#f8f7f5] border border-[#e8e5e0] rounded-xl p-4 space-y-2">
+                <div className="flex items-baseline justify-between">
+                  <span className="text-xs text-[#666] font-medium">Plano ideal:</span>
+                  <span className="text-sm font-bold text-teal-700">ZapAI {activeSim.plan}</span>
                 </div>
-                <div className="flex justify-between items-center py-1.5 border-b border-[#e8e5e0]">
-                  <span className="text-[#666] uppercase text-[10px] font-semibold">Motor de IA</span>
-                  <span className="font-semibold text-[#1a1a1a]">ZapAI Context + RAG</span>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-xs text-[#666] font-medium">Valor mensal:</span>
+                  <span className="text-2xl font-extrabold text-[#1a1a1a]">
+                    {activeSim.price ? `R$ ${formatPrice(activeSim.price)}/mês` : "Sob consulta"}
+                  </span>
                 </div>
-                <div className="flex justify-between items-center py-1.5 border-b border-[#e8e5e0]">
-                  <span className="text-[#666] uppercase text-[10px] font-semibold">Controle de Fila</span>
-                  <span className="font-semibold text-[#1a1a1a]">Kanban CRM ao Vivo</span>
-                </div>
-                <div className="flex justify-between items-center py-1.5">
-                  <span className="text-[#666] uppercase text-[10px] font-semibold">Isolamento</span>
-                  <span className="text-teal-700 font-semibold">100% Criptografado</span>
+                <div className="flex items-baseline justify-between pt-2 border-t border-[#e8e5e0] text-[11px] text-[#666]">
+                  <span>Custo médio por lead atendido:</span>
+                  <span className="font-bold text-emerald-700">{activeSim.perLead}</span>
                 </div>
               </div>
 
-              <div className="px-5 py-3.5 bg-[#f8f7f5] border-t border-[#e8e5e0]">
-                <div className="flex justify-between text-[11px] text-[#666] mb-1.5 font-medium">
-                  <span>Capacidade Operacional</span>
-                  <span className="text-teal-700 font-semibold">Elástica</span>
-                </div>
-                <div className="w-full bg-[#e8e5e0] rounded-full h-1.5 overflow-hidden">
-                  <div className="bg-teal-600 h-full w-[78%] rounded-full" />
-                </div>
-              </div>
+              <Link
+                to={activeSim.price ? `/cadastro?plan=${PLANS_DATA[selectedTierIdx]?.id || "starter"}` : "mailto:contato@zapai.com.br"}
+                className="mt-4 w-full inline-flex items-center justify-center gap-2 bg-[#1a1a1a] text-white py-3 rounded-full text-xs font-bold hover:bg-[#333] transition-colors"
+              >
+                {activeSim.price ? `Testar Plano ${activeSim.plan} Grátis` : "Falar com Consultor Enterprise"}
+                <ArrowRight size={14} />
+              </Link>
             </div>
           </div>
         </div>
       </section>
 
       {/* ══════════════════════════════════════════════════════
-          ESTRUTURA DE PLANOS (Bento Grid Assimétrico — 7 / 5 / 12)
+          ESTRUTURA DE PLANOS (3 Planos por Faixa de Leads + Enterprise)
       ══════════════════════════════════════════════════════ */}
-      <section id="estrutura-planos" className="py-20 lg:py-28 px-5 bg-white border-y border-[#e8e5e0] scroll-mt-24">
+      <section id="estrutura-planos" className="py-20 lg:py-24 px-5 bg-white border-y border-[#e8e5e0] scroll-mt-24">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center max-w-2xl mx-auto mb-14">
+          <div className="text-center max-w-2xl mx-auto mb-10">
             <PublicEyebrow className="mb-3">
-              Estrutura de Planos
+              Planos por Volume de Leads
             </PublicEyebrow>
             <h2 className="text-3xl lg:text-5xl font-bold text-[#1a1a1a] tracking-tight">
-              Previsibilidade para sua operação
+              Cresça no seu ritmo, sem surpresas na fatura
             </h2>
-            <p className="text-lg text-[#666] mt-4">
-              Crie sua conta gratuitamente para testar toda a plataforma. Os valores comerciais definitivos serão anunciados em breve.
+            <p className="text-base sm:text-lg text-[#666] mt-4">
+              Todos os planos incluem 7 dias de teste grátis, API Oficial da Meta e inteligência artificial configurada para o seu nicho.
             </p>
+
+            {/* Seletor Mensal / Anual */}
+            <div className="mt-7 inline-flex items-center bg-[#f3f1ed] p-1.5 rounded-full border border-[#e8e5e0]">
+              <button
+                type="button"
+                onClick={() => setBillingCycle("monthly")}
+                className={`px-5 py-2 rounded-full text-xs font-bold transition-all ${
+                  billingCycle === "monthly"
+                    ? "bg-white text-[#1a1a1a] shadow-xs"
+                    : "text-[#666] hover:text-[#1a1a1a]"
+                }`}
+              >
+                Ciclo Mensal
+              </button>
+              <button
+                type="button"
+                onClick={() => setBillingCycle("annual")}
+                className={`px-5 py-2 rounded-full text-xs font-bold transition-all flex items-center gap-2 ${
+                  billingCycle === "annual"
+                    ? "bg-teal-600 text-white shadow-xs"
+                    : "text-[#666] hover:text-[#1a1a1a]"
+                }`}
+              >
+                <span>Ciclo Anual</span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] ${
+                  billingCycle === "annual" ? "bg-teal-800 text-teal-100" : "bg-teal-100 text-teal-800"
+                }`}>
+                  Economize 15%
+                </span>
+              </button>
+            </div>
           </div>
 
-          {/* Grid Bento de 12 Colunas */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-            {/* ── PROFISSIONAL (7 / 12) — PLANO CENTRAL DA OPERAÇÃO ── */}
-            <div className="col-span-12 lg:col-span-7 bg-white text-[#1a1a1a] rounded-2xl border-2 border-teal-600 p-7 lg:p-9 shadow-lg relative flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 border border-teal-200 text-teal-700 text-xs font-bold uppercase tracking-wider">
-                    <span className="w-1.5 h-1.5 rounded-full bg-teal-600 animate-pulse" />
-                    Plano Central da Operação
-                  </div>
-                  <span className="text-xs font-medium text-[#666] uppercase">
-                    Mais recomendado
-                  </span>
-                </div>
-
-                <h3 className="text-2xl lg:text-3xl font-bold text-[#1a1a1a] tracking-tight">
-                  Profissional
-                </h3>
-                <p className="text-sm text-[#555] mt-2 leading-relaxed max-w-xl">
-                  Para empresas com fluxo constante de clientes que precisam de inteligência contextual, múltiplos números de atendimento e CRM operacional.
-                </p>
-
-                {/* Preço Comercial Oficial */}
-                <div className="my-6 pt-5 border-t border-[#e8e5e0] flex items-baseline gap-3 flex-wrap">
-                  <span className="text-3xl sm:text-4xl font-extrabold text-[#1a1a1a]">
-                    Em breve
-                  </span>
-                  <span className="text-xs text-teal-700 font-semibold uppercase tracking-wider bg-teal-50 px-2.5 py-1 rounded-full border border-teal-200">
-                    Teste gratuito liberado
-                  </span>
-                </div>
-                <p className="text-xs text-[#888] -mt-3 mb-6">
-                  Valores comerciais em definição. Cadastre-se sem compromisso e explore todos os recursos.
-                </p>
-
-                {/* Sub-módulos Bento Internos */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-7">
-                  <div className="bg-[#f8f7f5] border border-[#e8e5e0] rounded-xl p-3.5">
-                    <div className="text-[10px] uppercase text-teal-700 font-bold mb-1">
-                      Capacidade
-                    </div>
-                    <div className="text-xs text-[#1a1a1a] font-semibold">
-                      Até 3 números
-                    </div>
-                    <div className="text-[11px] text-[#666] mt-1">
-                      Conversas ilimitadas
-                    </div>
-                  </div>
-
-                  <div className="bg-[#f8f7f5] border border-[#e8e5e0] rounded-xl p-3.5">
-                    <div className="text-[10px] uppercase text-teal-700 font-bold mb-1">
-                      Inteligência
-                    </div>
-                    <div className="text-xs text-[#1a1a1a] font-semibold">
-                      RAG Vetorial
-                    </div>
-                    <div className="text-[11px] text-[#666] mt-1">
-                      Memória contínua
-                    </div>
-                  </div>
-
-                  <div className="bg-[#f8f7f5] border border-[#e8e5e0] rounded-xl p-3.5">
-                    <div className="text-[10px] uppercase text-teal-700 font-bold mb-1">
-                      Controle
-                    </div>
-                    <div className="text-xs text-[#1a1a1a] font-semibold">
-                      Kanban + CRM
-                    </div>
-                    <div className="text-[11px] text-[#666] mt-1">
-                      Handoff humano fluido
-                    </div>
-                  </div>
-                </div>
-
-                {/* Destaques do Plano */}
-                <div className="space-y-2.5 text-xs text-[#555]">
-                  <div className="flex items-center gap-2.5">
-                    <CheckCircle2 size={16} className="text-teal-600 shrink-0" />
-                    <span>Treinamento da atendente com documentos e perguntas frequentes</span>
-                  </div>
-                  <div className="flex items-center gap-2.5">
-                    <CheckCircle2 size={16} className="text-teal-600 shrink-0" />
-                    <span>Relatórios de tempo de resposta e taxa de resolução</span>
-                  </div>
-                  <div className="flex items-center gap-2.5">
-                    <CheckCircle2 size={16} className="text-teal-600 shrink-0" />
-                    <span>Suporte prioritário via canal direto</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-8 pt-6 border-t border-[#e8e5e0]">
-                <Link
-                  to="/cadastro"
-                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full font-medium text-sm bg-teal-600 text-white hover:bg-teal-700 shadow-md transition-all"
+          {/* Grid dos 3 Planos Principais (Até 150 | 151 a 300 | 301 a 500) */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+            {PLANS_DATA.map((plan) => {
+              const activePrice = billingCycle === "annual" ? plan.priceAnnual : plan.priceMonthly;
+              return (
+                <div
+                  key={plan.id}
+                  className={`rounded-2xl p-7 lg:p-8 flex flex-col justify-between relative transition-all ${
+                    plan.popular
+                      ? "bg-white border-2 border-teal-600 shadow-xl lg:-translate-y-2"
+                      : "bg-white border border-[#e8e5e0] shadow-sm"
+                  }`}
                 >
-                  Criar conta gratuita e testar
-                  <ArrowRight size={17} />
-                </Link>
-                <p className="text-center text-xs text-[#888] mt-2.5">
-                  Sem cartão de crédito · Ativação imediata
-                </p>
-              </div>
-            </div>
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-4">
+                      <span
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${
+                          plan.popular
+                            ? "bg-teal-50 border border-teal-200 text-teal-700"
+                            : "bg-[#f3f1ed] border border-[#e8e5e0] text-[#444]"
+                        }`}
+                      >
+                        <Users size={13} className="text-teal-600" />
+                        {plan.badge}
+                      </span>
+                      {plan.popular && (
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-white bg-teal-600 px-2.5 py-1 rounded-full">
+                          Mais Escolhido
+                        </span>
+                      )}
+                    </div>
 
-            {/* ── STARTER (5 / 12) — ENTRADA LEVE ── */}
-            <div className="col-span-12 lg:col-span-5 bg-white text-[#1a1a1a] rounded-2xl border border-[#e8e5e0] p-7 lg:p-9 shadow-sm flex flex-col justify-between">
-              <div>
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#f0eeeb] border border-[#e8e5e0] text-[#555] text-xs font-semibold uppercase tracking-wider mb-4">
-                  Entrada
+                    <h3 className="text-2xl font-bold text-[#1a1a1a] tracking-tight">
+                      {plan.name}
+                    </h3>
+                    <p className="text-xs text-[#666] mt-2 leading-relaxed min-h-[48px]">
+                      {plan.description}
+                    </p>
+
+                    {/* Preço */}
+                    <div className="my-6 pt-5 border-t border-[#e8e5e0]">
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-sm font-bold text-[#666]">R$</span>
+                        <span className="text-4xl font-extrabold text-[#1a1a1a] tracking-tight">
+                          {formatPrice(activePrice)}
+                        </span>
+                        <span className="text-xs font-semibold text-[#666]">/mês</span>
+                      </div>
+                      <p className="text-[11px] text-[#777] mt-1.5">
+                        {billingCycle === "annual"
+                          ? `Faturado anualmente (R$ ${formatPrice(activePrice * 12)}/ano) · PIX ou Cartão`
+                          : "Cobrança mensal sem fidelidade · PIX, Boleto ou Cartão"}
+                      </p>
+                    </div>
+
+                    {/* Capacidade Destacada */}
+                    <div className="mb-5 p-3 rounded-xl bg-[#f8f7f5] border border-[#e8e5e0] flex items-center justify-between">
+                      <span className="text-xs font-semibold text-[#555]">Capacidade de Leads</span>
+                      <span className="text-xs font-extrabold text-teal-700">{plan.leadRange}</span>
+                    </div>
+
+                    {/* Lista de Recursos */}
+                    <div className="space-y-3 text-xs text-[#444]">
+                      {plan.features.map((feat, i) => (
+                        <div key={i} className="flex items-start gap-2.5">
+                          <CheckCircle2 size={15} className="text-teal-600 mt-0.5 shrink-0" />
+                          <span>{feat}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="mt-8 pt-6 border-t border-[#e8e5e0]">
+                    <Link
+                      to={plan.ctaLink}
+                      className={`w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full font-semibold text-sm transition-all ${
+                        plan.popular
+                          ? "bg-teal-600 text-white hover:bg-teal-700 shadow-md"
+                          : "bg-[#1a1a1a] text-white hover:bg-[#333]"
+                      }`}
+                    >
+                      {plan.ctaLabel}
+                      <ArrowRight size={16} />
+                    </Link>
+                    <p className="text-center text-[11px] text-[#888] mt-2.5">
+                      7 dias de teste grátis · Ativação imediata
+                    </p>
+                  </div>
                 </div>
+              );
+            })}
+          </div>
 
-                <h3 className="text-2xl font-bold text-[#1a1a1a] tracking-tight">
-                  Starter
+          {/* ── ENTERPRISE (ACIMA DE 500 LEADS) — HORIZONTAL CONSULTIVO ── */}
+          <div className="mt-8 bg-[#1a1a1a] text-white rounded-2xl border border-[#333] p-7 lg:p-9 shadow-lg">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+              <div className="flex-1">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#2a2a2a] border border-[#444] text-teal-400 text-xs font-semibold uppercase tracking-wider mb-3">
+                  Acima de 500 Leads · Corporativo & Personalizado
+                </div>
+                <h3 className="text-2xl lg:text-3xl font-bold text-white tracking-tight">
+                  Enterprise (500+ Leads)
                 </h3>
-                <p className="text-sm text-[#555] mt-2 leading-relaxed">
-                  Para autônomos e pequenos negócios que estão organizando o primeiro canal de atendimento digital.
+                <p className="text-sm text-[#aaa] mt-2 max-w-2xl leading-relaxed">
+                  Sua operação recebe mais de 500 leads por mês? Montamos um plano personalizado com múltiplos números de WhatsApp Oficial, implantação assistida pela nossa equipe de engenharia, API REST e SLA contratual de 99,9%.
                 </p>
 
-                <div className="my-6 pt-5 border-t border-[#e8e5e0] flex items-baseline gap-3 flex-wrap">
-                  <span className="text-3xl font-extrabold text-[#1a1a1a]">
-                    Em breve
-                  </span>
-                  <span className="text-xs text-[#666] uppercase tracking-wider bg-[#f0eeeb] px-2 py-0.5 rounded-full font-medium">
-                    Lançamento
-                  </span>
-                </div>
-                <p className="text-xs text-[#888] -mt-3 mb-6">
-                  Formato acessível para negócios em estágio inicial.
-                </p>
-
-                {/* Lista de Recursos Starter */}
-                <div className="space-y-3 text-xs text-[#555]">
-                  <div className="flex items-start gap-2.5">
-                    <Check size={16} className="text-teal-600 mt-0.5 shrink-0" />
-                    <span>1 número de WhatsApp oficial (Meta Cloud API)</span>
-                  </div>
-                  <div className="flex items-start gap-2.5">
-                    <Check size={16} className="text-teal-600 mt-0.5 shrink-0" />
-                    <span>Até 500 conversas por mês</span>
-                  </div>
-                  <div className="flex items-start gap-2.5">
-                    <Check size={16} className="text-teal-600 mt-0.5 shrink-0" />
-                    <span>Triagem automática e respostas baseadas em FAQ</span>
-                  </div>
-                  <div className="flex items-start gap-2.5">
-                    <Check size={16} className="text-teal-600 mt-0.5 shrink-0" />
-                    <span>Painel operacional básico com histórico</span>
-                  </div>
-                  <div className="flex items-start gap-2.5">
-                    <Check size={16} className="text-teal-600 mt-0.5 shrink-0" />
-                    <span>Suporte via WhatsApp em horário comercial</span>
-                  </div>
+                <div className="mt-4 flex items-baseline gap-2 flex-wrap">
+                  <span className="text-2xl font-bold text-white">Personalizado</span>
+                  <span className="text-xs text-teal-400 font-semibold">· A partir de R$ 249,90/mês sob medida para o seu volume</span>
                 </div>
               </div>
 
-              <div className="mt-8 pt-6 border-t border-[#e8e5e0]">
-                <Link
-                  to="/cadastro"
-                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full font-medium text-sm bg-white border border-[#e8e5e0] text-[#1a1a1a] hover:bg-[#f8f7f5] transition-all"
+              <div className="w-full lg:w-96 space-y-4 shrink-0">
+                <div className="grid grid-cols-2 gap-2.5 text-xs text-[#ddd]">
+                  <div className="bg-[#2a2a2a] border border-[#444] rounded-lg p-2.5 flex items-center gap-2">
+                    <Check size={14} className="text-teal-400 shrink-0" />
+                    <span>+500 leads sob medida</span>
+                  </div>
+                  <div className="bg-[#2a2a2a] border border-[#444] rounded-lg p-2.5 flex items-center gap-2">
+                    <Check size={14} className="text-teal-400 shrink-0" />
+                    <span>Múltiplos WhatsApps</span>
+                  </div>
+                  <div className="bg-[#2a2a2a] border border-[#444] rounded-lg p-2.5 flex items-center gap-2">
+                    <Check size={14} className="text-teal-400 shrink-0" />
+                    <span>Setup Done-For-You</span>
+                  </div>
+                  <div className="bg-[#2a2a2a] border border-[#444] rounded-lg p-2.5 flex items-center gap-2">
+                    <Check size={14} className="text-teal-400 shrink-0" />
+                    <span>Gerente CSM direto</span>
+                  </div>
+                </div>
+
+                <a
+                  href="mailto:contato@zapai.com.br?subject=Proposta%20Enterprise%20ZapAI%20(%2B500%20leads)"
+                  className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full font-semibold text-sm bg-teal-600 text-white hover:bg-teal-500 transition-all"
                 >
-                  Criar conta gratuita
-                  <ArrowRight size={16} />
-                </Link>
-                <p className="text-center text-xs text-[#888] mt-2.5">
-                  Comece os testes sem custos
-                </p>
-              </div>
-            </div>
-
-            {/* ── ENTERPRISE (12 / 12) — HORIZONTAL CONSULTIVO ── */}
-            <div className="col-span-12 bg-[#1a1a1a] text-white rounded-2xl border border-[#333] p-7 lg:p-9 shadow-lg">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
-                <div className="flex-1">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#2a2a2a] border border-[#444] text-teal-400 text-xs font-semibold uppercase tracking-wider mb-3">
-                    Corporativo & Personalizado
-                  </div>
-                  <h3 className="text-2xl lg:text-3xl font-bold text-white tracking-tight">
-                    Enterprise
-                  </h3>
-                  <p className="text-sm text-[#aaa] mt-2 max-w-2xl leading-relaxed">
-                    Arquitetura dedicada para operações de alto volume, múltiplos departamentos, integrações personalizadas com CRM/ERP e requisitos contratuais de SLA.
-                  </p>
-
-                  <div className="mt-4 flex items-baseline gap-2">
-                    <span className="text-2xl font-bold text-white">Sob consulta</span>
-                    <span className="text-xs text-[#888]">· Projeto sob medida</span>
-                  </div>
-                </div>
-
-                <div className="w-full lg:w-96 space-y-4 shrink-0">
-                  <div className="grid grid-cols-2 gap-2.5 text-xs text-[#ddd]">
-                    <div className="bg-[#2a2a2a] border border-[#444] rounded-lg p-2.5 flex items-center gap-2">
-                      <Check size={14} className="text-teal-400" />
-                      <span>Números ilimitados</span>
-                    </div>
-                    <div className="bg-[#2a2a2a] border border-[#444] rounded-lg p-2.5 flex items-center gap-2">
-                      <Check size={14} className="text-teal-400" />
-                      <span>SLA 99.9% formal</span>
-                    </div>
-                    <div className="bg-[#2a2a2a] border border-[#444] rounded-lg p-2.5 flex items-center gap-2">
-                      <Check size={14} className="text-teal-400" />
-                      <span>API REST + Hooks</span>
-                    </div>
-                    <div className="bg-[#2a2a2a] border border-[#444] rounded-lg p-2.5 flex items-center gap-2">
-                      <Check size={14} className="text-teal-400" />
-                      <span>Gerente CSM direto</span>
-                    </div>
-                  </div>
-
-                  <a
-                    href="mailto:contato@zapai.com.br"
-                    className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full font-medium text-sm border border-[#555] text-white hover:bg-[#2a2a2a] transition-all"
-                  >
-                    Falar com consultor
-                    <ExternalLink size={15} />
-                  </a>
-                </div>
+                  Solicitar proposta personalizada
+                  <ExternalLink size={15} />
+                </a>
               </div>
             </div>
           </div>
@@ -448,33 +531,34 @@ export default function LandingPlanos() {
       </section>
 
       {/* ══════════════════════════════════════════════════════
-          COMPARAÇÃO TÉCNICA DIRETA (Compacta & Responsiva)
+          COMPARAÇÃO TÉCNICA DIRETA (4 Faixas de Leads)
       ══════════════════════════════════════════════════════ */}
-      <section className="py-20 lg:py-28 px-5 bg-[#FAFAF8] border-b border-[#e8e5e0]">
-        <div className="max-w-5xl mx-auto">
+      <section className="py-20 lg:py-24 px-5 bg-[#FAFAF8] border-b border-[#e8e5e0]">
+        <div className="max-w-6xl mx-auto">
           <div className="text-center max-w-xl mx-auto mb-12">
             <PublicEyebrow className="mb-3">
               Matriz de Capacidade
             </PublicEyebrow>
             <h2 className="text-2xl lg:text-4xl font-bold text-[#1a1a1a] tracking-tight">
-              Comparativo técnico direto
+              Comparativo completo entre planos
             </h2>
             <p className="text-base text-[#666] mt-2">
-              Visão objetiva dos recursos suportados em cada perfil de operação.
+              Compare os limites de leads e recursos inclusos em cada faixa operacional.
             </p>
           </div>
 
           <div className="border border-[#e8e5e0] rounded-2xl overflow-hidden shadow-sm bg-white">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm border-collapse min-w-[620px]">
+              <table className="w-full text-left text-sm border-collapse min-w-[720px]">
                 <thead>
                   <tr className="bg-[#1a1a1a] text-white text-xs font-semibold uppercase tracking-wider">
-                    <th className="py-4 px-5">Recurso</th>
-                    <th className="py-4 px-4 text-center">Starter</th>
+                    <th className="py-4 px-5">Recurso / Faixa</th>
+                    <th className="py-4 px-4 text-center">Starter (Até 150)</th>
                     <th className="py-4 px-4 text-center text-teal-300 bg-[#252525]">
-                      Profissional
+                      Growth (151 a 300)
                     </th>
-                    <th className="py-4 px-4 text-center">Enterprise</th>
+                    <th className="py-4 px-4 text-center">Pro (301 a 500)</th>
+                    <th className="py-4 px-4 text-center">Enterprise (+500)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#e8e5e0]">
@@ -494,8 +578,15 @@ export default function LandingPlanos() {
                         )}
                       </td>
                       <td className="py-3.5 px-4 text-center font-semibold text-[#1a1a1a] text-xs sm:text-sm bg-teal-50/40">
-                        {typeof row.pro === "boolean" ? (
+                        {typeof row.growth === "boolean" ? (
                           <Check size={16} className="text-teal-700 mx-auto font-bold" />
+                        ) : (
+                          row.growth
+                        )}
+                      </td>
+                      <td className="py-3.5 px-4 text-center text-[#555] text-xs sm:text-sm">
+                        {typeof row.pro === "boolean" ? (
+                          <Check size={16} className="text-teal-600 mx-auto" />
                         ) : (
                           row.pro
                         )}
@@ -517,40 +608,38 @@ export default function LandingPlanos() {
       </section>
 
       {/* ══════════════════════════════════════════════════════
-          FAQ (2 Colunas Desktop — Contexto + Accordions)
+          FAQ (Dúvidas sobre Limites de Leads e Pagamento)
       ══════════════════════════════════════════════════════ */}
-      <section className="py-20 lg:py-28 px-5 bg-white border-b border-[#e8e5e0]">
+      <section className="py-20 lg:py-24 px-5 bg-white border-b border-[#e8e5e0]">
         <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-start">
-          {/* Coluna Esquerda: Contexto e Suporte */}
           <div className="lg:col-span-5 text-left">
             <PublicEyebrow className="mb-3">
               Dúvidas Frequentes
             </PublicEyebrow>
             <h2 className="text-2xl lg:text-4xl font-bold text-[#1a1a1a] tracking-tight">
-              Perguntas frequentes sobre planos e contratação
+              Perguntas sobre faixas de leads e cobrança
             </h2>
             <p className="text-base text-[#666] mt-3 leading-relaxed">
-              Tudo o que você precisa saber sobre como testar, contratar e integrar a atendente oficial com a Meta Cloud API.
+              Transparência total do primeiro teste gratuito à contratação via PIX, Boleto ou Cartão.
             </p>
 
             <div className="mt-8 bg-[#f8f7f5] border border-[#e8e5e0] rounded-2xl p-5 shadow-sm">
               <div className="text-sm font-bold text-[#1a1a1a] mb-1">
-                Ficou com alguma dúvida específica?
+                Precisa de ajuda para dimensionar seu plano?
               </div>
               <p className="text-xs text-[#666] mb-4 leading-relaxed">
-                Nosso time operacional pode ajudar a definir o melhor fluxo para o seu segmento.
+                Nosso time comercial ajuda você a escolher a faixa ideal de leads para o seu negócio.
               </p>
               <a
                 href="mailto:contato@zapai.com.br"
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-teal-700 hover:text-teal-800"
               >
-                Falar com a equipe ZapAI
+                Falar com especialista ZapAI
                 <ArrowRight size={13} />
               </a>
             </div>
           </div>
 
-          {/* Coluna Direita: Accordions Acessíveis */}
           <div className="lg:col-span-7 space-y-3.5">
             {FAQS.map(({ q, a }, i) => {
               const isOpen = openFaq === i;
@@ -599,41 +688,36 @@ export default function LandingPlanos() {
       </section>
 
       {/* ══════════════════════════════════════════════════════
-          CTA FINAL — Alinhado com a Landing Page
+          CTA FINAL
       ══════════════════════════════════════════════════════ */}
-      <section className="py-20 lg:py-28 px-5 bg-[#FAFAF8] text-[#1a1a1a] text-center relative overflow-hidden">
+      <section className="py-20 lg:py-24 px-5 bg-[#FAFAF8] text-[#1a1a1a] text-center relative overflow-hidden">
         <div className="max-w-3xl mx-auto">
           <PublicEyebrow className="mb-6">
             Pronto para começar
           </PublicEyebrow>
 
           <h2 className="text-3xl lg:text-5xl font-bold text-[#1a1a1a] tracking-tight leading-tight">
-            Seu WhatsApp não precisa depender de você estar online.
+            Comece hoje por apenas R$ 69,90/mês após seus 7 dias grátis.
           </h2>
 
           <p className="text-[#666] text-base sm:text-lg mt-4 max-w-xl mx-auto leading-relaxed">
-            Configure sua atendente digital em poucos minutos e comece a atender sem deixar nenhum cliente sem resposta.
+            Configure sua atendente digital em poucos minutos e nunca mais deixe um lead esperando no WhatsApp.
           </p>
 
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               to="/cadastro"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full font-medium text-base bg-teal-600 text-white hover:bg-teal-700 shadow-md transition-all"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full font-semibold text-base bg-teal-600 text-white hover:bg-teal-700 shadow-md transition-all"
             >
-              Criar minha atendente gratuita
+              Criar minha conta grátis
               <ArrowRight size={17} />
             </Link>
             <Link
-              to="/#recursos"
+              to="/login"
               className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-4 rounded-full font-medium text-base border border-[#e8e5e0] text-[#1a1a1a] bg-white hover:bg-[#f8f7f5] transition-all"
             >
-              Ver demonstração
+              Já tenho conta · Entrar
             </Link>
-          </div>
-
-          <div className="inline-flex items-center gap-2 mt-8 text-xs text-[#666] border border-[#e8e5e0] bg-white px-4 py-2 rounded-full shadow-sm">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            SISTEMA OPERACIONAL · API OFICIAL META CLOUD ATIVA
           </div>
         </div>
       </section>

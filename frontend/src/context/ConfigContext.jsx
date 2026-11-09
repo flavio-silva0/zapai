@@ -10,8 +10,8 @@ import { createContext, useContext, useState, useEffect } from "react";
 import { apiFetch } from "../api";
 
 const ConfigContext = createContext({
-  clinica:   "Atendimento",
-  botName:   "Sofia",
+  clinica:   "ZapAI",
+  botName:   "ZapAI",
   botEmoji:  "🤖",
   promptFile: "",
   loading:   true,
@@ -19,8 +19,8 @@ const ConfigContext = createContext({
 
 export function ConfigProvider({ children }) {
   const [config, setConfig] = useState({
-    clinica:   "Atendimento",
-    botName:   "Sofia",
+    clinica:   "ZapAI",
+    botName:   "ZapAI",
     botEmoji:  "🤖",
     promptFile: "",
     loading:   true,

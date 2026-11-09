@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   TrendingUp, MessageSquare, Clock, Star, Download,
   BarChart2, ArrowUp, ArrowDown, Users, Zap, RefreshCw, Activity
@@ -98,8 +98,10 @@ export default function Analytics() {
   const [stats, setStats] = useState(null);
   const [patients, setPatients] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [referenceTime, setReferenceTime] = useState(0);
 
   useEffect(() => {
+    setReferenceTime(Date.now());
     Promise.all([
       apiFetch("/api/stats").then((r) => r.json()).catch(() => null),
       apiFetch("/api/patients").then((r) => r.json()).catch(() => []),
@@ -117,16 +119,53 @@ export default function Analytics() {
   const automacaoRate = total > 0 ? Math.round((aiAtivo / total) * 100) : 0;
   const totalMensagens = stats?.totalMensagens || 0;
 
-  // Real volume for last 14 days
-  const dailyCounts = Array.from({ length: 14 }, (_, idx) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (13 - idx));
-    const dateStr = d.toISOString().split("T")[0];
-    const count = patients.filter((p) => p.created_at && p.created_at.startsWith(dateStr)).length;
-    return count;
-  });
+  const periodDays = period === "90 dias" ? 90 : period === "30 dias" ? 30 : 7;
+  const chartBarsCount = Math.min(periodDays, 14);
 
-  const maxVolume = Math.max(...dailyCounts, 1);
+  const { dailyCounts, periodTotalConversations, maxVolume } = useMemo(() => {
+    const baseTime = referenceTime || 0;
+    const counts = Array.from({ length: chartBarsCount }, (_, idx) => {
+      if (!baseTime) return 0;
+      const d = new Date(baseTime);
+      d.setDate(d.getDate() - (chartBarsCount - 1 - idx));
+      const dateStr = d.toISOString().split("T")[0];
+      return patients.filter((p) => p.created_at && p.created_at.startsWith(dateStr)).length;
+    });
+    const total = patients.filter((p) => {
+      if (!p.created_at || !baseTime) return false;
+      const diffDays = (baseTime - new Date(p.created_at).getTime()) / (1000 * 60 * 60 * 24);
+      return diffDays <= periodDays;
+    }).length;
+    return {
+      dailyCounts: counts,
+      periodTotalConversations: total,
+      maxVolume: Math.max(...counts, 1),
+    };
+  }, [patients, periodDays, chartBarsCount, referenceTime]);
+
+  const handleExportCSV = () => {
+    const headers = ["ID", "Nome", "Telefone", "Status Kanban", "IA Ativa", "Criado Em"];
+    const rows = patients.map((p) => [
+      p.id,
+      `"${String(p.nome || "Contato").replace(/"/g, '""')}"`,
+      `"${String(p.telefone || "")}"`,
+      `"${String(p.status_kanban || "Novo")}"`,
+      p.is_ai_active ? "Sim" : "Nao",
+      p.created_at || "",
+    ]);
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `zapai-relatorio-${period.replace(/\s+/g, "-")}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportPDF = () => {
+    window.print();
+  };
 
   // Kanban status segments (UX-005: separar dimensões claramente)
   const agendadosCount = patients.filter((p) => {
@@ -159,7 +198,7 @@ export default function Analytics() {
     {
       label: "Volume de Atendimentos",
       value: String(total),
-      subtext: "Total cadastrado",
+      subtext: `${periodTotalConversations} nos últimos ${period}`,
       sparkData: dailyCounts.slice(-7),
       color: "#06b6d4",
       icon: MessageSquare,
@@ -223,11 +262,19 @@ export default function Analytics() {
           </div>
 
           {/* Export buttons */}
-          <button className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold transition-all bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-medium)] text-[var(--text-secondary)]">
+          <button
+            type="button"
+            onClick={handleExportPDF}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold transition-all bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-medium)] text-[var(--text-secondary)]"
+          >
             <Download size={13} />
             PDF
           </button>
-          <button className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold transition-all bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-medium)] text-[var(--text-secondary)]">
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold transition-all bg-[var(--bg-surface)] hover:bg-[var(--bg-surface-hover)] border border-[var(--border-medium)] text-[var(--text-secondary)]"
+          >
             <Download size={13} />
             CSV
           </button>
@@ -245,13 +292,13 @@ export default function Analytics() {
       <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-6 animate-fade-up delay-300">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-[var(--text-primary)] font-bold text-base">Volume de Conversas</h2>
+            <h2 className="text-[var(--text-primary)] font-bold text-base">Volume de Conversas ({period})</h2>
             <p className="text-[12px] mt-0.5 text-[var(--text-muted)]">
-              Distribuição diária nos últimos 14 dias
+              Distribuição de novos contatos para a janela selecionada ({period})
             </p>
           </div>
           <span className="badge badge-brand text-[10px]">
-            {dailyCounts.reduce((a, b) => a + b, 0)} conversas no período
+            {periodTotalConversations} conversas no período
           </span>
         </div>
 

@@ -59,6 +59,7 @@ export default function Chat() {
       try {
         const msg = JSON.parse(e.data);
         fetchPatients();
+        window.dispatchEvent(new CustomEvent("zapai:new_message", { detail: msg }));
         window.dispatchEvent(new CustomEvent("dentistai:new_message", { detail: msg }));
       } catch (err) {
         console.error("Erro ao processar mensagem SSE:", err);

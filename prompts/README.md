@@ -88,7 +88,7 @@ CLINIC_PHONE=(11) 99999-9999
 
 ```bash
 # Via PM2 (produção):
-pm2 restart sofia-backend
+pm2 restart zapai-backend
 
 # Via terminal (dev):
 npm start
@@ -120,7 +120,7 @@ Novo cliente: PetShop do Zé, São Paulo
    BOT_NAME=Mel
    CLINIC_NAME=PetShop do Zé
    CLINIC_PHONE=(11) 98888-7777
-4. pm2 restart sofia-backend
+4. pm2 restart zapai-backend
 5. Testar no painel → aba "Testar Agente"
 6. Mostrar para o Zé e coletar feedback
 7. Ajustar o .txt se necessário, repetir passo 4

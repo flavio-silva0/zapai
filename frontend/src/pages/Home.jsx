@@ -278,6 +278,45 @@ export default function Home() {
         </div>
       </header>
 
+      {/* ── Plan & Lead Capacity Bar ── */}
+      {stats?.usage && (
+        <div className="bg-[var(--bg-surface)] border border-[var(--border-subtle)] rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <span className="font-bold text-[var(--text-primary)] flex items-center gap-2">
+                <Users size={14} className="text-cyan-400" />
+                Plano {stats.usage.planName} ({stats.usage.leadRangeLabel})
+              </span>
+              <span className="font-mono font-bold text-[var(--text-primary)]">
+                {stats.usage.currentLeads} / {stats.usage.maxLeads} leads ({stats.usage.usagePercent}%)
+              </span>
+            </div>
+            <div className="w-full h-2 rounded-full bg-slate-800/80 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-500 ${
+                  stats.usage.limitReached
+                    ? "bg-red-500"
+                    : stats.usage.nearLimit
+                      ? "bg-amber-500"
+                      : "bg-gradient-to-r from-cyan-400 to-emerald-400"
+                }`}
+                style={{ width: `${Math.min(100, Math.max(2, stats.usage.usagePercent || 0))}%` }}
+              />
+            </div>
+          </div>
+          <Link
+            to="/painel/configuracoes?section=billing"
+            className={`text-xs font-bold px-4 py-2 rounded-xl shrink-0 text-center transition-all ${
+              stats.usage.limitReached || stats.usage.nearLimit
+                ? "bg-amber-500 text-slate-950 hover:bg-amber-400"
+                : "bg-cyan-500/15 text-cyan-400 border border-cyan-500/25 hover:bg-cyan-500/25"
+            }`}
+          >
+            {stats.usage.limitReached ? "Liberar Mais Leads" : "Gerenciar Plano"}
+          </Link>
+        </div>
+      )}
+
       {/* ── Metric Cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {metricCards.map((card, i) => (

@@ -17,43 +17,22 @@ process.env.DELAY_ENTRE_MENSAGENS_MAX_MS = "0";
 const { app, clearTestState } = require("../../src/index");
 const supabaseMock = require("../../src/mocks/supabaseMock");
 
-function invokeApp(method, url, body) {
-  return new Promise((resolve, reject) => {
-    const rawBody = JSON.stringify(body);
-    const req = new Readable({
-      read() {
-        this.push(rawBody);
-        this.push(null);
-      },
+async function invokeApp(method, url, body) {
+  const server = app.listen(0, "127.0.0.1");
+  await new Promise((resolve) => server.once("listening", resolve));
+  try {
+    const base = `http://127.0.0.1:${server.address().port}`;
+    const response = await fetch(base + url, {
+      method,
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
     });
-
-    req.method = method;
-    req.url = url;
-    req.headers = {
-      "content-type": "application/json",
-      "content-length": Buffer.byteLength(rawBody),
-    };
-
-    const res = new Writable({
-      write(_chunk, _encoding, callback) {
-        callback();
-      },
-    });
-
-    res.headers = {};
-    res.statusCode = 200;
-    res.setHeader = (key, value) => {
-      res.headers[key.toLowerCase()] = value;
-    };
-    res.getHeader = (key) => res.headers[key.toLowerCase()];
-    res.end = (chunk) => {
-      Writable.prototype.end.call(res, chunk);
-      resolve({ statusCode: res.statusCode, body: String(chunk || "") });
-    };
-    res.on("error", reject);
-
-    app.handle(req, res, reject);
-  });
+    const text = await response.text();
+    return { statusCode: response.status, body: text };
+  } finally {
+    server.closeAllConnections?.();
+    server.close();
+  }
 }
 
 async function runTest() {

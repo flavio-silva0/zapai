@@ -64,7 +64,7 @@ router.post('/session', async (req, res) => {
       user = loaded.data;
     }
     if (!user.is_active) return res.status(403).json({ error: 'Conta desativada.' });
-    const tenantResult = await db.from('tenants').select('id,nome,status,bot_name,bot_emoji,trial_ends_at').eq('id', user.tenant_id).single();
+    const tenantResult = await db.from('tenants').select('id,nome,status,bot_name,bot_emoji,trial_ends_at,plan,phone_number_id,clinic_name,clinic_phone').eq('id', user.tenant_id).single();
     const tenant = tenantResult.data;
     if (tenantResult.error || !tenant || ['pausado','cancelado'].includes(tenant.status)) return res.status(403).json({ error: 'Conta indisponível.' });
     const token = criarToken({ userId: user.id, tenantId: user.tenant_id, email: user.email, role: user.role, credentialVersion: credentialVersion(user.password_hash) });

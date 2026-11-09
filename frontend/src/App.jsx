@@ -31,7 +31,7 @@ const Home         = lazy(() => import("./pages/Home"));
 const Chat         = lazy(() => import("./pages/Chat"));
 const FullKanban   = lazy(() => import("./pages/FullKanban"));
 const ContactHubSpot = lazy(() => import("./pages/ContactHubSpot"));
-const TestSofia    = lazy(() => import("./pages/TestZapAi"));
+const TestZapAi    = lazy(() => import("./pages/TestZapAi"));
 const Profile      = lazy(() => import("./pages/Profile"));
 const AiSetup      = lazy(() => import("./pages/AiSetup"));
 const KnowledgeBase = lazy(() => import("./pages/KnowledgeBase"));
@@ -126,7 +126,7 @@ export default function App() {
               <Route path="contatos/:id"  element={<ContactHubSpot />} />
               <Route path="kanban"        element={<FullKanban />} />
               <Route path="chat"          element={<Chat />} />
-              <Route path="test"          element={<TestSofia />} />
+              <Route path="test"          element={<TestZapAi />} />
               <Route path="perfil"        element={<Profile />} />
               <Route path="ia"            element={<AiSetup />} />
               <Route path="treinamento"   element={<KnowledgeBase />} />

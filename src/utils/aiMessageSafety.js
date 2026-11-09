@@ -7,7 +7,7 @@ const SAFE_ERROR_FALLBACK =
   "Tive uma instabilidade aqui, mas já posso continuar te ajudando. Pode me mandar sua dúvida de novo?";
 
 const TECHNICAL_LABEL_RE =
-  /^(?:assistant|assistente|model|modelo|bot|sofia|beatriz|bia|resposta|response|output|content|json)\s*[:\-]\s*/i;
+  /^(?:assistant|assistente|model|modelo|bot|zapai|sofia|beatriz|bia|resposta|response|output|content|json)\s*[:\-]\s*/i;
 
 const FINAL_LABEL_RE =
   /(?:resposta\s+final|mensagem\s+final|final\s+answer|reply\s+final)\s*[:\-]\s*/gi;

@@ -133,6 +133,8 @@ function NewContactModal({ isOpen, onClose, onContactCreated }) {
   const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [limitReached, setLimitReached] = useState(false);
+  const navigate = useNavigate();
 
   if (!isOpen) return null;
 
@@ -144,6 +146,7 @@ function NewContactModal({ isOpen, onClose, onContactCreated }) {
     }
     setLoading(true);
     setError("");
+    setLimitReached(false);
 
     try {
       const res = await apiFetch("/api/patients", {
@@ -157,7 +160,12 @@ function NewContactModal({ isOpen, onClose, onContactCreated }) {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Falha ao criar contato.");
+      if (!res.ok) {
+        if (res.status === 402 || data.code === "LEAD_LIMIT_REACHED") {
+          setLimitReached(true);
+        }
+        throw new Error(data.error || "Falha ao criar contato.");
+      }
       onContactCreated(data);
       onClose();
     } catch (err) {
@@ -182,8 +190,20 @@ function NewContactModal({ isOpen, onClose, onContactCreated }) {
         </div>
 
         {error && (
-          <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs">
-            {error}
+          <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs space-y-2">
+            <p>{error}</p>
+            {limitReached && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  navigate("/painel/configuracoes?section=billing");
+                }}
+                className="w-full py-2 px-3 rounded-lg bg-amber-500 text-slate-950 font-bold text-xs hover:bg-amber-400 transition-all"
+              >
+                Fazer Upgrade de Plano Agora →
+              </button>
+            )}
           </div>
         )}
 

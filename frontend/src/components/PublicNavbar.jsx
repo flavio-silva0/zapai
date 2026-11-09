@@ -242,7 +242,7 @@ export default function PublicNavbar() {
             to="/cadastro"
             className="px-5 py-2.5 rounded-full text-sm font-medium transition-all shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 bg-teal-600 text-white hover:bg-teal-700"
           >
-            Criar minha Zap
+            Criar minha conta grátis
           </Link>
         </div>
 
@@ -301,7 +301,7 @@ export default function PublicNavbar() {
                 onClick={() => setMobileOpen(false)}
                 className="px-4 py-3 text-center rounded-full bg-teal-600 text-white font-medium hover:bg-teal-700 transition"
               >
-                Criar minha Zap
+                Criar minha conta grátis
               </Link>
             </div>
           </div>

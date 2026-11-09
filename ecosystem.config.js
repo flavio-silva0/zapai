@@ -2,11 +2,11 @@
 // PM2 é o gerenciador de processos padrão para Node.js em produção.
 //
 // Comandos principais:
-//   pm2 start ecosystem.config.js     → inicia a Sofia
+//   pm2 start ecosystem.config.js     → inicia o ZapAI
 //   pm2 status                         → mostra status de todos os processos
-//   pm2 logs sofia-backend             → mostra logs em tempo real
-//   pm2 restart sofia-backend          → reinicia o bot
-//   pm2 stop sofia-backend             → para o bot
+//   pm2 logs zapai-backend             → mostra logs em tempo real
+//   pm2 restart zapai-backend          → reinicia o bot
+//   pm2 stop zapai-backend             → para o bot
 //   pm2 save                           → salva os processos para auto-start
 //   pm2 startup                        → configura auto-start no boot do servidor
 
@@ -14,7 +14,7 @@ module.exports = {
   apps: [
     {
       // ── Backend (WhatsApp Bot + API Express) ─────────────────
-      name: "sofia-backend",
+      name: "zapai-backend",
       script: "src/index.js",
       cwd: "./",
 
@@ -30,9 +30,9 @@ module.exports = {
       },
 
       // Logs — por padrão ficam em ~/.pm2/logs/
-      // Para ver: pm2 logs sofia-backend
-      out_file: "./logs/sofia-out.log",
-      error_file: "./logs/sofia-error.log",
+      // Para ver: pm2 logs zapai-backend
+      out_file: "./logs/zapai-out.log",
+      error_file: "./logs/zapai-error.log",
       merge_logs: true,
       log_date_format: "YYYY-MM-DD HH:mm:ss",
 

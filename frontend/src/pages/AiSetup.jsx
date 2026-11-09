@@ -1,7 +1,7 @@
 import { useContext, useState, useEffect } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { CheckCircle, Save, X, Sparkles, Edit2, User, MessageSquare, Target, Clock, Smile } from "lucide-react";
-import { apiFetch } from "../api";
+import { apiFetch, getStoredAuthToken } from "../api";
 
 function Field({ label, hint, children }) {
   return (
@@ -229,7 +229,7 @@ export default function AiSetup() {
     if (tenant) {
       setMagicForm(prev => ({
         ...prev,
-        nomeAgente: prev.nomeAgente && prev.nomeAgente !== "Beatriz" && prev.nomeAgente !== "Sofia" ? prev.nomeAgente : (tenant.bot_name || "Beatriz"),
+        nomeAgente: prev.nomeAgente && prev.nomeAgente !== "Beatriz" && prev.nomeAgente !== "Sofia" ? prev.nomeAgente : (tenant.bot_name || "ZapAI"),
         emojiAgente: prev.emojiAgente && prev.emojiAgente !== "🤖" ? prev.emojiAgente : (tenant.bot_emoji || "🤖"),
         nomeEmpresa: prev.nomeEmpresa || tenant.clinic_name || tenant.nome || "",
         whatsappContato: prev.whatsappContato || tenant.clinic_phone || ""
@@ -303,7 +303,7 @@ export default function AiSetup() {
         prompt_text: newPrompt,
         bot_name: botName
       };
-      const token = localStorage.getItem("sofia_token");
+      const token = getStoredAuthToken();
       login(token, user, updatedTenant);
 
       setPersonalitySaved(true);
@@ -396,7 +396,7 @@ export default function AiSetup() {
         prompt_text: textToSave,
         ...(mode === "magic" && magicForm.nomeAgente ? { bot_name: magicForm.nomeAgente.trim() } : {})
       };
-      const token = localStorage.getItem("sofia_token");
+      const token = getStoredAuthToken();
       login(token, user, updatedTenant);
 
       if (mode === "magic") {
