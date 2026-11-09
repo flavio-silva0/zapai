@@ -35,9 +35,16 @@ if (missingEnv.length > 0) {
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const supabase = require("../utils/database")();
 
+function resolveGeminiModel(model, fallbackDefault = "gemini-3.5-flash-lite") {
+  if (!model || model === "gemini-2.5-flash-lite") {
+    return fallbackDefault;
+  }
+  return model;
+}
+
 const CONFIG = Object.freeze({
-  aiModel: process.env.GEMINI_MODEL || "gemini-2.5-flash-lite",
-  aiFallbackModel: process.env.GEMINI_FALLBACK_MODEL || "gemini-2.5-flash",
+  aiModel: resolveGeminiModel(process.env.GEMINI_MODEL, "gemini-3.5-flash-lite"),
+  aiFallbackModel: resolveGeminiModel(process.env.GEMINI_FALLBACK_MODEL, "gemini-2.5-flash"),
   embeddingModel: process.env.GEMINI_EMBEDDING_MODEL || "text-embedding-004",
   embeddingDimensions: Number(process.env.EMBEDDING_DIMENSIONS || 768),
 
@@ -102,7 +109,9 @@ function isRetryableAIError(err) {
     message.includes("resource exhausted") ||
     message.includes("rate limit") ||
     message.includes("timeout") ||
-    message.includes("deadline")
+    message.includes("deadline") ||
+    message.includes("not found") ||
+    message.includes("no longer available")
   );
 }
 

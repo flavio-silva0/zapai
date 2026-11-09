@@ -9,6 +9,7 @@ const assert = require("assert");
 const {
   DEFAULT_AI_FALLBACK,
   buildGeminiHistoryFromRows,
+  resolveGeminiModel,
   sanitizeAiMessage,
   sanitizeAiMessageWithReport,
 } = require("../src/utils/aiMessageSafety");
@@ -69,5 +70,9 @@ assert.ok(!/com quase$/i.test(qualifierCut), "qualificador pendente no fim deve 
 
 const brokenFlow = sanitizeAiMessage("Opa, desculpe! Minha mensagem acabou");
 assert.ok(!/mensagem acabou/i.test(brokenFlow), "auto-desculpa por mensagem cortada não deve ser enviada");
+
+assert.strictEqual(resolveGeminiModel("gemini-2.5-flash-lite"), "gemini-3.5-flash-lite", "modelo descontinuado deve migrar para 3.5-flash-lite");
+assert.strictEqual(resolveGeminiModel(undefined), "gemini-3.5-flash-lite", "modelo indefinido deve assumir default 3.5-flash-lite");
+assert.strictEqual(resolveGeminiModel("gemini-2.5-flash"), "gemini-2.5-flash", "modelos ativos devem ser preservados");
 
 console.log("AI safety tests passed ✅");

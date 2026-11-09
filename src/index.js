@@ -70,6 +70,13 @@ const GEMINI_TEMPERATURE = Number(process.env.GEMINI_TEMPERATURE ?? "0.20");
 const GEMINI_TOP_P = Number(process.env.GEMINI_TOP_P ?? "0.80");
 const GEMINI_TOP_K = parseInt(process.env.GEMINI_TOP_K ?? "40", 10);
 
+function resolveGeminiModel(model, fallbackDefault = "gemini-3.5-flash-lite") {
+  if (!model || model === "gemini-2.5-flash-lite") {
+    return fallbackDefault;
+  }
+  return model;
+}
+
 // ── 2. VALIDAÇÕES NA INICIALIZAÇÃO ───────────────────────────
 const erros = [];
 if (!GEMINI_API_KEY) erros.push("GEMINI_API_KEY inválida ou não definida");
@@ -683,7 +690,7 @@ Regras:
 4. Se a conversa recente não tiver nenhuma informação nova ou relevante, retorne exatamente o JSON da Memória Existente.
 `;
 
-    const abstractor = quotaModel(genAI, patient.tenant_id, { model: process.env.GEMINI_MODEL || "gemini-2.5-flash-lite" });
+    const abstractor = quotaModel(genAI, patient.tenant_id, { model: resolveGeminiModel(process.env.GEMINI_MODEL, "gemini-3.5-flash-lite") });
     const result = await abstractor.generateContent(promptMemoria);
     let textResult = result.response.text().trim();
     // Limpeza de blocos de código se vierem acidentalmente
@@ -919,12 +926,12 @@ Se não houver nomes específicos na base:
 `;
 
   const modeloPrincipal = quotaModel(genAI, tenant.id, {
-    model: process.env.GEMINI_MODEL || "gemini-2.5-flash-lite",
+    model: resolveGeminiModel(process.env.GEMINI_MODEL, "gemini-3.5-flash-lite"),
     systemInstruction: prompt,
   });
 
   const modeloFallback = quotaModel(genAI, tenant.id, {
-    model: process.env.GEMINI_FALLBACK_MODEL || "gemini-2.5-flash",
+    model: resolveGeminiModel(process.env.GEMINI_FALLBACK_MODEL, "gemini-2.5-flash"),
     systemInstruction: prompt,
   });
 
@@ -1516,7 +1523,7 @@ Retorne ESTRITAMENTE um objeto JSON válido (sem markdown, sem tags, sem crases)
       };
     } else {
       const model = quotaModel(genAI, patient.tenant_id, {
-        model: process.env.GEMINI_MODEL || "gemini-2.5-flash-lite",
+        model: resolveGeminiModel(process.env.GEMINI_MODEL, "gemini-3.5-flash-lite"),
         generationConfig: { responseMimeType: "application/json", maxOutputTokens: 2048, temperature: 0.3 },
       });
       const resp = await model.generateContent(systemPrompt);

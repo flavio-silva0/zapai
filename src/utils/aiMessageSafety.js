@@ -385,12 +385,20 @@ function extractAiTextFromProviderResponse(result) {
   return "";
 }
 
+function resolveGeminiModel(model, fallbackDefault = "gemini-3.5-flash-lite") {
+  if (!model || model === "gemini-2.5-flash-lite") {
+    return fallbackDefault;
+  }
+  return model;
+}
+
 module.exports = {
   DEFAULT_AI_FALLBACK,
   SAFE_ERROR_FALLBACK,
   buildGeminiHistoryFromRows,
   extractAiTextFromProviderResponse,
   getSafeFallback,
+  resolveGeminiModel,
   sanitizeAiMessage,
   sanitizeAiMessageWithReport,
   validateAiMessage,
