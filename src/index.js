@@ -1608,18 +1608,40 @@ app.put("/api/patients/:id/ai-status", requireAuth, forbidViewer, async (req, re
 app.put("/api/patients/:id", requireAuth, forbidViewer, async (req, res) => {
   const { nome, status_kanban, is_ai_active, ai_memory } = req.body;
   const tenantId = getReqTenantId(req);
-  const updates = { updated_at: new Date().toISOString() };
+  const updates = {};
   if (nome !== undefined) updates.nome = nome;
   if (status_kanban !== undefined) updates.status_kanban = status_kanban;
   if (is_ai_active !== undefined) updates.is_ai_active = is_ai_active;
   if (ai_memory !== undefined) updates.ai_memory = ai_memory;
 
-  let query = supabase.from("users_whatsapp").update(updates).eq("id", req.params.id);
-  if (tenantId) query = query.eq("tenant_id", tenantId);
-  const { data, error } = await query.select().single();
-  if (error) return res.status(500).json({ error: error.message });
-  emitirEvento("patient_updated", data, data.tenant_id);
-  res.json(data);
+  try {
+    let query = supabase.from("users_whatsapp").update(updates).eq("id", req.params.id);
+    if (tenantId) query = query.eq("tenant_id", tenantId);
+    let { data, error } = await query.select();
+
+    // Se não encontrou linha para atualizar com tenantId, tenta sem tenantId como fallback seguro (super_admin ou dado legado)
+    if (!error && (!data || data.length === 0) && (!tenantId || req.user?.role === "super_admin")) {
+      const fb = await supabase.from("users_whatsapp").update(updates).eq("id", req.params.id).select();
+      data = fb.data;
+      error = fb.error;
+    }
+
+    if (error) {
+      console.error("❌ [API] Erro ao atualizar paciente:", error);
+      return res.status(500).json({ error: error.message || "Erro ao atualizar contato" });
+    }
+
+    const updated = data && data.length > 0 ? data[0] : null;
+    if (!updated) {
+      return res.status(404).json({ error: "Contato não encontrado." });
+    }
+
+    emitirEvento("patient_updated", updated, updated.tenant_id);
+    res.json(updated);
+  } catch (err) {
+    console.error("❌ [API] Exceção ao atualizar paciente:", err);
+    res.status(500).json({ error: err.message || "Erro interno ao atualizar contato" });
+  }
 });
 
 app.delete("/api/patients/:id", requireAuth, forbidViewer, async (req, res) => {

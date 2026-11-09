@@ -49,6 +49,15 @@ function getAvatarColor(identifier = "") {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
+function getSafeMemory(raw) {
+  if (!raw) return {};
+  if (typeof raw === "string") {
+    try { return JSON.parse(raw); } catch { return {}; }
+  }
+  if (typeof raw === "object") return raw;
+  return {};
+}
+
 const STAGES = [
   { id: "Novo", label: "1. Novos Leads", shortLabel: "Novos Leads", color: "slate" },
   { id: "Em Atendimento", label: "2. Em Atendimento", shortLabel: "Em Atendimento", color: "amber" },
@@ -78,6 +87,8 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
   const [dealValueInput, setDealValueInput] = useState("");
   const [dealServiceInput, setDealServiceInput] = useState("");
   const [savingProperties, setSavingProperties] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   // Tags
   const [tagInput, setTagInput] = useState("");
@@ -124,16 +135,17 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
       const mData = mRes.ok ? await mRes.json() : [];
       if (activeContactRef.current !== contactId) return;
 
+      const mem = getSafeMemory(pData.ai_memory);
       setPatient(pData);
       setMessages(mData || []);
       setNameInput(pData.nome || "");
-      setEmailInput(pData.ai_memory?.email || "");
-      setCityInput(pData.ai_memory?.city || "");
-      setDealValueInput(pData.ai_memory?.deal_value || "");
-      setDealServiceInput(pData.ai_memory?.deal_service || "");
+      setEmailInput(mem.email || "");
+      setCityInput(mem.city || "");
+      setDealValueInput(mem.deal_value || "");
+      setDealServiceInput(mem.deal_service || "");
 
       // Insights pré-existentes na memória
-      const savedInsights = pData.ai_memory?.ai_insights;
+      const savedInsights = mem.ai_insights;
       const hasCompleteAnalysis = savedInsights?.schema_version === 2 && savedInsights?.source === "ai";
       setAiInsights(hasCompleteAnalysis ? savedInsights : null);
       if (forceInsights || !hasCompleteAnalysis) {
@@ -160,7 +172,7 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
       if (res.ok) {
         if (activeContactRef.current !== contactId) return;
         setAiInsights(data);
-        setPatient(prev => prev ? { ...prev, ai_memory: { ...(prev.ai_memory || {}), ai_insights: data } } : prev);
+        setPatient(prev => prev ? { ...prev, ai_memory: { ...getSafeMemory(prev.ai_memory), ai_insights: data } } : prev);
       }
     } catch (err) {
       if (activeContactRef.current === contactId) setInsightsError(err.message);
@@ -216,9 +228,12 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
   const handleSaveProperties = async () => {
     if (!patient) return;
     setSavingProperties(true);
+    setSaveError("");
+    setSaveSuccess(false);
     try {
+      const currentMemory = getSafeMemory(patient.ai_memory);
       const updatedMemory = {
-        ...(patient.ai_memory || {}),
+        ...currentMemory,
         email: emailInput.trim(),
         city: cityInput.trim(),
         deal_value: dealValueInput.trim(),
@@ -227,17 +242,19 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
       const res = await apiFetch(`/api/patients/${contactId}`, {
         method: "PUT",
         body: JSON.stringify({
-          nome: nameInput.trim() || "Contato sem nome",
+          nome: (nameInput.trim() || patient.nome || "Contato").trim(),
           ai_memory: updatedMemory,
         }),
       });
-      if (res.ok) {
-        const updated = await res.json();
-        setPatient(updated);
-        setIsEditingName(false);
-      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao salvar informações do contato.");
+      setPatient(data);
+      setIsEditingName(false);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
       console.error("Erro ao salvar propriedades:", err);
+      setSaveError(err.message || "Não foi possível salvar as alterações.");
     } finally {
       setSavingProperties(false);
     }
@@ -245,7 +262,8 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
 
   // Tags
   const tags = useMemo(() => {
-    return Array.isArray(patient?.ai_memory?.tags) ? patient.ai_memory.tags : [];
+    const mem = getSafeMemory(patient?.ai_memory);
+    return Array.isArray(mem.tags) ? mem.tags : [];
   }, [patient]);
 
   const handleAddTag = async (e) => {
@@ -254,7 +272,8 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
       const clean = tagInput.trim().replace(/^#/, "");
       if (!tags.includes(clean)) {
         const newTags = [...tags, clean];
-        const updatedMemory = { ...(patient?.ai_memory || {}), tags: newTags };
+        const mem = getSafeMemory(patient?.ai_memory);
+        const updatedMemory = { ...mem, tags: newTags };
         setPatient((prev) => ({ ...prev, ai_memory: updatedMemory }));
         setTagInput("");
         await apiFetch(`/api/patients/${contactId}`, {
@@ -267,7 +286,8 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
 
   const handleRemoveTag = async (tagToRemove) => {
     const newTags = tags.filter((t) => t !== tagToRemove);
-    const updatedMemory = { ...(patient?.ai_memory || {}), tags: newTags };
+    const mem = getSafeMemory(patient?.ai_memory);
+    const updatedMemory = { ...mem, tags: newTags };
     setPatient((prev) => ({ ...prev, ai_memory: updatedMemory }));
     await apiFetch(`/api/patients/${contactId}`, {
       method: "PUT",
@@ -277,10 +297,11 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
 
   // Notas
   const notesList = useMemo(() => {
-    const raw = patient?.ai_memory?.notes_list;
+    const mem = getSafeMemory(patient?.ai_memory);
+    const raw = mem.notes_list;
     if (Array.isArray(raw)) return raw;
-    if (patient?.ai_memory?.notes) {
-      return [{ id: "legacy-note", text: patient.ai_memory.notes, author: "Equipe", date: patient.created_at }];
+    if (mem.notes) {
+      return [{ id: "legacy-note", text: mem.notes, author: "Equipe", date: patient?.created_at }];
     }
     return [];
   }, [patient]);
@@ -296,7 +317,8 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
         date: new Date().toISOString(),
       };
       const updatedList = [noteObj, ...notesList];
-      const updatedMemory = { ...(patient?.ai_memory || {}), notes_list: updatedList, notes: newNote.trim() };
+      const mem = getSafeMemory(patient?.ai_memory);
+      const updatedMemory = { ...mem, notes_list: updatedList, notes: newNote.trim() };
       setPatient((prev) => ({ ...prev, ai_memory: updatedMemory }));
       setNewNote("");
       await apiFetch(`/api/patients/${contactId}`, {
@@ -312,7 +334,8 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
 
   // Tarefas
   const tasksList = useMemo(() => {
-    return Array.isArray(patient?.ai_memory?.tasks) ? patient.ai_memory.tasks : [];
+    const mem = getSafeMemory(patient?.ai_memory);
+    return Array.isArray(mem.tasks) ? mem.tasks : [];
   }, [patient]);
 
   const handleAddTask = async (e) => {
@@ -325,7 +348,8 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
         created_at: new Date().toISOString(),
       };
       const updatedTasks = [taskObj, ...tasksList];
-      const updatedMemory = { ...(patient?.ai_memory || {}), tasks: updatedTasks };
+      const mem = getSafeMemory(patient?.ai_memory);
+      const updatedMemory = { ...mem, tasks: updatedTasks };
       setPatient((prev) => ({ ...prev, ai_memory: updatedMemory }));
       setNewTask("");
       await apiFetch(`/api/patients/${contactId}`, {
@@ -337,7 +361,8 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
 
   const handleToggleTask = async (taskId) => {
     const updatedTasks = tasksList.map((t) => (t.id === taskId ? { ...t, completed: !t.completed } : t));
-    const updatedMemory = { ...(patient?.ai_memory || {}), tasks: updatedTasks };
+    const mem = getSafeMemory(patient?.ai_memory);
+    const updatedMemory = { ...mem, tasks: updatedTasks };
     setPatient((prev) => ({ ...prev, ai_memory: updatedMemory }));
     await apiFetch(`/api/patients/${contactId}`, {
       method: "PUT",
@@ -347,7 +372,8 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
 
   const handleDeleteNote = async (noteId) => {
     const updatedList = notesList.filter((n) => n.id !== noteId);
-    const updatedMemory = { ...(patient?.ai_memory || {}), notes_list: updatedList };
+    const mem = getSafeMemory(patient?.ai_memory);
+    const updatedMemory = { ...mem, notes_list: updatedList };
     setPatient((prev) => ({ ...prev, ai_memory: updatedMemory }));
     await apiFetch(`/api/patients/${contactId}`, {
       method: "PUT",
@@ -357,7 +383,8 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
 
   const handleDeleteTask = async (taskId) => {
     const updatedTasks = tasksList.filter((t) => t.id !== taskId);
-    const updatedMemory = { ...(patient?.ai_memory || {}), tasks: updatedTasks };
+    const mem = getSafeMemory(patient?.ai_memory);
+    const updatedMemory = { ...mem, tasks: updatedTasks };
     setPatient((prev) => ({ ...prev, ai_memory: updatedMemory }));
     await apiFetch(`/api/patients/${contactId}`, {
       method: "PUT",
@@ -733,11 +760,38 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
                 <button
                   onClick={handleSaveProperties}
                   disabled={savingProperties}
-                  className="text-[11px] text-teal-600 hover:underline font-bold cursor-pointer"
+                  className={`text-[11px] font-bold cursor-pointer transition-colors flex items-center gap-1 ${
+                    saveSuccess
+                      ? "text-emerald-600 dark:text-emerald-400 font-extrabold"
+                      : "text-teal-600 hover:underline"
+                  }`}
                 >
-                  {savingProperties ? "Salvando..." : "Salvar"}
+                  {saveSuccess ? (
+                    <>
+                      <Check size={12} className="stroke-[3]" />
+                      Salvo!
+                    </>
+                  ) : savingProperties ? (
+                    "Salvando..."
+                  ) : (
+                    "Salvar"
+                  )}
                 </button>
               </div>
+
+              {saveSuccess && (
+                <div className="mb-3.5 p-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold flex items-center gap-1.5">
+                  <Check size={14} className="shrink-0" />
+                  <span>Dados salvos com sucesso!</span>
+                </div>
+              )}
+
+              {saveError && (
+                <div className="mb-3.5 p-2 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center gap-1.5">
+                  <AlertCircle size={14} className="shrink-0" />
+                  <span>{saveError}</span>
+                </div>
+              )}
 
               <div className="space-y-3.5 text-xs">
                 <div>
@@ -821,9 +875,22 @@ export default function ContactHubSpot({ contactId: propContactId, onBack: propO
                   <button
                     onClick={handleSaveProperties}
                     disabled={savingProperties}
-                    className="w-full py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 text-xs font-bold transition-all cursor-pointer"
+                    className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      saveSuccess
+                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-extrabold"
+                        : "bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+                    }`}
                   >
-                    Salvar Oportunidade
+                    {saveSuccess ? (
+                      <>
+                        <Check size={14} className="stroke-[3]" />
+                        Oportunidade Salva!
+                      </>
+                    ) : savingProperties ? (
+                      "Salvando..."
+                    ) : (
+                      "Salvar Oportunidade"
+                    )}
                   </button>
                 </div>
               </div>
