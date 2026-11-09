@@ -1,6 +1,6 @@
 import { useContext, useState, useEffect } from "react";
 import { AuthContext } from "../context/AuthContext";
-import { CheckCircle, Save, X, Sparkles, Edit2, User, MessageSquare, Target, Clock, Smile } from "lucide-react";
+import { CheckCircle, Save, X, Sparkles, Edit2, User, MessageSquare, Target, Clock, Smile, Bot } from "lucide-react";
 import { apiFetch, getStoredAuthToken } from "../api";
 
 function Field({ label, hint, children }) {
@@ -177,7 +177,7 @@ function AgentCard({ name, emoji, role, status }) {
     <div className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-2xl p-4 flex flex-col items-center gap-3 cursor-pointer transition-all hover:border-[var(--clr-primary)] hover:shadow-lg">
       <div className="relative">
         <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl bg-gradient-to-br from-[var(--clr-info)]/20 to-[var(--clr-primary)]/15 border border-[var(--clr-info)]/20">
-          {emoji}
+          {emoji && emoji !== "🤖" && emoji !== "✨" ? emoji : <Bot size={30} className="text-teal-600 dark:text-teal-400" />}
         </div>
         <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 ${status === "active" ? "bg-[var(--clr-success)]" : "bg-[var(--text-muted)]"} border-[var(--bg-surface)]`} />
       </div>

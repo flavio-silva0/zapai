@@ -715,30 +715,30 @@ export default function FullKanban() {
           <div className="flex items-center rounded-xl bg-[var(--bg-base)] p-1 border border-[var(--border-medium)] text-[11px] font-semibold">
             <button
               onClick={() => setTempFilter("all")}
-              className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${tempFilter === "all" ? "bg-teal-600 text-white" : "text-[var(--text-secondary)]"}`}
+              className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${tempFilter === "all" ? "bg-teal-600 text-white shadow-xs" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
             >
-              Temp
+              Todos
             </button>
             <button
               onClick={() => setTempFilter("hot")}
-              className={`px-2 py-1 rounded-lg transition-colors cursor-pointer ${tempFilter === "hot" ? "bg-rose-500 text-white" : "text-[var(--text-secondary)]"}`}
+              className={`px-2 py-1 rounded-lg transition-colors cursor-pointer flex items-center justify-center ${tempFilter === "hot" ? "bg-rose-500 text-white shadow-xs" : "text-[var(--text-secondary)] hover:text-rose-500"}`}
               title="Quentes"
             >
-              🔥
+              <Flame size={14} className={tempFilter === "hot" ? "text-white" : "text-rose-500"} />
             </button>
             <button
               onClick={() => setTempFilter("warm")}
-              className={`px-2 py-1 rounded-lg transition-colors cursor-pointer ${tempFilter === "warm" ? "bg-amber-500 text-white" : "text-[var(--text-secondary)]"}`}
+              className={`px-2 py-1 rounded-lg transition-colors cursor-pointer flex items-center justify-center ${tempFilter === "warm" ? "bg-amber-500 text-white shadow-xs" : "text-[var(--text-secondary)] hover:text-amber-500"}`}
               title="Mornos"
             >
-              🌤️
+              <Sun size={14} className={tempFilter === "warm" ? "text-white" : "text-amber-500"} />
             </button>
             <button
               onClick={() => setTempFilter("cold")}
-              className={`px-2 py-1 rounded-lg transition-colors cursor-pointer ${tempFilter === "cold" ? "bg-blue-500 text-white" : "text-[var(--text-secondary)]"}`}
+              className={`px-2 py-1 rounded-lg transition-colors cursor-pointer flex items-center justify-center ${tempFilter === "cold" ? "bg-blue-500 text-white shadow-xs" : "text-[var(--text-secondary)] hover:text-blue-500"}`}
               title="Frios"
             >
-              ❄️
+              <Snowflake size={14} className={tempFilter === "cold" ? "text-white" : "text-blue-500"} />
             </button>
           </div>
         </div>

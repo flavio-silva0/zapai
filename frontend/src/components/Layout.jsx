@@ -115,7 +115,7 @@ export default function Layout() {
           {/* Tenant pill */}
           <div className="mt-4 rounded-xl px-3 py-2.5 flex items-center gap-2.5 bg-[var(--bg-surface-active)]/40 border border-[var(--border-subtle)]">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center text-sm flex-shrink-0 bg-[var(--clr-primary)]/15 text-[var(--clr-primary)]">
-              {isSuperAdmin ? "⚙️" : botEmoji}
+              {isSuperAdmin ? <Settings size={16} /> : (botEmoji && botEmoji !== "✨" && botEmoji !== "🤖" ? botEmoji : <Bot size={16} />)}
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-[var(--text-primary)] text-[13px] font-semibold truncate leading-tight">{botName}</p>

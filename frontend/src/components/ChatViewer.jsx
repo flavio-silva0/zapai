@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useContext } from "react";
 import { Link } from "react-router-dom";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, MessageSquare, AlertCircle } from "lucide-react";
 import { apiFetch } from "../api";
 import { AuthContext } from "../context/AuthContext";
 import { useConfig } from "../context/ConfigContext";
@@ -16,8 +16,8 @@ const BUBBLE_STYLES = {
 
 const ORIGIN_LABEL = (name, emoji) => ({
   user: null,
-  bot: `${name} ${emoji}`,
-  human: "Recepção 👤",
+  bot: emoji && emoji !== "🤖" && emoji !== "✨" ? `${name} ${emoji}` : `${name} (IA)`,
+  human: "Atendimento Humano",
 });
 
 function formatarDataHora(isoString) {
@@ -277,7 +277,7 @@ export default function ChatViewer({
           </div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-2 text-[var(--text-muted)]">
-            <span className="text-4xl">💬</span>
+            <MessageSquare size={36} className="text-[var(--text-muted)] opacity-30 mb-1" />
             <p className="text-sm font-medium">Nenhuma mensagem ainda</p>
           </div>
         ) : (
@@ -311,7 +311,7 @@ export default function ChatViewer({
       {/* ── Aviso quando IA está pausada ──────────────────────── */}
       {!aiAtivo && (
         <div className="px-5 py-2.5 bg-amber-50 dark:bg-amber-950/40 border-t border-amber-200 dark:border-amber-800/60 flex items-center gap-2">
-          <span className="text-amber-600 text-xs">⚠️</span>
+          <AlertCircle size={15} className="text-amber-600 dark:text-amber-400 shrink-0" />
           <p className="text-amber-800 dark:text-amber-200 text-xs font-medium">
             IA pausada — você está assumindo o atendimento. As mensagens enviadas abaixo aparecerão no WhatsApp.
           </p>

@@ -1,3 +1,5 @@
+import { Bot, Pause } from "lucide-react";
+
 // Colunas do Kanban e suas cores
 const COLUNAS = [
   {
@@ -55,13 +57,23 @@ function PatientCard({ patient, isSelected, onSelect }) {
         </span>
         <span
           title={isAiOff ? "IA Pausada" : "IA Ativa"}
-          className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${
+          className={`text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0 flex items-center gap-1 ${
             isAiOff
               ? "bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
               : "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
           }`}
         >
-          {isAiOff ? "⏸ Pausado" : "🤖 IA"}
+          {isAiOff ? (
+            <>
+              <Pause size={10} className="stroke-[2.5]" />
+              Pausado
+            </>
+          ) : (
+            <>
+              <Bot size={11} className="stroke-[2.5]" />
+              IA
+            </>
+          )}
         </span>
       </div>
 

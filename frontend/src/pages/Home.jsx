@@ -3,7 +3,8 @@ import { Link } from "react-router-dom";
 import { apiFetch } from "../api";
 import {
   Users, MessageSquare, Activity, TrendingUp,
-  ArrowRight, CheckCircle2, Clock, Bot, MessageCircle
+  ArrowRight, CheckCircle2, Clock, Bot, MessageCircle,
+  BookOpen, Sparkles, Radio, FlaskConical
 } from "lucide-react";
 
 // SVG Bar Chart Component
@@ -472,24 +473,50 @@ export default function Home() {
             <p className="text-[11px] font-bold uppercase tracking-widest mb-3 text-[var(--text-muted)]">
               Ações Rápidas
             </p>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               {[
-                { label: "Base de Conhecimento", to: "/painel/treinamento", icon: "📚" },
-                { label: "Personalidade do Agente", to: "/painel/ia", icon: "✨" },
-                { label: "Canais & Integrações", to: "/painel/canais", icon: "🔌" },
-                { label: "Testar no Sandbox", to: "/painel/test", icon: "🧪" },
-              ].map(({ label, to, icon }) => (
+                {
+                  label: "Base de Conhecimento",
+                  to: "/painel/treinamento",
+                  icon: BookOpen,
+                  iconColor: "text-emerald-600 dark:text-emerald-400",
+                  bg: "bg-emerald-500/10 border border-emerald-500/20",
+                },
+                {
+                  label: "Personalidade do Agente",
+                  to: "/painel/ia",
+                  icon: Sparkles,
+                  iconColor: "text-amber-600 dark:text-amber-400",
+                  bg: "bg-amber-500/10 border border-amber-500/20",
+                },
+                {
+                  label: "Canais & Integrações",
+                  to: "/painel/canais",
+                  icon: Radio,
+                  iconColor: "text-indigo-600 dark:text-indigo-400",
+                  bg: "bg-indigo-500/10 border border-indigo-500/20",
+                },
+                {
+                  label: "Testar no Sandbox",
+                  to: "/painel/test",
+                  icon: FlaskConical,
+                  iconColor: "text-teal-600 dark:text-teal-400",
+                  bg: "bg-teal-500/10 border border-teal-500/20",
+                },
+              ].map(({ label, to, icon: Icon, iconColor, bg }) => (
                 <Link
                   key={to}
                   to={to}
-                  className="flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-[var(--bg-surface-hover)] transition-all group"
+                  className="flex items-center gap-2.5 p-2 rounded-xl hover:bg-[var(--bg-surface-hover)] transition-all group"
                 >
-                  <span className="text-base">{icon}</span>
+                  <div className={`w-7 h-7 rounded-lg ${bg} flex items-center justify-center shrink-0`}>
+                    <Icon size={14} className={iconColor} />
+                  </div>
                   <span className="text-[12px] font-medium flex-1 text-[var(--text-secondary)] group-hover:text-[var(--text-primary)]">
                     {label}
                   </span>
                   <ArrowRight
-                    size={11}
+                    size={12}
                     className="transition-transform group-hover:translate-x-0.5 text-[var(--text-muted)]"
                   />
                 </Link>

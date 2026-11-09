@@ -471,7 +471,7 @@ export default function Admin() {
         </div>
       ) : filtrados.length === 0 ? (
         <div className="text-center py-16">
-          <p className="text-slate-600 text-4xl mb-3">🏢</p>
+          <Building2 size={36} className="text-slate-600 mx-auto mb-3 opacity-60" />
           <p className="text-slate-400 font-semibold">
             {tenants.length === 0 ? "Nenhum cliente cadastrado ainda." : "Nenhum resultado para o filtro."}
           </p>

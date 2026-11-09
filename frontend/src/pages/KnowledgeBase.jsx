@@ -1,7 +1,8 @@
 import { useState, useEffect, useContext } from "react";
 import {
   BookOpen, Link as LinkIcon, FileText, Trash2, Plus, Loader2, Globe,
-  Edit3, Check, X, Upload, File as FileIcon, FileImage, FileCode, Search, Camera
+  Edit3, Check, X, Upload, File as FileIcon, FileImage, FileCode, Search, Camera,
+  Zap, CheckCircle2
 } from "lucide-react";
 import { apiFetch } from "../api";
 import { AuthContext } from "../context/AuthContext";
@@ -301,15 +302,35 @@ export default function KnowledgeBase() {
       {/* Stats bar */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: "Documentos", value: knowledgeList.length, icon: "📄" },
-          { label: "Resoluções Automatizadas", value: "72%", icon: "⚡" },
-          { label: "Status", value: "Ativo", icon: "🟢" },
-        ].map((s, i) => (
-          <div key={i} className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-xl px-4 py-3 flex items-center gap-3">
-            <span className="text-xl">{s.icon}</span>
+          {
+            label: "Documentos",
+            value: knowledgeList.length,
+            icon: FileText,
+            color: "text-indigo-600 dark:text-indigo-400",
+            bg: "bg-indigo-500/10 border border-indigo-500/20",
+          },
+          {
+            label: "Resoluções Automatizadas",
+            value: "72%",
+            icon: Zap,
+            color: "text-amber-600 dark:text-amber-400",
+            bg: "bg-amber-500/10 border border-amber-500/20",
+          },
+          {
+            label: "Status",
+            value: "Ativo",
+            icon: CheckCircle2,
+            color: "text-emerald-600 dark:text-emerald-400",
+            bg: "bg-emerald-500/10 border border-emerald-500/20",
+          },
+        ].map(({ label, value, icon: Icon, color, bg }, i) => (
+          <div key={i} className="bg-[var(--bg-surface)] border border-[var(--border-medium)] rounded-xl px-4 py-3 flex items-center gap-3 shadow-xs">
+            <div className={`w-9 h-9 rounded-xl ${bg} flex items-center justify-center shrink-0`}>
+              <Icon size={18} className={color} />
+            </div>
             <div>
-              <p className="text-[var(--text-primary)] font-black text-lg font-display leading-tight">{s.value}</p>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">{s.label}</p>
+              <p className="text-[var(--text-primary)] font-black text-lg font-display leading-tight">{value}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-muted)]">{label}</p>
             </div>
           </div>
         ))}
