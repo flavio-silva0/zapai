@@ -22,28 +22,51 @@ function WhatsAppIcon({ className = "w-6 h-6" }) {
   );
 }
 
-function ShopifyIcon({ className = "w-6 h-6" }) {
+function WebhookIcon({ className = "w-6 h-6" }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M19.4 6.1c-.04-.3-.29-.5-.59-.5-.3 0-2.1-.1-2.1-.1s-1.4-1.4-1.6-1.5c-.2-.2-.5-.1-.6-.1 0 0-.7.2-2 .5-1.2-1.5-2.8-2.1-4.4-2.1-3.5 0-5.2 2.6-5.2 5.4 0 3.7 3.3 6.8 3.3 6.8s-1.9 6.9-2.2 8c-.3 1.1.3 1.6.9 1.6.2 0 .5-.1.9-.3 1-.5 5.8-3.2 5.8-3.2s3.6 1.5 4.4 1.8c1.2.4 2.1.1 2.5-.6.3-.7 1.1-5.9 1.1-5.9s1.3-.4 1.5-.5c.6-.3.6-.8.6-.8l-1.8-9z" fill="#95BF47"/>
-      <path d="M14.4 3.8c-.2-.2-.5-.1-.6-.1 0 0-.7.2-2 .5-1.2-1.5-2.8-2.1-4.4-2.1-3.5 0-5.2 2.6-5.2 5.4 0 3.7 3.3 6.8 3.3 6.8s-1.9 6.9-2.2 8c-.3 1.1.3 1.6.9 1.6.2 0 .5-.1.9-.3 1-.5 5.8-3.2 5.8-3.2s3.6 1.5 4.4 1.8c1.2.4 2.1.1 2.5-.6.3-.7 1.1-5.9 1.1-5.9l-6.1-9.9z" fill="#5E8E3E" opacity="0.35"/>
-      <path d="M12.9 8.2c-.4-.1-1-.1-1.5-.1-.3 0-.4.2-.4.4 0 .5.7.7 1.3 1 .8.3 1.7.8 1.7 1.9 0 1.4-1.1 2.2-2.7 2.2-1 0-1.8-.2-2.1-.4l.3-1.3c.3.1 1 .3 1.6.3.5 0 .9-.2.9-.5 0-.5-.7-.7-1.3-.9-.8-.4-1.6-.8-1.6-1.9 0-1.3 1.1-2.2 2.6-2.2.8 0 1.5.2 1.8.3l-.6 1.3z" fill="#FFFFFF"/>
+      <path
+        d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2"
+        stroke="#818CF8"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="m6 17 3.13-5.78c.53-.97.1-2.18-.5-3.1a4 4 0 1 1 6.89-4.06"
+        stroke="#818CF8"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="m12 6 3.13 5.73C15.66 12.7 16.9 13 18 13a4 4 0 0 1 0 8"
+        stroke="#818CF8"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="2.5" cy="16.5" r="1.5" fill="#C7D2FE" />
+      <circle cx="15.2" cy="5.8" r="1.5" fill="#C7D2FE" />
+      <circle cx="18" cy="17" r="1.5" fill="#C7D2FE" />
     </svg>
   );
 }
 
 function GoogleCalendarIcon({ className = "w-6 h-6" }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect x="3" y="4" width="18" height="17" rx="3.5" fill="#FFFFFF" />
-      <path d="M17 2.5V5.5M7 2.5V5.5" stroke="#4285F4" strokeWidth="2" strokeLinecap="round" />
-      <path d="M3 8.5H21" stroke="#E2E8F0" strokeWidth="1.5" />
-      <rect x="3" y="4" width="18" height="4.5" rx="3.5" fill="#4285F4" />
-      <rect x="3" y="6.5" width="18" height="2" fill="#4285F4" />
-      <circle cx="17.5" cy="17.5" r="1.5" fill="#34A853" />
-      <circle cx="6.5" cy="17.5" r="1.5" fill="#EA4335" />
-      <circle cx="17.5" cy="12" r="1.5" fill="#FBBC05" />
-      <text x="12" y="16.5" textAnchor="middle" fill="#1E293B" fontSize="7" fontWeight="bold" fontFamily="system-ui, sans-serif">31</text>
+    <svg className={className} viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <g transform="translate(3.75 3.75)">
+        <path fill="#FFFFFF" d="M148.882 43.618l-47.368-5.263-57.895 5.263L38.355 96.25l5.263 52.632 52.632 6.579 52.632-6.579 5.263-53.947-4.263-51.317z"/>
+        <path fill="#1A73E8" d="M65.211 125.276c-3.934-2.658-6.658-6.539-8.145-11.671l9.132-3.763c.829 3.158 2.276 5.605 4.342 7.342 2.053 1.737 4.553 2.592 7.474 2.592 2.987 0 5.553-.908 7.697-2.724s3.224-4.132 3.224-6.934c0-2.868-1.132-5.211-3.395-7.026s-5.105-2.724-8.5-2.724h-5.276v-9.039H76.5c2.921 0 5.382-.789 7.382-2.368 2-1.579 3-3.737 3-6.487 0-2.447-.895-4.395-2.684-5.855s-4.053-2.197-6.803-2.197c-2.684 0-4.816.711-6.395 2.145s-2.724 3.197-3.447 5.276l-9.039-3.763c1.197-3.395 3.395-6.395 6.618-8.987 3.224-2.592 7.342-3.895 12.342-3.895 3.697 0 7.026.711 9.974 2.145 2.947 1.434 5.263 3.421 6.934 5.947 1.671 2.539 2.5 5.382 2.5 8.539 0 3.224-.776 5.947-2.329 8.184-1.553 2.237-3.461 3.947-5.724 5.145v.539c2.987 1.25 5.421 3.158 7.342 5.724 1.908 2.566 2.868 5.632 2.868 9.211s-.908 6.776-2.724 9.579c-1.816 2.803-4.329 5.013-7.513 6.618-3.197 1.605-6.789 2.421-10.776 2.421-7.053 0-11.316-1.329-15.25-3.987z"/>
+        <path fill="#1A73E8" d="M121.25 79.961l-9.974 7.25-5.013-7.605 17.987-12.974h6.895v61.197h-9.895V79.961z"/>
+        <path fill="#EA4335" d="M148.882 196.25l47.368-47.368-23.684-10.526-23.684 10.526-10.526 23.684 10.526 23.684z"/>
+        <path fill="#34A853" d="M33.092 172.566l10.526 23.684h105.263v-47.368H43.618l-10.526 23.684z"/>
+        <path fill="#4285F4" d="M12.039-3.75C3.316-3.75-3.75 3.316-3.75 12.039v136.842l23.684 10.526 23.684-10.526V43.618h105.263l10.526-23.684L148.882-3.75H12.039z"/>
+        <path fill="#188038" d="M-3.75 148.882v31.579c0 8.724 7.066 15.789 15.789 15.789h31.579v-47.368H-3.75z"/>
+        <path fill="#FBBC04" d="M148.882 43.618v105.263h47.368V43.618l-23.684-10.526-23.684 10.526z"/>
+        <path fill="#1967D2" d="M196.25 43.618V12.039c0-8.724-7.066-15.789-15.789-15.789h-31.579v47.368H196.25z"/>
+      </g>
     </svg>
   );
 }
@@ -52,22 +75,19 @@ function HubSpotIcon({ className = "w-6 h-6" }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
-        d="M17.8 7.6V4.8a1.8 1.8 0 1 0-2.6 0v2.8a4.5 4.5 0 0 0-3.1 1.2L7 5.8a2.3 2.3 0 1 0-1.9 1l5.2 3a4.6 4.6 0 0 0-.3 1.7c0 1 .3 1.9.8 2.6l-2.4 2.4a1.8 1.8 0 1 0 1.3 1.3l2.4-2.4a4.6 4.6 0 1 0 5.7-7.8zm-1.3 7.2a2.3 2.3 0 1 1 0-4.6 2.3 2.3 0 0 1 0 4.6z"
+        d="M18.164 7.93V5.084a2.198 2.198 0 001.267-1.978v-.067A2.2 2.2 0 0017.238.845h-.067a2.2 2.2 0 00-2.193 2.193v.067a2.196 2.196 0 001.252 1.973l.013.006v2.852a6.22 6.22 0 00-2.969 1.31l.012-.01-7.828-6.095A2.497 2.497 0 104.3 4.656l-.012.006 7.697 5.991a6.176 6.176 0 00-1.038 3.446c0 1.343.425 2.588 1.147 3.607l-.013-.02-2.342 2.343a1.968 1.968 0 00-.58-.095h-.002a2.033 2.033 0 102.033 2.033 1.978 1.978 0 00-.1-.595l.005.014 2.317-2.317a6.247 6.247 0 104.782-11.134l-.036-.005zm-.964 9.378a3.206 3.206 0 113.215-3.207v.002a3.206 3.206 0 01-3.207 3.207z"
         fill="#FF7A59"
       />
     </svg>
   );
 }
 
-function ZapierIcon({ className = "w-6 h-6" }) {
+function N8nIcon({ className = "w-6 h-6" }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="24" height="24" rx="5" fill="#FF4F00" />
       <path
-        d="M12 4.5V19.5M4.5 12H19.5M6.7 6.7L17.3 17.3M6.7 17.3L17.3 6.7"
-        stroke="#FFFFFF"
-        strokeWidth="2.8"
-        strokeLinecap="round"
+        d="M4.8 16.8c.45 0 .6-.15.6-.6V15c0-1.8.6-2.4 2.4-2.4H9c1.8 0 2.4.6 2.4 2.4v1.2c0 .45.15.6.6.6s.6-.15.6-.6V15c0-1.8.6-2.4 2.4-2.4h1.2c1.8 0 2.4.6 2.4 2.4v1.2c0 .45.15.6.6.6s.6-.15.6-.6V15c0-1.8.6-2.4 2.4-2.4h1.2c.45 0 .6-.15.6-.6s-.15-.6-.6-.6h-1.2c-1.8 0-2.4-.6-2.4-2.4V7.8c0-.45-.15-.6-.6-.6s-.6.15-.6.6V9c0 1.8-.6 2.4-2.4 2.4H15c-1.8 0-2.4-.6-2.4-2.4V7.8c0-.45-.15-.6-.6-.6s-.6.15-.6.6V9c0 1.8-.6 2.4-2.4 2.4H7.8c-1.8 0-2.4-.6-2.4-2.4V7.8c0-.45-.15-.6-.6-.6s-.6.15-.6.6V9c0 1.8-.6 2.4-2.4 2.4H.6c-.45 0-.6.15-.6.6s.15.6.6.6h1.2c1.8 0 2.4.6 2.4 2.4v1.2c0 .45.15.6.6.6"
+        fill="#EA4B71"
       />
     </svg>
   );
@@ -76,14 +96,8 @@ function ZapierIcon({ className = "w-6 h-6" }) {
 function EmailIcon({ className = "w-6 h-6" }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="24" height="24" rx="5" fill="#7C3AED" />
-      <path
-        d="M5 8.5L11.23 12.87C11.7 13.2 12.3 13.2 12.77 12.87L19 8.5M6 6H18C19.1 6 20 6.9 20 8V16C20 17.1 19.1 18 18 18H6C4.9 18 4 17.1 4 16V8C4 6.9 4.9 6 6 6Z"
-        stroke="#FFFFFF"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
+      <rect x="2" y="4" width="20" height="16" rx="4" fill="#7C3AED" fillOpacity="0.2" stroke="#8B5CF6" strokeWidth="1.75" />
+      <path d="m4 7 8 6 8-6" stroke="#C4B5FD" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -91,14 +105,18 @@ function EmailIcon({ className = "w-6 h-6" }) {
 function WidgetIcon({ className = "w-6 h-6" }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <rect width="24" height="24" rx="5" fill="#00D4FF" />
       <path
-        d="M6 7.5H18C18.8 7.5 19.5 8.2 19.5 9V14C19.5 14.8 18.8 15.5 18 15.5H15L12 18V15.5H6C5.2 15.5 4.5 14.8 4.5 14V9C4.5 8.2 5.2 7.5 6 7.5Z"
-        fill="#0F172A"
+        d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"
+        fill="#00D4FF"
+        fillOpacity="0.2"
+        stroke="#00D4FF"
+        strokeWidth="1.75"
+        strokeLinecap="round"
+        strokeLinejoin="round"
       />
-      <circle cx="9" cy="11.5" r="1" fill="#00D4FF" />
-      <circle cx="12" cy="11.5" r="1" fill="#00D4FF" />
-      <circle cx="15" cy="11.5" r="1" fill="#00D4FF" />
+      <circle cx="9" cy="12" r="1.25" fill="#00D4FF" />
+      <circle cx="12.5" cy="12" r="1.25" fill="#00D4FF" />
+      <circle cx="16" cy="12" r="1.25" fill="#00D4FF" />
     </svg>
   );
 }
@@ -154,12 +172,12 @@ function IntegrationCard({ name, description, icon: Icon, iconBg, connected, bad
 
 const INTEGRATIONS = [
   {
-    name: "Shopify",
-    description: "Consulte pedidos, status de entrega e estoque automaticamente nas conversas",
-    icon: ShopifyIcon,
-    iconBg: "rgba(149,191,71,0.15)",
+    name: "Webhook",
+    description: "Dispare e receba eventos em tempo real conectando endpoints HTTP e APIs externas",
+    icon: WebhookIcon,
+    iconBg: "rgba(99,102,241,0.15)",
     connected: false,
-    badge: "E-commerce",
+    badge: "API & Eventos",
     comingSoon: true,
   },
   {
@@ -175,16 +193,16 @@ const INTEGRATIONS = [
     name: "HubSpot CRM",
     description: "Registre leads e atualize contatos automaticamente a cada interação",
     icon: HubSpotIcon,
-    iconBg: "rgba(255,122,0,0.15)",
+    iconBg: "rgba(255,122,89,0.15)",
     connected: false,
     badge: "CRM",
     comingSoon: true,
   },
   {
-    name: "Zapier",
-    description: "Conecte com mais de 5.000 aplicativos via automações sem código",
-    icon: ZapierIcon,
-    iconBg: "rgba(255,79,0,0.15)",
+    name: "n8n",
+    description: "Automatize fluxos de trabalho avançados e conecte centenas de ferramentas sem código",
+    icon: N8nIcon,
+    iconBg: "rgba(234,75,113,0.15)",
     connected: false,
     badge: "Automação",
     comingSoon: true,
