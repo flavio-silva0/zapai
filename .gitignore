@@ -29,3 +29,5 @@ screenshot_*.png
 /audit-2026-09-09/
 /docs/qa-contact-insights/
 /docs/qa-registration/
+.agents/
+
